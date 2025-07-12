@@ -14,13 +14,11 @@ export function StickyNote({ note, onUpdate, onDelete }) {
   }, [note]);
 
   const handleMouseDown = (e) => {
-    if (e.target.classList.contains("note-header")) {
-      setIsDragging(true);
-      dragOffset.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      };
-    }
+    setIsDragging(true);
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
   };
 
   const handleMouseMove = (e) => {
@@ -75,11 +73,6 @@ export function StickyNote({ note, onUpdate, onDelete }) {
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="note-header">
-        <button className="delete-btn" onClick={handleDelete}>
-          ×
-        </button>
-      </div>
       <div className="note-content">
         {isEditing ? (
           <textarea
