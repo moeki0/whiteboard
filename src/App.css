@@ -4,6 +4,10 @@
   padding: 0;
 }
 
+html {
+  background-color: #f5f5f5;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
@@ -11,7 +15,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f5f5;
-  overflow: hidden;
+  padding-top: 40px;
+  position: relative;
+}
+
+a {
+  color: #333;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #333;
+}
+
+button {
+  cursor: default;
 }
 
 #root {
@@ -81,39 +99,6 @@ body {
   margin-top: 1rem;
 }
 
-/* User Info */
-.user-info {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-  background-color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.user-info .auth-container {
-  min-height: auto;
-  flex-direction: row;
-  gap: 15px;
-  padding: 0;
-}
-
-.user-info button {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.user-info button:hover {
-  background-color: #d32f2f;
-}
-
 /* Board */
 .board {
   width: 100%;
@@ -165,43 +150,20 @@ body {
   overflow: hidden;
 }
 
-/* Sticky Note */
 .sticky-note {
   position: absolute;
-  width: 250px;
-  min-height: 250px;
+  min-height: 60px;
   padding: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
   transition: box-shadow 0.3s;
+  border: 2px solid white;
 }
 
-.sticky-note:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.note-header {
-  padding: 10px;
-  cursor: move;
-  display: flex;
-  justify-content: flex-end;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #666;
-  padding: 0 5px;
-  transition: color 0.3s;
-}
-
-.delete-btn:hover {
-  color: #f44336;
+.sticky-note.active {
+  border: 2px solid #5b97ff;
 }
 
 .note-content {
@@ -211,18 +173,782 @@ body {
 
 .note-content textarea {
   width: 100%;
-  height: 100%;
   border: none;
   background: transparent;
-  resize: none;
-  font-family: inherit;
-  font-size: 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  min-height: 16px;
   outline: none;
+  line-height: 1.5;
+  resize: none;
+  padding: 0;
+  margin-bottom: -6px;
 }
 
 .note-content > div {
-  min-height: 180px;
-  cursor: text;
+  min-height: 16px;
+  height: 100%;
   word-wrap: break-word;
   white-space: pre-wrap;
+  font-family: Arial, Helvetica, sans-serif;
+  cursor: default;
+  line-height: 1.5;
+  user-select: none;
+}
+
+/* Cursor styles */
+.cursor {
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.cursor-pointer {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  top: -40px;
+  left: 0;
+}
+
+.cursor-label {
+  position: absolute;
+  top: -25px;
+  left: 20px;
+  color: white;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Project List */
+.project-list {
+  width: 100%;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.project-list-header {
+  background-color: white;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.project-list-header h1 {
+  font-size: 1.8rem;
+  color: #333;
+  margin: 0;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.project-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e0e0e0;
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.project-card-header h3 {
+  font-size: 1.3rem;
+  color: #333;
+  margin: 0;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #999;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.delete-btn:hover {
+  background-color: #f44336;
+  color: white;
+}
+
+.project-info {
+  margin-bottom: 15px;
+}
+
+.project-info p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.project-members {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #4caf50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.member-avatar.more {
+  background-color: #999;
+  font-size: 10px;
+}
+
+.open-project-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.open-project-btn:hover {
+  background-color: #45a049;
+}
+
+.create-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 2px dashed #ccc;
+  background-color: #fafafa;
+}
+
+.create-project-btn {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  transition: color 0.2s;
+}
+
+.create-project-btn:hover {
+  color: #4caf50;
+}
+
+.plus-icon {
+  font-size: 48px;
+  color: #ccc;
+}
+
+.create-project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.create-project-form input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+}
+
+.create-project-form input:focus {
+  border-color: #4caf50;
+}
+
+.create-project-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.create-project-buttons button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-project-buttons button:first-child {
+  background-color: #4caf50;
+  color: white;
+}
+
+.create-project-buttons button:first-child:hover {
+  background-color: #45a049;
+}
+
+.create-project-buttons button:last-child {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.create-project-buttons button:last-child:hover {
+  background-color: #e0e0e0;
+}
+
+.project-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.invite-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.invite-btn:hover {
+  background-color: #e8f5e8;
+}
+
+.invite-link-display {
+  margin-top: 10px;
+}
+
+.invite-link-readonly {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  font-size: 12px;
+  font-family: monospace;
+  color: #666;
+  cursor: pointer;
+}
+
+/* Board List */
+.board-list {
+  width: 100%;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.board-list-header {
+  background-color: white;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #4caf50;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #f0f8f0;
+}
+
+.boards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.board-card-wrapper {
+  position: relative;
+  background-color: white;
+  border-radius: 4px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e0e0e0;
+}
+
+.board-card {
+  display: block;
+  padding: 20px;
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.board-card:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Delete Board Button */
+.delete-board-btn {
+  background: none;
+  color: #aaa;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s;
+  z-index: 10;
+}
+
+.board-card-wrapper:hover .delete-board-btn {
+  opacity: 1;
+}
+
+.board-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.board-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #333;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: none;
+  color: #333;
+}
+
+.board-card-header h3 {
+  font-size: 1.2rem;
+  color: #333;
+  margin: 0;
+}
+
+.board-info {
+  margin-bottom: 15px;
+}
+
+.board-info p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.open-board-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.open-board-btn:hover {
+  background-color: #1976d2;
+}
+
+.create-board-btn {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  transition: color 0.2s;
+}
+
+.create-board-btn:hover {
+  color: #2196f3;
+}
+
+.create-board-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.create-board-form input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+}
+
+.create-board-form input:focus {
+  border-color: #2196f3;
+}
+
+.create-board-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.create-board-buttons button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-board-buttons button:first-child {
+  background-color: #2196f3;
+  color: white;
+}
+
+.create-board-buttons button:first-child:hover {
+  background-color: #1976d2;
+}
+
+.create-board-buttons button:last-child {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.create-board-buttons button:last-child:hover {
+  background-color: #e0e0e0;
+}
+
+/* Board Header Update */
+.board-header {
+  background-color: white;
+  padding: 15px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.board-header h1 {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0;
+}
+
+/* Invite Join */
+.invite-join {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.invite-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.invite-card.error {
+  border-left: 4px solid #f44336;
+}
+
+.invite-card h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.project-preview {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 6px;
+  margin: 20px 0;
+}
+
+.project-preview h3 {
+  margin: 0 0 10px 0;
+  color: #4caf50;
+}
+
+.project-preview p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.invite-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.join-btn {
+  flex: 1;
+  padding: 12px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.join-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.join-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 12px;
+  background-color: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* User Settings Button */
+.user-settings-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-settings-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+div.user-avatar-small {
+  background-color: #4caf50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Welcome Screen */
+.welcome-screen {
+  width: 100%;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.welcome-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 100px);
+  padding: 20px;
+}
+
+.welcome-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.welcome-card h2 {
+  font-size: 2rem;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.welcome-card p {
+  font-size: 1.1rem;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.create-first-project-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-first-project-btn:hover {
+  background-color: #45a049;
+}
+
+/* FAB New Board Button in Header */
+.fab-new-board-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  padding: 0;
+  padding-bottom: 4px;
+  outline: none;
+}
+
+/* Board Title Editing */
+.board-title-edit {
+  display: flex;
+  align-items: center;
+}
+
+.board-title {
+  color: #333;
+  margin: 0;
+  cursor: pointer;
+  padding: 0px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.board-title:hover {
+  background-color: #f0f0f0;
+}
+
+.board-title-input {
+  color: #333;
+  font-size: 16px;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 4px 8px;
+  border: 2px solid #4caf50;
+  border-radius: 4px;
+  background-color: white;
+  outline: none;
+  font-family: inherit;
+  font-weight: inherit;
+  min-width: 200px;
 }
