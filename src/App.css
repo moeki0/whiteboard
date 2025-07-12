@@ -1,0 +1,220 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f5f5;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: #666;
+}
+
+/* Auth Container */
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #fff;
+  padding: 2rem;
+}
+
+.auth-container h2 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.auth-container p {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.google-signin {
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.3s;
+}
+
+.google-signin:hover {
+  background-color: #357ae8;
+}
+
+.error {
+  color: #d32f2f;
+  margin-top: 1rem;
+}
+
+/* User Info */
+.user-info {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  background-color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.user-info .auth-container {
+  min-height: auto;
+  flex-direction: row;
+  gap: 15px;
+  padding: 0;
+}
+
+.user-info button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.user-info button:hover {
+  background-color: #d32f2f;
+}
+
+/* Board */
+.board {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.board-header {
+  background-color: white;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.board-header h1 {
+  font-size: 1.8rem;
+  color: #333;
+}
+
+.add-note-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.add-note-btn:hover {
+  background-color: #45a049;
+}
+
+.notes-container {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 80px);
+  overflow: hidden;
+}
+
+/* Sticky Note */
+.sticky-note {
+  position: absolute;
+  width: 250px;
+  min-height: 250px;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.3s;
+}
+
+.sticky-note:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.note-header {
+  padding: 10px;
+  cursor: move;
+  display: flex;
+  justify-content: flex-end;
+  background-color: rgba(0,0,0,0.05);
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+  padding: 0 5px;
+  transition: color 0.3s;
+}
+
+.delete-btn:hover {
+  color: #f44336;
+}
+
+.note-content {
+  flex: 1;
+  padding: 15px;
+}
+
+.note-content textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.note-content > div {
+  min-height: 180px;
+  cursor: text;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
