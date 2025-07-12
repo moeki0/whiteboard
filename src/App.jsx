@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './config/firebase';
-import { Auth } from './components/Auth';
-import { Board } from './components/Board';
-import './App.css';
+import { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./config/firebase";
+import { Auth } from "./components/Auth";
+import { Board } from "./components/Board";
+import "./App.css";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -24,16 +24,7 @@ function App() {
 
   return (
     <div className="app">
-      {!user ? (
-        <Auth user={user} />
-      ) : (
-        <>
-          <div className="user-info">
-            <Auth user={user} />
-          </div>
-          <Board user={user} />
-        </>
-      )}
+      {!user ? <Auth user={user} /> : <Board user={user} />}
     </div>
   );
 }
