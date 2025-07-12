@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 
-export function StickyNote({ note, onUpdate, onDelete, yDoc }) {
+export function StickyNote({ note, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
@@ -14,12 +14,11 @@ export function StickyNote({ note, onUpdate, onDelete, yDoc }) {
   }, [note]);
 
   const handleMouseDown = (e) => {
-    if (e.target.classList.contains('note-header')) {
+    if (e.target.classList.contains("note-header")) {
       setIsDragging(true);
-      const rect = noteRef.current.getBoundingClientRect();
       dragOffset.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
       };
     }
   };
@@ -41,11 +40,11 @@ export function StickyNote({ note, onUpdate, onDelete, yDoc }) {
 
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
       };
     }
   }, [isDragging, position]);
@@ -72,12 +71,14 @@ export function StickyNote({ note, onUpdate, onDelete, yDoc }) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        backgroundColor: note.color || '#ffeb3b'
+        backgroundColor: note.color || "#ffeb3b",
       }}
       onMouseDown={handleMouseDown}
     >
       <div className="note-header">
-        <button className="delete-btn" onClick={handleDelete}>×</button>
+        <button className="delete-btn" onClick={handleDelete}>
+          ×
+        </button>
       </div>
       <div className="note-content">
         {isEditing ? (
@@ -89,7 +90,7 @@ export function StickyNote({ note, onUpdate, onDelete, yDoc }) {
           />
         ) : (
           <div onClick={() => setIsEditing(true)}>
-            {content || 'Click to edit...'}
+            {content || "Click to edit..."}
           </div>
         )}
       </div>
