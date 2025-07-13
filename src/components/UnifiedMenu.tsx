@@ -10,7 +10,9 @@ interface UnifiedMenuProps {
   user: User;
 }
 
-export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps) {
+export const UnifiedMenu = memo(function UnifiedMenu({
+  user,
+}: UnifiedMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentProjectId } = useProject();
@@ -22,13 +24,14 @@ export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps)
   // Check if we're on a board page - memoized to avoid recalculation
   const { currentBoardId, isOnBoardPage } = useMemo(() => {
     const boardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
-    const onBoardPage = boardId &&
+    const onBoardPage =
+      boardId &&
       !location.pathname.includes("/project/") &&
       !location.pathname.includes("/user/") &&
       !location.pathname.includes("/create-") &&
       !location.pathname.includes("/invite/") &&
       !location.pathname.includes("/board/");
-    
+
     return { currentBoardId: boardId, isOnBoardPage: onBoardPage };
   }, [location.pathname]);
 
@@ -124,10 +127,13 @@ export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps)
     };
   }, []);
 
-  const handleProjectSelect = useCallback((projectId: string) => {
-    setIsOpen(false);
-    navigate(`/project/${projectId}`);
-  }, [navigate]);
+  const handleProjectSelect = useCallback(
+    (projectId: string) => {
+      setIsOpen(false);
+      navigate(`/project/${projectId}`);
+    },
+    [navigate]
+  );
 
   const handleProjectSettings = useCallback(() => {
     setIsOpen(false);
@@ -154,7 +160,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps)
   }, [navigate, currentBoardId]);
 
   const toggleMenu = useCallback(() => {
-    setIsOpen(prev => !prev);
+    setIsOpen((prev) => !prev);
   }, []);
 
   return (
@@ -187,7 +193,6 @@ export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps)
 
           {isOnBoardPage && canEditBoard && (
             <>
-              <div className="menu-divider" />
               <button className="menu-item" onClick={handleBoardSettings}>
                 Board Settings
               </button>
