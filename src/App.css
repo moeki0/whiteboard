@@ -155,12 +155,12 @@ button {
 .sticky-note {
   position: absolute;
   min-height: 30px;
-  padding: 5px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
+  text-align: center;
   transition: box-shadow 0.3s;
   border: 1px solid #cccccc;
-  /* Remove position transition for more immediate updates */
 }
 
 .sticky-note.active {
@@ -180,7 +180,7 @@ button {
   border: none;
   background: transparent;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   min-height: 16px;
   outline: none;
   line-height: 1.5;
@@ -191,6 +191,7 @@ button {
 
 .note-content > div {
   min-height: 16px;
+  font-size: 15px;
   height: 100%;
   word-wrap: break-word;
   white-space: pre-wrap;

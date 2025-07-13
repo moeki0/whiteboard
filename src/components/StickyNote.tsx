@@ -26,8 +26,8 @@ export function StickyNote({
   const [content, setContent] = useState(note.content);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const [isDragging, setIsDragging] = useState(false);
-  const [dimensions, setDimensions] = useState({
-    width: note.width || 100,
+  const [dimensions] = useState({
+    width: 160, // 固定幅に設定
     height: "auto" as const,
   });
   const noteRef = useRef<HTMLDivElement>(null);
@@ -59,38 +59,10 @@ export function StickyNote({
       setPosition({ x: note.x, y: note.y });
     }
 
-    if (note.width) {
-      setDimensions((prev) => ({ ...prev, width: note.width }));
-    }
+    // 固定幅なので動的な幅調整を削除
   }, [note, isDragging, isEditing, currentUserId, content]);
 
-  // Auto-resize based on content
-  useEffect(() => {
-    if (contentRef.current && !isEditing) {
-      const measureDiv = document.createElement("div");
-      measureDiv.style.cssText = `
-        position: absolute;
-        visibility: hidden;
-        width: auto;
-        height: auto;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        padding: 15px;
-        min-width: 100px;
-        max-width: 100px;
-      `;
-      measureDiv.textContent = content || "Double-click to edit...";
-      document.body.appendChild(measureDiv);
-
-      const newWidth = Math.max(60, Math.min(600, measureDiv.offsetWidth));
-      setDimensions((prev) => ({ ...prev, width: newWidth }));
-
-      document.body.removeChild(measureDiv);
-    }
-  }, [content, isEditing]);
+  // 固定幅なので自動リサイズは不要
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
@@ -157,40 +129,13 @@ export function StickyNote({
     const newContent = e.target.value;
     setContent(newContent);
 
-    // Measure text width for horizontal resize
-    if (e.target) {
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context!.font = "16px Arial, Helvetica, sans-serif";
-
-      const lines = newContent.split("\n");
-      let maxWidth = 0;
-
-      lines.forEach((line: string) => {
-        const lineWidth = context!.measureText(line || " ").width;
-        maxWidth = Math.max(maxWidth, lineWidth);
-      });
-
-      const newWidth = Math.max(100, Math.min(600, maxWidth + 16));
-      setDimensions((prev) => ({ ...prev, width: newWidth }));
-
-      // Real-time content update with new width
-      throttledContentUpdate(note.id, {
-        content: newContent,
-        width: newWidth,
-        isEditing: true,
-        editedBy: currentUserId,
-      });
-    } else {
-      // Real-time content update without width change
-      throttledContentUpdate(note.id, {
-        content: newContent,
-        width: dimensions.width,
-        isEditing: true,
-        editedBy: currentUserId,
-      });
-    }
+    // 固定幅なので幅の計算は不要、コンテンツのみ更新
+    throttledContentUpdate(note.id, {
+      content: newContent,
+      width: dimensions.width,
+      isEditing: true,
+      editedBy: currentUserId,
+    });
   };
 
   const handleBlur = () => {
@@ -219,7 +164,9 @@ export function StickyNote({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
-        !window.getSelection()?.focusNode &&
+        !window
+          .getSelection()
+          ?.focusNode?.parentElement?.classList.contains("sticky-note") &&
         !isEditing &&
         isActive &&
         (e.key === "Delete" || e.key === "Backspace")
@@ -260,7 +207,7 @@ export function StickyNote({
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: `${Math.max(dimensions.width, 100)}px`,
+        width: `${dimensions.width}px`,
         backgroundColor: "white",
         zIndex: note.zIndex || 1,
         ...(interactionBorderColor && {
