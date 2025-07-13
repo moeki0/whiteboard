@@ -25,7 +25,7 @@ export function Board({ user }) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
   );
-  const { addToHistory, undo, redo, canUndo, canRedo } = useHistory();
+  const { addToHistory, undo, redo } = useHistory();
   const [isUndoRedoOperation, setIsUndoRedoOperation] = useState(false);
   const [cursorColor] = useState(() => {
     const colors = [
@@ -143,7 +143,7 @@ export function Board({ user }) {
       unsubscribeNotes();
       unsubscribeCursors();
     };
-  }, [boardId, user.uid, sessionId]);
+  }, [boardId, user.uid, sessionId, isInitialLoad]);
 
   const addNote = () => {
     const app = document.querySelector(".app");
@@ -258,8 +258,7 @@ export function Board({ user }) {
   const pasteNote = () => {
     if (copiedNote) {
       // Remove id and other properties that should be unique
-      const { id, isDragging, draggedBy, isEditing, editedBy, ...noteData } =
-        copiedNote;
+      const { ...noteData } = copiedNote;
 
       const newNote = {
         ...noteData,
@@ -289,35 +288,28 @@ export function Board({ user }) {
     setIsUndoRedoOperation(true);
 
     try {
+      const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const recreateRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const note = notes.find((n) => n.id === action.noteId);
+      const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const editNote = notes.find((n) => n.id === action.noteId);
       switch (action.type) {
         case "CREATE_NOTE":
-          // Undo create = delete the note
-          const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
           remove(noteRef);
           break;
 
         case "DELETE_NOTE":
-          // Undo delete = recreate the note
-          const recreateRef = ref(
-            rtdb,
-            `boardNotes/${boardId}/${action.noteId}`
-          );
           set(recreateRef, action.note);
           break;
 
         case "MOVE_NOTE":
-          // Undo move = move back to old position
-          const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-          const note = notes.find((n) => n.id === action.noteId);
           if (note) {
             set(moveRef, { ...note, ...action.oldPosition });
           }
           break;
 
         case "EDIT_NOTE":
-          // Undo edit = revert to old content
-          const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-          const editNote = notes.find((n) => n.id === action.noteId);
           if (editNote) {
             set(editRef, { ...editNote, content: action.oldContent });
           }
@@ -335,32 +327,28 @@ export function Board({ user }) {
     setIsUndoRedoOperation(true);
 
     try {
+      const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const deleteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const note = notes.find((n) => n.id === action.noteId);
+      const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+      const editNote = notes.find((n) => n.id === action.noteId);
       switch (action.type) {
         case "CREATE_NOTE":
-          // Redo create = recreate the note
-          const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
           set(noteRef, action.note);
           break;
 
         case "DELETE_NOTE":
-          // Redo delete = delete the note again
-          const deleteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
           remove(deleteRef);
           break;
 
         case "MOVE_NOTE":
-          // Redo move = move to new position
-          const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-          const note = notes.find((n) => n.id === action.noteId);
           if (note) {
             set(moveRef, { ...note, ...action.newPosition });
           }
           break;
 
         case "EDIT_NOTE":
-          // Redo edit = apply new content
-          const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-          const editNote = notes.find((n) => n.id === action.noteId);
           if (editNote) {
             set(editRef, { ...editNote, content: action.newContent });
           }
@@ -370,6 +358,28 @@ export function Board({ user }) {
       setTimeout(() => setIsUndoRedoOperation(false), 100);
     }
   }, [redo, user.uid, boardId, notes]);
+
+  // Get user colors for notes - same logic as cursor color generation
+  const getUserColor = useCallback((userId) => {
+    const colors = [
+      "#FF6B6B", // コーラルレッド
+      "#4ECDC4", // ターコイズ
+      "#45B7D1", // スカイブルー
+      "#96CEB4", // ミントグリーン
+      "#FFEAA7", // ライトイエロー
+      "#DDA0DD", // プラム
+      "#98D8C8", // アクアマリン
+      "#F7DC6F", // バナナイエロー
+      "#BB8FCE", // ライトパープル
+      "#F8C471", // ピーチ
+    ];
+    
+    // Use the same hash logic as cursor color
+    const hash = userId
+      .split("")
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -539,6 +549,7 @@ export function Board({ user }) {
             isActive={activeNoteId === note.id}
             onActivate={handleActivateNote}
             currentUserId={user.uid}
+            getUserColor={getUserColor}
           />
         ))}
 

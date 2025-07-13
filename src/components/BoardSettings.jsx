@@ -55,17 +55,13 @@ export function BoardSettings({ user }) {
         updatedAt: Date.now()
       };
 
-      // Update both locations
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      const currentBoard = (await get(boardRef)).val();
-      await set(boardRef, { ...currentBoard, ...updates });
+      await set(boardRef, { ...board, ...updates });
 
-      if (currentBoard.projectId) {
-        const projectBoardRef = ref(rtdb, `projectBoards/${currentBoard.projectId}/${boardId}`);
-        const projectBoard = (await get(projectBoardRef)).val();
-        if (projectBoard) {
-          await set(projectBoardRef, { ...projectBoard, ...updates });
-        }
+      // Also update in projectBoards for consistency
+      if (board.projectId) {
+        const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
+        await set(projectBoardRef, { ...board, ...updates });
       }
 
       alert("Settings saved successfully!");
@@ -88,14 +84,12 @@ export function BoardSettings({ user }) {
 
     setIsDeleting(true);
     try {
-      // Remove board from both locations
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      const currentBoard = (await get(boardRef)).val();
-      
       await remove(boardRef);
       
-      if (currentBoard.projectId) {
-        const projectBoardRef = ref(rtdb, `projectBoards/${currentBoard.projectId}/${boardId}`);
+      // Also remove from projectBoards for consistency
+      if (board.projectId) {
+        const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
         await remove(projectBoardRef);
       }
 

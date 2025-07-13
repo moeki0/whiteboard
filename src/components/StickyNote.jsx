@@ -9,6 +9,7 @@ export function StickyNote({
   isActive,
   onActivate,
   currentUserId,
+  getUserColor,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -31,19 +32,15 @@ export function StickyNote({
   );
 
   useEffect(() => {
-    // 他のユーザーが編集中でない場合、または自分が編集中でない場合のみコンテンツを更新
-    const shouldUpdateContent =
-      !isEditing &&
-      (!note.isEditing || note.editedBy === currentUserId || !note.editedBy);
+    // 自分が編集中でない場合のみコンテンツを更新
+    const shouldUpdateContent = !isEditing;
 
     if (shouldUpdateContent && note.content !== content) {
       setContent(note.content);
     }
 
-    // 他のユーザーがドラッグ中でない場合、または自分がドラッグ中でない場合のみ位置を更新
-    const shouldUpdatePosition =
-      !isDragging &&
-      (!note.isDragging || note.draggedBy === currentUserId || !note.draggedBy);
+    // 自分がドラッグ中でない場合のみ位置を更新
+    const shouldUpdatePosition = !isDragging;
     if (
       shouldUpdatePosition &&
       (position.x !== note.x || position.y !== note.y)
@@ -224,16 +221,38 @@ export function StickyNote({
     }
   }, [isActive, note.id, onDelete]);
 
+  // Get border color if someone else is interacting with this note
+  const getInteractionBorderColor = () => {
+    // Check if someone else is dragging this note
+    if (note.isDragging && note.draggedBy && note.draggedBy !== currentUserId) {
+      return getUserColor ? getUserColor(note.draggedBy) : "#ff4444";
+    }
+    // Check if someone else is editing this note
+    if (note.isEditing && note.editedBy && note.editedBy !== currentUserId) {
+      return getUserColor ? getUserColor(note.editedBy) : "#ff4444";
+    }
+    return null;
+  };
+
+  const interactionBorderColor = getInteractionBorderColor();
+
   return (
     <div
       ref={noteRef}
-      className={`sticky-note ${isActive ? "active" : ""}`}
+      className={`sticky-note ${isActive ? "active" : ""} ${
+        interactionBorderColor ? "being-used" : ""
+      }`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${Math.max(dimensions.width, 100)}px`,
         backgroundColor: "white",
         zIndex: note.zIndex || 1,
+        ...(interactionBorderColor && {
+          borderColor: interactionBorderColor,
+          borderWidth: "1px",
+          borderStyle: "solid",
+        }),
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -261,13 +280,6 @@ export function StickyNote({
             }}
           >
             {content + "\n"}
-            {note.isEditing && note.editedBy !== currentUserId && (
-              <div
-                style={{ fontSize: "10px", color: "#666", marginTop: "4px" }}
-              >
-                Someone is editing...
-              </div>
-            )}
           </div>
         )}
       </div>
