@@ -6,6 +6,7 @@ import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuMousePointer2, LuPlus } from "react-icons/lu";
 import { Header } from "./Header";
+import { useHistory } from "../hooks/useHistory";
 
 export function Board({ user }) {
   const { boardId } = useParams();
@@ -20,7 +21,12 @@ export function Board({ user }) {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [sessionId] = useState(() => Math.random().toString(36).substr(2, 9));
   const [projectId, setProjectId] = useState(null);
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
+  const nanoid = customAlphabet(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    21
+  );
+  const { addToHistory, undo, redo, canUndo, canRedo } = useHistory();
+  const [isUndoRedoOperation, setIsUndoRedoOperation] = useState(false);
   const [cursorColor] = useState(() => {
     const colors = [
       "#FF6B6B", // コーラルレッド
@@ -60,7 +66,6 @@ export function Board({ user }) {
     }
     setIsEditingTitle(false);
   };
-
 
   useEffect(() => {
     // Get board info and project ID
@@ -141,10 +146,11 @@ export function Board({ user }) {
   }, [boardId, user.uid, sessionId]);
 
   const addNote = () => {
+    const app = document.querySelector(".app");
     const newNote = {
       content: "",
-      x: Math.random() * (window.innerWidth - 250),
-      y: Math.random() * (window.innerHeight - 250),
+      x: Math.random() * (window.innerWidth - 250) + app.scrollLeft,
+      y: Math.random() * (window.innerHeight - 250) + app.scrollTop,
       color: "#ffeb3b",
       userId: user.uid,
       createdAt: Date.now(),
@@ -155,6 +161,17 @@ export function Board({ user }) {
     };
 
     const noteId = nanoid();
+
+    // Add to history only if it's user's own action (not undo/redo)
+    if (!isUndoRedoOperation) {
+      addToHistory({
+        type: "CREATE_NOTE",
+        noteId: noteId,
+        note: newNote,
+        userId: user.uid,
+      });
+    }
+
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
@@ -165,11 +182,51 @@ export function Board({ user }) {
     const note = notes.find((n) => n.id === noteId);
     if (note) {
       const updatedNote = { ...note, ...updates };
+
+      // Add to history only for significant changes by the current user
+      if (!isUndoRedoOperation && note.userId === user.uid) {
+        // Only track position changes (not dragging state changes)
+        if (updates.x !== undefined || updates.y !== undefined) {
+          addToHistory({
+            type: "MOVE_NOTE",
+            noteId: noteId,
+            oldPosition: { x: note.x, y: note.y },
+            newPosition: { x: updates.x ?? note.x, y: updates.y ?? note.y },
+            userId: user.uid,
+          });
+        }
+        // Track content changes
+        else if (
+          updates.content !== undefined &&
+          updates.content !== note.content
+        ) {
+          addToHistory({
+            type: "EDIT_NOTE",
+            noteId: noteId,
+            oldContent: note.content,
+            newContent: updates.content,
+            userId: user.uid,
+          });
+        }
+      }
+
       set(noteRef, updatedNote);
     }
   };
 
   const deleteNote = (noteId) => {
+    const note = notes.find((n) => n.id === noteId);
+
+    // Add to history only if it's user's own note and not undo/redo operation
+    if (!isUndoRedoOperation && note && note.userId === user.uid) {
+      addToHistory({
+        type: "DELETE_NOTE",
+        noteId: noteId,
+        note: note,
+        userId: user.uid,
+      });
+    }
+
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     remove(noteRef);
     if (activeNoteId === noteId) {
@@ -224,11 +281,107 @@ export function Board({ user }) {
     }
   };
 
+  // Undo/Redo functions
+  const performUndo = useCallback(() => {
+    const action = undo();
+    if (!action || action.userId !== user.uid) return;
+
+    setIsUndoRedoOperation(true);
+
+    try {
+      switch (action.type) {
+        case "CREATE_NOTE":
+          // Undo create = delete the note
+          const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          remove(noteRef);
+          break;
+
+        case "DELETE_NOTE":
+          // Undo delete = recreate the note
+          const recreateRef = ref(
+            rtdb,
+            `boardNotes/${boardId}/${action.noteId}`
+          );
+          set(recreateRef, action.note);
+          break;
+
+        case "MOVE_NOTE":
+          // Undo move = move back to old position
+          const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          const note = notes.find((n) => n.id === action.noteId);
+          if (note) {
+            set(moveRef, { ...note, ...action.oldPosition });
+          }
+          break;
+
+        case "EDIT_NOTE":
+          // Undo edit = revert to old content
+          const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          const editNote = notes.find((n) => n.id === action.noteId);
+          if (editNote) {
+            set(editRef, { ...editNote, content: action.oldContent });
+          }
+          break;
+      }
+    } finally {
+      setTimeout(() => setIsUndoRedoOperation(false), 100);
+    }
+  }, [undo, user.uid, boardId, notes]);
+
+  const performRedo = useCallback(() => {
+    const action = redo();
+    if (!action || action.userId !== user.uid) return;
+
+    setIsUndoRedoOperation(true);
+
+    try {
+      switch (action.type) {
+        case "CREATE_NOTE":
+          // Redo create = recreate the note
+          const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          set(noteRef, action.note);
+          break;
+
+        case "DELETE_NOTE":
+          // Redo delete = delete the note again
+          const deleteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          remove(deleteRef);
+          break;
+
+        case "MOVE_NOTE":
+          // Redo move = move to new position
+          const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          const note = notes.find((n) => n.id === action.noteId);
+          if (note) {
+            set(moveRef, { ...note, ...action.newPosition });
+          }
+          break;
+
+        case "EDIT_NOTE":
+          // Redo edit = apply new content
+          const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
+          const editNote = notes.find((n) => n.id === action.noteId);
+          if (editNote) {
+            set(editRef, { ...editNote, content: action.newContent });
+          }
+          break;
+      }
+    } finally {
+      setTimeout(() => setIsUndoRedoOperation(false), 100);
+    }
+  }, [redo, user.uid, boardId, notes]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === "c" && activeNoteId) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          performUndo();
+        } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+          e.preventDefault();
+          performRedo();
+        } else if (e.key === "c" && activeNoteId) {
           e.preventDefault();
           copyNote(activeNoteId);
         } else if (e.key === "v" && copiedNote) {
@@ -242,7 +395,14 @@ export function Board({ user }) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeNoteId, copiedNote, nextZIndex, user.uid]);
+  }, [
+    activeNoteId,
+    copiedNote,
+    nextZIndex,
+    user.uid,
+    performUndo,
+    performRedo,
+  ]);
 
   // Mouse movement tracking
   useEffect(() => {

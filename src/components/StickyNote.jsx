@@ -207,7 +207,11 @@ export function StickyNote({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (isActive && (e.key === "Delete" || e.key === "Backspace")) {
+      if (
+        !isEditing &&
+        isActive &&
+        (e.key === "Delete" || e.key === "Backspace")
+      ) {
         onDelete(note.id);
       }
     };
