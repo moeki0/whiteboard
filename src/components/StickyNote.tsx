@@ -180,65 +180,59 @@ export function StickyNote({
     return Math.min(2000, baseSize * 2 * sizeMultiplier);
   };
 
-  // 行が画像のみかどうかをチェック（アスタリスクを除く）
-  const isImageOnlyLine = (line: string) => {
-    const trimmed = line.trim();
-    const withoutAsterisks = trimmed.replace(/^\*+/, "");
-    return (
-      isGyazoUrl(withoutAsterisks) &&
-      withoutAsterisks === trimmed.replace(/^\*+/, "").trim()
-    );
+  // 付箋全体がGyazoのURLのみかどうかをチェック
+  const isContentOnlyGyazoUrl = (content: string) => {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    if (lines.length !== 1) return false;
+    
+    const line = lines[0].trim();
+    const withoutAsterisks = line.replace(/^\*+/, '');
+    return isGyazoUrl(withoutAsterisks) && withoutAsterisks.trim() === withoutAsterisks;
   };
 
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string) => {
+    // 付箋全体がGyazoのURLのみの場合は画像として処理
+    if (isContentOnlyGyazoUrl(text)) {
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      const line = lines[0].trim();
+      const asteriskMatch = line.match(/^(\*+)(.*)/);
+      
+      if (asteriskMatch) {
+        const asteriskCount = asteriskMatch[1].length;
+        const contentAfterAsterisks = asteriskMatch[2];
+        const imageUrl = getGyazoImageUrl(contentAfterAsterisks);
+        
+        if (imageUrl) {
+          return [{
+            type: "image",
+            url: imageUrl,
+            size: getImageSize(asteriskCount),
+            originalUrl: contentAfterAsterisks,
+          }];
+        }
+      } else {
+        const imageUrl = getGyazoImageUrl(line);
+        if (imageUrl) {
+          return [{
+            type: "image",
+            url: imageUrl,
+            size: getImageSize(1),
+            originalUrl: line,
+          }];
+        }
+      }
+    }
+
+    // それ以外の場合はすべてテキストとしてリンク化処理
     const lines = text.split("\n");
     const result = [];
 
     for (const line of lines) {
-      const trimmedLine = line.trim();
-      const asteriskMatch = line.match(/^(\*+)(.*)/);
-
-      if (asteriskMatch) {
-        const asteriskCount = asteriskMatch[1].length;
-        const contentAfterAsterisks = asteriskMatch[2];
-
-        // Gyazo画像で、その行が画像のみの場合
-        if (isGyazoUrl(contentAfterAsterisks) && isImageOnlyLine(line)) {
-          const imageUrl = getGyazoImageUrl(contentAfterAsterisks);
-          if (imageUrl) {
-            result.push({
-              type: "image",
-              url: imageUrl,
-              size: getImageSize(asteriskCount),
-              originalUrl: contentAfterAsterisks,
-            });
-            continue;
-          }
-        }
-      }
-
-      // 画像のみの行（アスタリスクなし）
-      if (isGyazoUrl(trimmedLine) && isImageOnlyLine(line)) {
-        const imageUrl = getGyazoImageUrl(trimmedLine);
-        if (imageUrl) {
-          result.push({
-            type: "image",
-            url: imageUrl,
-            size: getImageSize(1),
-            originalUrl: trimmedLine,
-          });
-          continue;
-        }
-      }
-
       // URLを含むテキスト行の解析（リンク化）
       const processedLine = line.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-        if (isGyazoUrl(url) && !isImageOnlyLine(line)) {
-          // Gyazoだが画像のみの行ではない場合はリンクとして扱う
-          return `__LINK__${url}__LINK__`;
-        } else if (isUrl(url)) {
-          // 普通のURL
+        if (isUrl(url)) {
+          // すべてのURLをリンクとして扱う
           return `__LINK__${url}__LINK__`;
         }
         return url;
