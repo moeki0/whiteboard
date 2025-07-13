@@ -159,7 +159,6 @@ button {
   display: flex;
   flex-direction: column;
   text-align: center;
-  transition: box-shadow 0.3s;
   border: 1px solid #cccccc;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
   border-radius: 3px;
@@ -218,6 +217,7 @@ button {
 .cursor {
   pointer-events: none;
   z-index: 10000;
+  transition: 0.08s all;
 }
 
 .cursor-pointer {
