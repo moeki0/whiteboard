@@ -162,6 +162,7 @@ button {
   transition: box-shadow 0.3s;
   border: 1px solid #cccccc;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
 }
 
 .sticky-note.active {
@@ -181,7 +182,7 @@ button {
   border: none;
   background: transparent;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 15px;
+  font-size: 13px;
   min-height: 16px;
   outline: none;
   line-height: 1.5;
@@ -192,7 +193,7 @@ button {
 
 .note-content > div {
   min-height: 16px;
-  font-size: 15px;
+  font-size: 13px;
   height: 100%;
   word-wrap: break-word;
   white-space: pre-wrap;
@@ -200,7 +201,6 @@ button {
   cursor: default;
   line-height: 1.5;
   user-select: none;
-  /* Preserve trailing newlines */
   display: block;
 }
 
