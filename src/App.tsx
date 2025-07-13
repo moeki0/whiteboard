@@ -17,15 +17,16 @@ import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
 import { BoardSettings } from "./components/BoardSettings";
 import { ProjectProvider } from "./contexts/ProjectContext";
+import { User } from "./types";
 import "./App.css";
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+      setUser(user as User | null);
       setLoading(false);
     });
 
@@ -33,7 +34,7 @@ function App() {
   }, []);
 
   // Protected Route Component
-  function ProtectedRoute({ children }) {
+  function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (loading) {
       return <div className="loading">Loading...</div>;
     }

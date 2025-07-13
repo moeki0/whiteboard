@@ -1,8 +1,22 @@
 import { Link, useNavigate } from "react-router-dom";
+import { ReactNode } from "react";
 import { UnifiedMenu } from "./UnifiedMenu";
+import { User } from "../types";
 import "./Header.css";
 
-export function Header({ backButton, user, children, currentProjectId }) {
+interface BackButton {
+  path: string;
+  label: string;
+}
+
+interface HeaderProps {
+  backButton?: BackButton;
+  user: User;
+  children?: ReactNode;
+  currentProjectId?: string;
+}
+
+export function Header({ backButton, user, children, currentProjectId }: HeaderProps) {
   const navigate = useNavigate();
 
   return (

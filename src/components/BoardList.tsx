@@ -6,17 +6,23 @@ import { signOut } from "firebase/auth";
 import { customAlphabet } from "nanoid";
 import { Header } from "./Header";
 import { useProject } from "../contexts/ProjectContext";
+import { User, Board, Cursor } from "../types";
 
-export function BoardList({ user, projectId: propProjectId }) {
+interface BoardListProps {
+  user: User | null;
+  projectId?: string;
+}
+
+export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const { projectId: paramProjectId } = useParams();
   const projectId = propProjectId || paramProjectId;
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
-  const [boards, setBoards] = useState([]);
-  const [projectName, setProjectName] = useState("");
-  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
-  const [newBoardName, setNewBoardName] = useState("");
-  const [boardCursors, setBoardCursors] = useState({});
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [projectName, setProjectName] = useState<string>("");
+  const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
+  const [newBoardName, setNewBoardName] = useState<string>("");
+  const [boardCursors, setBoardCursors] = useState<Record<string, Record<string, Cursor>>>({});
   const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
   useEffect(() => {

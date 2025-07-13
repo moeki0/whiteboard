@@ -1,10 +1,22 @@
 import { useState, useCallback } from 'react';
+import { HistoryAction } from '../types';
 
-export function useHistory(maxHistorySize = 50) {
-  const [history, setHistory] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(-1);
+interface UseHistoryReturn {
+  addToHistory: (action: HistoryAction) => void;
+  undo: () => HistoryAction | null;
+  redo: () => HistoryAction | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  clearHistory: () => void;
+  historyLength: number;
+  currentIndex: number;
+}
 
-  const addToHistory = useCallback((action) => {
+export function useHistory(maxHistorySize = 50): UseHistoryReturn {
+  const [history, setHistory] = useState<HistoryAction[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(-1);
+
+  const addToHistory = useCallback((action: HistoryAction) => {
     setHistory(prev => {
       const newHistory = [...prev.slice(0, currentIndex + 1), action];
       // Limit history size

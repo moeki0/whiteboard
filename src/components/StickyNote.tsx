@@ -1,6 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
+import { Note } from "../types";
+
+interface StickyNoteProps {
+  note: Note;
+  onUpdate: (noteId: string, updates: Partial<Note>) => void;
+  onDelete: (noteId: string) => void;
+  isActive: boolean;
+  onActivate: (noteId: string) => void;
+  currentUserId: string;
+  getUserColor: (userId: string) => string;
+}
 
 export function StickyNote({
   note,
@@ -10,14 +21,14 @@ export function StickyNote({
   onActivate,
   currentUserId,
   getUserColor,
-}) {
+}: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({
     width: note.width || 250,
-    height: note.height || "auto",
+    height: "auto" as const,
   });
   const noteRef = useRef(null);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -25,7 +36,7 @@ export function StickyNote({
 
   // throttled update function
   const throttledUpdate = useCallback(
-    throttle((noteId, updates) => {
+    throttle((noteId: string, updates: Partial<Note>) => {
       onUpdate(noteId, updates);
     }, 50), // 50ms interval (20fps) for snappier updates
     [onUpdate]
@@ -74,7 +85,7 @@ export function StickyNote({
       measureDiv.textContent = content || "Double-click to edit...";
       document.body.appendChild(measureDiv);
 
-      const newWidth = Math.max(100, Math.min(600, measureDiv.offsetWidth));
+      const newWidth = Math.max(60, Math.min(600, measureDiv.offsetWidth));
       setDimensions((prev) => ({ ...prev, width: newWidth }));
 
       document.body.removeChild(measureDiv);
