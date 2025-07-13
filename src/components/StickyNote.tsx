@@ -239,9 +239,10 @@ export function StickyNote({
                 note.isEditing && note.editedBy !== currentUserId ? 0.6 : 1,
               whiteSpace: "pre-wrap",
               wordWrap: "break-word",
+              fontSize: `${13 + content.match(/^\**/)![0].length * 2}px`,
             }}
           >
-            {content + "\n"}
+            {content.replace(/^\**/, "") + "\n"}
           </div>
         )}
       </div>
