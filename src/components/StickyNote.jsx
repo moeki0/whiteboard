@@ -165,7 +165,7 @@ export function StickyNote({
 
       const newWidth = Math.max(150, Math.min(600, maxWidth + 60));
       setDimensions((prev) => ({ ...prev, width: newWidth }));
-      
+
       // Real-time content update with new width
       throttledContentUpdate(note.id, {
         content: newContent,
@@ -207,7 +207,7 @@ export function StickyNote({
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (isActive && e.key === "Delete") {
+      if (isActive && (e.key === "Delete" || e.key === "Backspace")) {
         onDelete(note.id);
       }
     };

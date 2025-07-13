@@ -15,6 +15,7 @@ import { InviteJoin } from "./components/InviteJoin";
 import { ProjectSettings } from "./components/ProjectSettings";
 import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
+import { BoardSettings } from "./components/BoardSettings";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import "./App.css";
 
@@ -75,15 +76,6 @@ function App() {
             />
 
             <Route
-              path="/project/:projectId/board/:boardId"
-              element={
-                <ProtectedRoute>
-                  <Board user={user} />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
               path="/create-project"
               element={
                 <ProtectedRoute>
@@ -106,6 +98,24 @@ function App() {
               element={
                 <ProtectedRoute>
                   <UserSettings user={user} />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/board/:boardId/settings"
+              element={
+                <ProtectedRoute>
+                  <BoardSettings user={user} />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/:boardId"
+              element={
+                <ProtectedRoute>
+                  <Board user={user} />
                 </ProtectedRoute>
               }
             />

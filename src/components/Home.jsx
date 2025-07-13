@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set } from "firebase/database";
-import { v4 as uuidv4 } from "uuid";
+import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { Header } from "./Header";
 import { BoardList } from "./BoardList";
@@ -12,15 +12,17 @@ export function Home({ user }) {
   const { currentProjectId, updateCurrentProject } = useProject();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
   const createFirstProject = async () => {
-    const projectId = uuidv4();
-    const inviteCode = uuidv4().substring(0, 8);
+    const projectId = nanoid();
+    const inviteCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 12)();
     const project = {
       name: "My First Project",
       createdBy: user.uid,
       createdAt: Date.now(),
       inviteCode: inviteCode,
+      isPublic: false, // Default to private
       members: {
         [user.uid]: {
           email: user.email,

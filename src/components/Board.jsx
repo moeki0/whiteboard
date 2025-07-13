@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { StickyNote } from "./StickyNote";
-import { v4 as uuidv4 } from "uuid";
+import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuMousePointer2, LuPlus } from "react-icons/lu";
 import { Header } from "./Header";
 
 export function Board({ user }) {
-  const { projectId, boardId } = useParams();
+  const { boardId } = useParams();
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [nextZIndex, setNextZIndex] = useState(100);
@@ -19,6 +19,8 @@ export function Board({ user }) {
   const [editingBoardName, setEditingBoardName] = useState("");
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [sessionId] = useState(() => Math.random().toString(36).substr(2, 9));
+  const [projectId, setProjectId] = useState(null);
+  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
   const [cursorColor] = useState(() => {
     const colors = [
       "#FF6B6B", // コーラルレッド
@@ -48,10 +50,7 @@ export function Board({ user }) {
 
     if (editingBoardName.trim() !== boardName) {
       try {
-        const boardRef = ref(
-          rtdb,
-          `projectBoards/${projectId}/${boardId}/name`
-        );
+        const boardRef = ref(rtdb, `boards/${boardId}/name`);
         await set(boardRef, editingBoardName.trim());
         setBoardName(editingBoardName.trim());
       } catch (error) {
@@ -62,19 +61,21 @@ export function Board({ user }) {
     setIsEditingTitle(false);
   };
 
+
   useEffect(() => {
-    // Get board name
-    const getBoardName = async () => {
-      const boardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
+    // Get board info and project ID
+    const getBoardInfo = async () => {
+      const boardRef = ref(rtdb, `boards/${boardId}`);
       const boardSnapshot = await get(boardRef);
       if (boardSnapshot.exists()) {
-        const name = boardSnapshot.val().name;
-        setBoardName(name);
-        setEditingBoardName(name);
+        const boardData = boardSnapshot.val();
+        setBoardName(boardData.name);
+        setEditingBoardName(boardData.name);
+        setProjectId(boardData.projectId);
       }
     };
 
-    getBoardName();
+    getBoardInfo();
 
     const notesRef = ref(rtdb, `boardNotes/${boardId}`);
     const cursorsRef = ref(rtdb, `boardCursors/${boardId}`);
@@ -137,7 +138,7 @@ export function Board({ user }) {
       unsubscribeNotes();
       unsubscribeCursors();
     };
-  }, [projectId, boardId, user.uid, sessionId]);
+  }, [boardId, user.uid, sessionId]);
 
   const addNote = () => {
     const newNote = {
@@ -153,7 +154,7 @@ export function Board({ user }) {
       draggedBy: null,
     };
 
-    const noteId = uuidv4();
+    const noteId = nanoid();
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
@@ -216,7 +217,7 @@ export function Board({ user }) {
         editedBy: null,
       };
 
-      const noteId = uuidv4();
+      const noteId = nanoid();
       const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
       set(noteRef, newNote);
       setNextZIndex((prev) => prev + 1);

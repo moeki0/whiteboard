@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue } from "firebase/database";
 import "./UnifiedMenu.css";
 
 export function UnifiedMenu({ user, currentProjectId }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const dropdownRef = useRef(null);
+
+  // Check if we're on a board page
+  const currentBoardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
+  const isOnBoardPage = currentBoardId && !location.pathname.includes('/project/') && !location.pathname.includes('/user/') && !location.pathname.includes('/create-') && !location.pathname.includes('/invite/') && !location.pathname.includes('/board/');
 
   useEffect(() => {
     // Listen to user's projects
@@ -82,6 +87,13 @@ export function UnifiedMenu({ user, currentProjectId }) {
     navigate("/user/settings");
   };
 
+  const handleBoardSettings = () => {
+    setIsOpen(false);
+    if (currentBoardId) {
+      navigate(`/board/${currentBoardId}/settings`);
+    }
+  };
+
   return (
     <div className="unified-menu" ref={dropdownRef}>
       <button
@@ -109,6 +121,16 @@ export function UnifiedMenu({ user, currentProjectId }) {
           <button className="menu-item" onClick={handleUserSettings}>
             User Settings
           </button>
+
+          {/* Board Settings (only show on board pages) */}
+          {isOnBoardPage && (
+            <>
+              <div className="menu-divider" />
+              <button className="menu-item" onClick={handleBoardSettings}>
+                Board Settings
+              </button>
+            </>
+          )}
 
           {/* Project Section */}
           <div className="menu-section project-section">

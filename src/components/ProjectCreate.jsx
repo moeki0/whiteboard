@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, set } from "firebase/database";
-import { v4 as uuidv4 } from "uuid";
+import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { Header } from "./Header";
 import "./ProjectCreate.css";
@@ -12,6 +12,7 @@ export function ProjectCreate({ user }) {
   const { updateCurrentProject } = useProject();
   const [projectName, setProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
   const createProject = async () => {
     if (!projectName.trim()) {
@@ -21,13 +22,14 @@ export function ProjectCreate({ user }) {
 
     setIsCreating(true);
     try {
-      const projectId = uuidv4();
-      const inviteCode = uuidv4().substring(0, 8);
+      const projectId = nanoid();
+      const inviteCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 12)();
       const project = {
         name: projectName.trim(),
         createdBy: user.uid,
         createdAt: Date.now(),
         inviteCode: inviteCode,
+        isPublic: false, // Default to private
         members: {
           [user.uid]: {
             email: user.email,

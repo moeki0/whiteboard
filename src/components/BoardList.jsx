@@ -3,10 +3,9 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { rtdb, auth } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { signOut } from "firebase/auth";
-import { v4 as uuidv4 } from "uuid";
+import { customAlphabet } from "nanoid";
 import { Header } from "./Header";
 import { useProject } from "../contexts/ProjectContext";
-import { LuDelete, LuTrash, LuTrash2 } from "react-icons/lu";
 
 export function BoardList({ user, projectId: propProjectId }) {
   const { projectId: paramProjectId } = useParams();
@@ -17,6 +16,7 @@ export function BoardList({ user, projectId: propProjectId }) {
   const [projectName, setProjectName] = useState("");
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
+  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
   useEffect(() => {
     if (!projectId) return;
@@ -54,34 +54,26 @@ export function BoardList({ user, projectId: propProjectId }) {
   }, [projectId, updateCurrentProject]);
 
   const createBoard = async () => {
-    const boardId = uuidv4();
+    const boardId = nanoid();
     const board = {
       name: "Untitled",
       createdBy: user.uid,
       createdAt: Date.now(),
       projectId: projectId,
+      isPublic: false, // Default to private
     };
 
-    const boardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
+    // Store board with both references
+    const boardRef = ref(rtdb, `boards/${boardId}`);
     await set(boardRef, board);
+    
+    const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
+    await set(projectBoardRef, board);
 
     // Navigate to the new board immediately
-    navigate(`/project/${projectId}/board/${boardId}`);
+    navigate(`/${boardId}`);
   };
 
-  const deleteBoard = async (boardId) => {
-    if (!window.confirm("Are you sure you want to delete this board?")) return;
-
-    // Remove board
-    const boardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
-    await remove(boardRef);
-
-    // Remove board notes and cursors
-    const boardNotesRef = ref(rtdb, `boardNotes/${boardId}`);
-    const boardCursorsRef = ref(rtdb, `boardCursors/${boardId}`);
-    await remove(boardNotesRef);
-    await remove(boardCursorsRef);
-  };
 
   return (
     <div className="board-list">
@@ -99,19 +91,10 @@ export function BoardList({ user, projectId: propProjectId }) {
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
             <Link
-              to={`/project/${projectId}/board/${board.id}`}
+              to={`/${board.id}`}
               className="board-card"
             >
               <p>{board.name}</p>
-              <LuTrash2
-                className="delete-board-btn"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  deleteBoard(board.id);
-                }}
-                title="Delete Board"
-              />
             </Link>
           </div>
         ))}
