@@ -10,7 +10,6 @@
   color: #666;
   font-size: 18px;
   padding: 8px;
-  transition: background-color 0.2s, color 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
