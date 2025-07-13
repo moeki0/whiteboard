@@ -26,12 +26,20 @@ export function StickyNote({
   const throttledUpdate = useCallback(
     throttle((noteId, updates) => {
       onUpdate(noteId, updates);
-    }, 100), // 100ms interval
+    }, 50), // 50ms interval (20fps) for snappier updates
     [onUpdate]
   );
 
   useEffect(() => {
-    setContent(note.content);
+    // 他のユーザーが編集中でない場合、または自分が編集中でない場合のみコンテンツを更新
+    const shouldUpdateContent =
+      !isEditing &&
+      (!note.isEditing || note.editedBy === currentUserId || !note.editedBy);
+
+    if (shouldUpdateContent && note.content !== content) {
+      setContent(note.content);
+    }
+
     // 他のユーザーがドラッグ中でない場合、または自分がドラッグ中でない場合のみ位置を更新
     const shouldUpdatePosition =
       !isDragging &&
@@ -46,7 +54,7 @@ export function StickyNote({
     if (note.width) {
       setDimensions((prev) => ({ ...prev, width: note.width }));
     }
-  }, [note, isDragging, currentUserId]);
+  }, [note, isDragging, isEditing, currentUserId, content]);
 
   // Auto-resize based on content
   useEffect(() => {
@@ -129,6 +137,14 @@ export function StickyNote({
     }
   }, [handleMouseMove, handleMouseUp, isDragging, position]);
 
+  // throttled content update function
+  const throttledContentUpdate = useCallback(
+    throttle((noteId, updates) => {
+      onUpdate(noteId, updates);
+    }, 300), // 300ms interval for text updates
+    [onUpdate]
+  );
+
   const handleContentChange = (e) => {
     const newContent = e.target.value;
     setContent(newContent);
@@ -149,14 +165,34 @@ export function StickyNote({
 
       const newWidth = Math.max(150, Math.min(600, maxWidth + 60));
       setDimensions((prev) => ({ ...prev, width: newWidth }));
+      
+      // Real-time content update with new width
+      throttledContentUpdate(note.id, {
+        content: newContent,
+        width: newWidth,
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+    } else {
+      // Real-time content update without width change
+      throttledContentUpdate(note.id, {
+        content: newContent,
+        width: dimensions.width,
+        isEditing: true,
+        editedBy: currentUserId,
+      });
     }
   };
 
   const handleBlur = () => {
     setIsEditing(false);
-    if (content !== note.content || dimensions.width !== note.width) {
-      onUpdate(note.id, { content, width: dimensions.width });
-    }
+    // Final update to ensure content is saved
+    onUpdate(note.id, {
+      content,
+      width: dimensions.width,
+      isEditing: false,
+      editedBy: null,
+    });
   };
 
   const handleClick = (e) => {
@@ -211,7 +247,24 @@ export function StickyNote({
             maxRows={20}
           />
         ) : (
-          <div onClick={() => {}}>{content}</div>
+          <div
+            onClick={() => {}}
+            style={{
+              opacity:
+                note.isEditing && note.editedBy !== currentUserId ? 0.6 : 1,
+              whiteSpace: "pre-wrap",
+              wordWrap: "break-word",
+            }}
+          >
+            {content + "\n"}
+            {note.isEditing && note.editedBy !== currentUserId && (
+              <div
+                style={{ fontSize: "10px", color: "#666", marginTop: "4px" }}
+              >
+                Someone is editing...
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -41,6 +41,7 @@ button {
   width: 100vw;
   height: 100vh;
   position: relative;
+  overflow: scroll;
 }
 
 /* Loading */
@@ -145,30 +146,28 @@ button {
 
 .notes-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 4000px;
+  height: 4000px;
   overflow: hidden;
 }
 
 .sticky-note {
   position: absolute;
-  min-height: 60px;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
+  min-height: 30px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
   transition: box-shadow 0.3s;
-  border: 2px solid white;
+  border: 1px solid #cccccc;
+  /* Remove position transition for more immediate updates */
 }
 
 .sticky-note.active {
-  border: 2px solid #5b97ff;
+  border: 1px solid #5b97ff;
 }
 
 .note-content {
   flex: 1;
-  padding: 15px;
 }
 
 .note-content textarea {
@@ -194,6 +193,14 @@ button {
   cursor: default;
   line-height: 1.5;
   user-select: none;
+  /* Preserve trailing newlines */
+  display: block;
+}
+
+/* Ensure trailing newlines are visible */
+.note-content > div:empty::before {
+  content: "\A";
+  white-space: pre;
 }
 
 /* Cursor styles */
@@ -534,7 +541,7 @@ button {
 
 .board-card {
   display: block;
-  padding: 20px;
+  padding: 10px;
   color: inherit;
   text-decoration: none;
   display: flex;

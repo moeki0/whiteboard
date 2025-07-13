@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { StickyNote } from "./StickyNote";
 import { v4 as uuidv4 } from "uuid";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
-import { LuMousePointer2 } from "react-icons/lu";
+import { LuMousePointer2, LuPlus } from "react-icons/lu";
 import { Header } from "./Header";
 
 export function Board({ user }) {
@@ -17,6 +17,7 @@ export function Board({ user }) {
   const [boardName, setBoardName] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingBoardName, setEditingBoardName] = useState("");
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [sessionId] = useState(() => Math.random().toString(36).substr(2, 9));
   const [cursorColor] = useState(() => {
     const colors = [
@@ -91,8 +92,14 @@ export function Board({ user }) {
         // Update maxZIndex based on existing notes
         const maxZ = Math.max(...notesArray.map((n) => n.zIndex || 0), 99);
         setNextZIndex(maxZ + 1);
+
+        // Remove auto-update board dimensions and centering logic
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       } else {
         setNotes([]);
+        setIsInitialLoad(false);
       }
     });
 
@@ -192,13 +199,21 @@ export function Board({ user }) {
 
   const pasteNote = () => {
     if (copiedNote) {
+      // Remove id and other properties that should be unique
+      const { id, isDragging, draggedBy, isEditing, editedBy, ...noteData } =
+        copiedNote;
+
       const newNote = {
-        ...copiedNote,
+        ...noteData,
         x: copiedNote.x + 20,
         y: copiedNote.y + 20,
         userId: user.uid,
         createdAt: Date.now(),
         zIndex: nextZIndex,
+        isDragging: false,
+        draggedBy: null,
+        isEditing: false,
+        editedBy: null,
       };
 
       const noteId = uuidv4();
@@ -236,6 +251,15 @@ export function Board({ user }) {
       if (throttleTimer) return;
 
       throttleTimer = setTimeout(() => {
+        // Get scroll position to calculate relative cursor position
+        const app = document.querySelector(".app");
+        const scrollLeft = app?.scrollLeft || 0;
+        const scrollTop = app?.scrollTop || 0;
+
+        // Calculate cursor position relative to the board content
+        const relativeX = e.clientX + scrollLeft;
+        const relativeY = e.clientY + scrollTop;
+
         const cursorRef = ref(
           rtdb,
           `boardCursors/${boardId}/${user.uid}-${sessionId}`
@@ -248,8 +272,8 @@ export function Board({ user }) {
           .join("");
 
         set(cursorRef, {
-          x: e.clientX,
-          y: e.clientY,
+          x: relativeX,
+          y: relativeY,
           name: initials,
           fullName: `${userName} (${sessionId})`,
           color: cursorColor,
@@ -258,7 +282,7 @@ export function Board({ user }) {
           console.error("Error updating cursor:", error);
         });
         throttleTimer = null;
-      }, 100); // Throttle to 20fps
+      }, 50); // Throttle to 20fps
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -358,40 +382,42 @@ export function Board({ user }) {
         ))}
 
         {/* Render other sessions' cursors */}
-        {Object.entries(cursors).map(([cursorId, cursor]) => (
-          <div
-            key={cursorId}
-            className="cursor"
-            style={{
-              left: `${cursor.x}px`,
-              top: `${cursor.y}px`,
-              position: "absolute",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          >
-            <div className="cursor-pointer">
-              <LuMousePointer2
-                style={{
-                  color: cursor.color || "#ff4444",
-                  fill: cursor.color || "#ff4444",
-                }}
-              />
-            </div>
+        {Object.entries(cursors).map(([cursorId, cursor]) => {
+          return (
             <div
-              className="cursor-label"
+              key={cursorId}
+              className="cursor"
               style={{
-                backgroundColor: cursor.color || "#ff4444",
+                left: `${cursor.x}px`,
+                top: `${cursor.y}px`,
+                position: "absolute",
+                pointerEvents: "none",
+                zIndex: 10000,
               }}
-              title={cursor.fullName}
             >
-              {cursor.name}
+              <div className="cursor-pointer">
+                <LuMousePointer2
+                  style={{
+                    color: cursor.color || "#ff4444",
+                    fill: cursor.color || "#ff4444",
+                  }}
+                />
+              </div>
+              <div
+                className="cursor-label"
+                style={{
+                  backgroundColor: cursor.color || "#ff4444",
+                }}
+                title={cursor.fullName}
+              >
+                {cursor.name}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <button onClick={addNote} className="fab-add-btn">
-        +
+        <LuPlus />
       </button>
     </div>
   );
