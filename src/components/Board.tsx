@@ -605,12 +605,18 @@ export function Board({ user }: BoardProps) {
           }
           // If textarea is focused, let the default paste behavior happen
         } else if (e.key === "a") {
-          e.preventDefault();
-          // Select all notes
-          const allNoteIds = new Set(notes.map(note => note.id));
-          setSelectedNoteIds(allNoteIds);
-          if (notes.length > 0) {
-            setActiveNoteId(notes[notes.length - 1].id);
+          // テキストエリアにフォーカスがある場合は通常のテキスト選択を許可
+          const activeElement = document.activeElement;
+          const isTextareaFocused = activeElement && activeElement.tagName === 'TEXTAREA';
+          
+          if (!isTextareaFocused) {
+            e.preventDefault();
+            // Select all notes
+            const allNoteIds = new Set(notes.map(note => note.id));
+            setSelectedNoteIds(allNoteIds);
+            if (notes.length > 0) {
+              setActiveNoteId(notes[notes.length - 1].id);
+            }
           }
         }
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedNoteIds.size > 0) {
