@@ -27,7 +27,7 @@ export function StickyNote({
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const [isDragging, setIsDragging] = useState(false);
   const [dimensions, setDimensions] = useState({
-    width: note.width || 250,
+    width: note.width || 100,
     height: "auto" as const,
   });
   const noteRef = useRef<HTMLDivElement>(null);
@@ -172,7 +172,7 @@ export function StickyNote({
         maxWidth = Math.max(maxWidth, lineWidth);
       });
 
-      const newWidth = Math.max(150, Math.min(600, maxWidth + 60));
+      const newWidth = Math.max(100, Math.min(600, maxWidth + 16));
       setDimensions((prev) => ({ ...prev, width: newWidth }));
 
       // Real-time content update with new width
@@ -194,7 +194,6 @@ export function StickyNote({
   };
 
   const handleBlur = () => {
-    console.log("ほげ！");
     setIsEditing(false);
     onUpdate(note.id, {
       content,
@@ -220,6 +219,7 @@ export function StickyNote({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
+        !window.getSelection()?.focusNode &&
         !isEditing &&
         isActive &&
         (e.key === "Delete" || e.key === "Backspace")
