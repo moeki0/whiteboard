@@ -93,7 +93,7 @@ export function StickyNote({
 
   const handleMouseMove = useCallback(
     (e) => {
-      if (isDragging) {
+      if (isDragging && !isEditing) {
         const newX = e.clientX - dragOffset.current.x;
         const newY = e.clientY - dragOffset.current.y;
         setPosition({ x: newX, y: newY });
@@ -182,8 +182,8 @@ export function StickyNote({
   };
 
   const handleBlur = () => {
+    console.log("ほげ！");
     setIsEditing(false);
-    // Final update to ensure content is saved
     onUpdate(note.id, {
       content,
       width: dimensions.width,
@@ -198,6 +198,9 @@ export function StickyNote({
   };
 
   const handleDoubleClick = (e) => {
+    if (isEditing) {
+      return;
+    }
     e.stopPropagation();
     setIsEditing(true);
   };

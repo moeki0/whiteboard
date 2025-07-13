@@ -189,26 +189,34 @@ export function BoardSettings({ user }) {
           <h2>Privacy Settings</h2>
           <div className="settings-form">
             <div className="form-group">
-              <div className="toggle-group">
-                <label className="toggle-label">
+              <div className="radio-group">
+                <label className="radio-label">
                   <input
-                    type="checkbox"
-                    checked={!isPublic}
-                    onChange={(e) => setIsPublic(!e.target.checked)}
+                    type="radio"
+                    name="privacy"
+                    checked={isPublic}
+                    onChange={() => setIsPublic(true)}
                     disabled={isSaving}
                   />
-                  <span className="toggle-slider"></span>
-                  <span className="toggle-text">
-                    {isPublic ? "Public Board" : "Private Board"}
+                  <span className="radio-text">
+                    <strong>Public</strong>
+                    <small>Anyone with the link can view and edit this board</small>
+                  </span>
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="privacy"
+                    checked={!isPublic}
+                    onChange={() => setIsPublic(false)}
+                    disabled={isSaving}
+                  />
+                  <span className="radio-text">
+                    <strong>Private</strong>
+                    <small>Only project members can access this board</small>
                   </span>
                 </label>
               </div>
-              <small className="form-help">
-                {isPublic 
-                  ? "Anyone with the link can view and edit this board"
-                  : "Only project members can access this board"
-                }
-              </small>
             </div>
           </div>
         </div>

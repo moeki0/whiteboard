@@ -9,11 +9,13 @@ export function useHistory(maxHistorySize = 50) {
       const newHistory = [...prev.slice(0, currentIndex + 1), action];
       // Limit history size
       if (newHistory.length > maxHistorySize) {
-        return newHistory.slice(-maxHistorySize);
+        const slicedHistory = newHistory.slice(-maxHistorySize);
+        setCurrentIndex(slicedHistory.length - 1);
+        return slicedHistory;
       }
+      setCurrentIndex(newHistory.length - 1);
       return newHistory;
     });
-    setCurrentIndex(prev => prev + 1);
   }, [currentIndex, maxHistorySize]);
 
   const undo = useCallback(() => {

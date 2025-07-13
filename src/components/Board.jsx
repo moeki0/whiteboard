@@ -29,6 +29,7 @@ export function Board({ user }) {
   );
   const { addToHistory, undo, redo } = useHistory();
   const [isUndoRedoOperation, setIsUndoRedoOperation] = useState(false);
+  const [currentUndoRedoNoteId, setCurrentUndoRedoNoteId] = useState(null);
   const [cursorColor] = useState(() => {
     const colors = [
       "#FF6B6B", // コーラルレッド
@@ -260,7 +261,8 @@ export function Board({ user }) {
       const updatedNote = { ...note, ...updates };
 
       // Add to history only for significant changes by the current user
-      if (!isUndoRedoOperation && note.userId === user.uid) {
+      // Skip history tracking if this is an undo/redo operation for this specific note
+      if (!isUndoRedoOperation && note.userId === user.uid && currentUndoRedoNoteId !== noteId) {
         // Only track position changes (not dragging state changes)
         if (updates.x !== undefined || updates.y !== undefined) {
           addToHistory({
@@ -334,7 +336,7 @@ export function Board({ user }) {
   const pasteNote = () => {
     if (copiedNote) {
       // Remove id and other properties that should be unique
-      const { ...noteData } = copiedNote;
+      const { id, ...noteData } = copiedNote;
 
       const newNote = {
         ...noteData,
@@ -362,37 +364,38 @@ export function Board({ user }) {
     if (!action || action.userId !== user.uid) return;
 
     setIsUndoRedoOperation(true);
+    setCurrentUndoRedoNoteId(action.noteId);
 
     try {
       const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const recreateRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
-      const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const editNote = notes.find((n) => n.id === action.noteId);
+      
       switch (action.type) {
         case "CREATE_NOTE":
           remove(noteRef);
           break;
 
         case "DELETE_NOTE":
-          set(recreateRef, action.note);
+          set(noteRef, action.note);
           break;
 
         case "MOVE_NOTE":
           if (note) {
-            set(moveRef, { ...note, ...action.oldPosition });
+            set(noteRef, { ...note, ...action.oldPosition });
           }
           break;
 
         case "EDIT_NOTE":
-          if (editNote) {
-            set(editRef, { ...editNote, content: action.oldContent });
+          if (note) {
+            set(noteRef, { ...note, content: action.oldContent });
           }
           break;
       }
     } finally {
-      setTimeout(() => setIsUndoRedoOperation(false), 100);
+      setTimeout(() => {
+        setIsUndoRedoOperation(false);
+        setCurrentUndoRedoNoteId(null);
+      }, 500);
     }
   }, [undo, user.uid, boardId, notes]);
 
@@ -401,37 +404,38 @@ export function Board({ user }) {
     if (!action || action.userId !== user.uid) return;
 
     setIsUndoRedoOperation(true);
+    setCurrentUndoRedoNoteId(action.noteId);
 
     try {
       const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const deleteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const moveRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
-      const editRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const editNote = notes.find((n) => n.id === action.noteId);
+      
       switch (action.type) {
         case "CREATE_NOTE":
           set(noteRef, action.note);
           break;
 
         case "DELETE_NOTE":
-          remove(deleteRef);
+          remove(noteRef);
           break;
 
         case "MOVE_NOTE":
           if (note) {
-            set(moveRef, { ...note, ...action.newPosition });
+            set(noteRef, { ...note, ...action.newPosition });
           }
           break;
 
         case "EDIT_NOTE":
-          if (editNote) {
-            set(editRef, { ...editNote, content: action.newContent });
+          if (note) {
+            set(noteRef, { ...note, content: action.newContent });
           }
           break;
       }
     } finally {
-      setTimeout(() => setIsUndoRedoOperation(false), 100);
+      setTimeout(() => {
+        setIsUndoRedoOperation(false);
+        setCurrentUndoRedoNoteId(null);
+      }, 500);
     }
   }, [redo, user.uid, boardId, notes]);
 

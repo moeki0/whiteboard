@@ -69,57 +69,64 @@
   margin-top: 4px;
 }
 
-/* Toggle Switch */
-.toggle-group {
+/* Radio Button Group */
+.radio-group {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.toggle-label {
+.radio-label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   cursor: pointer;
   font-weight: normal;
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
-.toggle-label input[type="checkbox"] {
-  display: none;
+.radio-label:hover {
+  border-color: #4caf50;
+  background-color: #f8f9fa;
 }
 
-.toggle-slider {
-  position: relative;
-  width: 50px;
-  height: 24px;
-  background-color: #ccc;
-  border-radius: 24px;
-  transition: background-color 0.3s;
+.radio-label input[type="radio"] {
+  margin: 4px 0 0 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #4caf50;
+  cursor: pointer;
 }
 
-.toggle-slider::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
+.radio-label input[type="radio"]:checked + .radio-text {
+  color: #4caf50;
 }
 
-.toggle-label input[type="checkbox"]:checked + .toggle-slider {
-  background-color: #4caf50;
+.radio-label:has(input[type="radio"]:checked) {
+  border-color: #4caf50;
+  background-color: #f1f8e9;
 }
 
-.toggle-label input[type="checkbox"]:checked + .toggle-slider::before {
-  transform: translateX(26px);
+.radio-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
 }
 
-.toggle-text {
+.radio-text strong {
   font-size: 16px;
   color: #333;
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.radio-text small {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
 }
 
 /* Action Buttons */

@@ -36,16 +36,29 @@ export function BoardList({ user, projectId: propProjectId }) {
 
     getProjectName();
 
-    // Listen to project's boards
-    const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
-    const unsubscribe = onValue(boardsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const boardsArray = Object.entries(data).map(([id, board]) => ({
-          id,
-          ...board,
-        }));
-        setBoards(boardsArray.sort((a, b) => b.createdAt - a.createdAt));
+    // Listen to project's boards - get board IDs from projectBoards, then get actual data from boards
+    const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
+    const unsubscribe = onValue(projectBoardsRef, async (snapshot) => {
+      const projectBoardsData = snapshot.val();
+      if (projectBoardsData) {
+        const boardIds = Object.keys(projectBoardsData);
+        
+        // Fetch actual board data from boards collection
+        const boardPromises = boardIds.map(async (boardId) => {
+          const boardRef = ref(rtdb, `boards/${boardId}`);
+          const boardSnapshot = await get(boardRef);
+          if (boardSnapshot.exists()) {
+            return {
+              id: boardId,
+              ...boardSnapshot.val(),
+            };
+          }
+          return null;
+        });
+        
+        const boardResults = await Promise.all(boardPromises);
+        const validBoards = boardResults.filter(board => board !== null);
+        setBoards(validBoards.sort((a, b) => b.createdAt - a.createdAt));
       } else {
         setBoards([]);
       }
