@@ -178,7 +178,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
   return (
     <div className="board-list">
-      <Header title={projectName} user={user!} currentProjectId={projectId}>
+      <Header title={projectName} user={user!}>
         <button
           className="fab-new-board-btn"
           onClick={createBoard}

@@ -292,7 +292,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       <Header
         title="Project settings"
         user={user}
-        currentProjectId={projectId}
       />
 
       <div className="settings-container">

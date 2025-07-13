@@ -169,6 +169,10 @@ button {
   border: 1px solid #5b97ff;
 }
 
+.sticky-note.selected {
+  border: 1px solid #5b97ff;
+}
+
 .sticky-note.being-used {
   transition: border-color 0.2s, box-shadow 0.2s;
 }

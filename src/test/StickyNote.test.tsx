@@ -20,9 +20,12 @@ const mockProps = {
   onUpdate: vi.fn(),
   onDelete: vi.fn(),
   isActive: false,
+  isSelected: false,
   onActivate: vi.fn(),
+  onStartBulkDrag: vi.fn(),
   currentUserId: 'user1',
   getUserColor: vi.fn(() => '#ff0000'),
+  isDraggingMultiple: false,
 };
 
 describe('StickyNote', () => {

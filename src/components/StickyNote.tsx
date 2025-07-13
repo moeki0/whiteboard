@@ -3,14 +3,31 @@ import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
 import { Note } from "../types";
 
+interface ImageContent {
+  type: "image";
+  url: string;
+  size: number;
+  originalUrl: string;
+}
+
+interface TextContent {
+  type: "text";
+  content: string;
+}
+
+type ParsedContent = ImageContent | TextContent;
+
 interface StickyNoteProps {
   note: Note;
   onUpdate: (noteId: string, updates: Partial<Note>) => void;
   onDelete: (noteId: string) => void;
   isActive: boolean;
-  onActivate: (noteId: string) => void;
+  isSelected: boolean;
+  onActivate: (noteId: string, isMultiSelect?: boolean) => void;
+  onStartBulkDrag: (noteId: string, e: React.MouseEvent<HTMLDivElement>) => void;
   currentUserId: string;
   getUserColor: (userId: string) => string;
+  isDraggingMultiple?: boolean;
 }
 
 export function StickyNote({
@@ -18,9 +35,12 @@ export function StickyNote({
   onUpdate,
   onDelete,
   isActive,
+  isSelected,
   onActivate,
+  onStartBulkDrag,
   currentUserId,
   getUserColor,
+  isDraggingMultiple = false,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -65,6 +85,20 @@ export function StickyNote({
   // 固定幅なので自動リサイズは不要
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 編集中はドラッグを無効化
+    if (isEditing) {
+      return;
+    }
+
+    // 複数選択されている場合は一括移動を開始
+    if (isSelected) {
+      e.preventDefault(); // デフォルトの動作を防ぐ
+      e.stopPropagation(); // イベント伝播を防ぐ
+      onStartBulkDrag(note.id, e);
+      return;
+    }
+
+    // 通常の単体ドラッグ
     setIsDragging(true);
     dragOffset.current = {
       x: e.clientX - position.x,
@@ -160,16 +194,32 @@ export function StickyNote({
 
   // GyazoのURLかどうかをチェック
   const isGyazoUrl = (text: string) => {
-    return /https:\/\/gyazo\.com\/[a-zA-Z0-9]+/.test(text.trim());
+    return /https:\/\/gyazo\.com\/[a-zA-Z0-9]+(\/(max_size|raw)\/\d+)?/.test(text.trim());
   };
 
   // GyazoのURLから画像URLを取得
-  const getGyazoImageUrl = (url: string) => {
+  const getGyazoImageUrl = (url: string): string | null => {
     const match = url.match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return `https://i.gyazo.com/${match[1]}.png`;
+    if (!match) return null;
+    
+    const id = match[1];
+    
+    // max_sizeパラメータがある場合はそれを使用
+    const maxSizeMatch = url.match(/\/max_size\/(\d+)/);
+    if (maxSizeMatch) {
+      const maxSize = maxSizeMatch[1];
+      return `https://gyazo.com/${id}/max_size/${maxSize}`;
     }
-    return null;
+    
+    // rawパラメータがある場合はそれを使用
+    const rawMatch = url.match(/\/raw\/(\d+)/);
+    if (rawMatch) {
+      const rawSize = rawMatch[1];
+      return `https://gyazo.com/${id}/raw/${rawSize}`;
+    }
+    
+    // 通常の場合はmax_size/1000を使用（JPG、PNG、GIF全対応）
+    return `https://gyazo.com/${id}/max_size/1000`;
   };
 
   // アスタリスクの数から画像サイズを計算
@@ -190,8 +240,9 @@ export function StickyNote({
     return isGyazoUrl(withoutAsterisks) && withoutAsterisks.trim() === withoutAsterisks;
   };
 
+
   // コンテンツを解析して画像、リンク、テキストを分離
-  const parseContent = (text: string) => {
+  const parseContent = (text: string): ParsedContent[] => {
     // 付箋全体がGyazoのURLのみの場合は画像として処理
     if (isContentOnlyGyazoUrl(text)) {
       const lines = text.split('\n').filter(line => line.trim() !== '');
@@ -226,7 +277,7 @@ export function StickyNote({
 
     // それ以外の場合はすべてテキストとしてリンク化処理
     const lines = text.split("\n");
-    const result = [];
+    const result: ParsedContent[] = [];
 
     for (const line of lines) {
       // URLを含むテキスト行の解析（リンク化）
@@ -275,8 +326,16 @@ export function StickyNote({
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 一括ドラッグ中はクリックを無視
+    if (isDraggingMultiple) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
     e.stopPropagation();
-    onActivate(note.id);
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    onActivate(note.id, isMultiSelect);
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -327,7 +386,7 @@ export function StickyNote({
   return (
     <div
       ref={noteRef}
-      className={`sticky-note ${isActive ? "active" : ""} ${
+      className={`sticky-note ${isActive ? "active" : ""} ${isSelected ? "selected" : ""} ${
         interactionBorderColor ? "being-used" : ""
       }`}
       style={{
