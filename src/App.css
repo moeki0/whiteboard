@@ -40,7 +40,7 @@ button {
 
 .app {
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 40px);
   position: relative;
   overflow: scroll;
 }
@@ -290,20 +290,6 @@ button {
   font-size: 1.3rem;
   color: #333;
   margin: 0;
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #999;
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
 }
 
 .delete-btn:hover {
@@ -800,7 +786,6 @@ button {
 
 .join-btn {
   flex: 1;
-  padding: 12px;
   background-color: #4caf50;
   color: white;
   border: none;
@@ -820,7 +805,6 @@ button {
 }
 
 .cancel-btn {
-  padding: 12px;
   background-color: #f5f5f5;
   color: #666;
   border: none;

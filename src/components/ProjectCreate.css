@@ -107,7 +107,6 @@
   background-color: #f5f5f5;
   color: #666;
   border: none;
-  padding: 12px 24px;
   border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
@@ -160,31 +159,4 @@
   left: 0;
   color: #4caf50;
   font-weight: bold;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .create-container {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    padding: 20px 15px;
-  }
-  
-  .create-section {
-    padding: 20px;
-  }
-  
-  .create-info {
-    padding: 20px;
-    order: -1;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .create-btn,
-  .cancel-btn {
-    width: 100%;
-  }
 }
