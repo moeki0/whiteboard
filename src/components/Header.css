@@ -1,7 +1,7 @@
 /* Header Component */
 .app-header {
   background-color: white;
-  padding: 0px 20px;
+  padding: 0px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -16,6 +16,48 @@
   display: flex;
   align-items: center;
   gap: 15px;
+}
+
+.project-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-link:hover {
+  text-decoration: none;
+}
+
+.header-titles {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-title {
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.header-title:hover {
+  background: #efefef;
+}
+
+.header-separator {
+  font-size: 1rem;
+  color: #999;
+  margin: 0;
+}
+
+.header-subtitle {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #666;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .app-header h1 {

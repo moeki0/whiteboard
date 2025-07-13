@@ -40,7 +40,7 @@ button {
 
 .app {
   width: 100vw;
-  height: calc(100vh - 40px);
+  height: 100vh;
   position: relative;
   overflow: scroll;
 }
@@ -509,13 +509,11 @@ button {
 }
 
 .board-list-header {
-  background-color: white;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0 10px;
+  padding-top: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e0e0e0;
 }
 
 .header-left {
@@ -543,7 +541,7 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 10px;
-  padding: 20px;
+  padding: 10px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -914,20 +912,12 @@ div.user-avatar-small {
 
 /* FAB New Board Button in Header */
 .fab-new-board-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
   background-color: #2196f3;
   color: white;
-  border: none;
-  font-size: 24px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 0;
-  padding: 0;
-  padding-bottom: 4px;
   outline: none;
 }
 

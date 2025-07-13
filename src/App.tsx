@@ -16,6 +16,8 @@ import { ProjectSettings } from "./components/ProjectSettings";
 import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
 import { BoardSettings } from "./components/BoardSettings";
+import { Layout } from "./components/Layout";
+import { HeaderWrapper } from "./components/HeaderWrapper";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { User } from "./types";
 import "./App.css";
@@ -43,7 +45,12 @@ function App() {
       return <Auth user={user} />;
     }
 
-    return children;
+    return (
+      <Layout>
+        <HeaderWrapper user={user} />
+        {children}
+      </Layout>
+    );
   }
 
   return (

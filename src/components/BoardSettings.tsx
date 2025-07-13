@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
-import { Header } from "./Header";
 import { User, Board } from "../types";
 import "./BoardSettings.css";
 
@@ -164,7 +163,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   if (!hasAccess) {
     return (
       <div className="board-settings">
-        <Header title="Board Settings" user={user} />
         <div className="settings-container">
           <div className="settings-section">
             <h2>Access Denied</h2>
@@ -186,8 +184,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
 
   return (
     <div className="board-settings">
-      <Header title="Board Settings" user={user} />
-
       <div className="settings-container">
         <div className="settings-section">
           <h2>Board Information</h2>

@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { customAlphabet } from "nanoid";
-import { Header } from "./Header";
 import { User, Project } from "../types";
 import "./ProjectSettings.css";
 
@@ -273,7 +272,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   if (!userRole) {
     return (
       <div className="project-settings">
-        <Header title="Project Settings" user={user} />
         <div className="settings-container">
           <div className="settings-section">
             <h2>Access Denied</h2>
@@ -289,11 +287,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
 
   return (
     <div className="project-settings">
-      <Header
-        title="Project settings"
-        user={user}
-      />
-
       <div className="settings-container">
         {/* Project Information */}
         <div className="settings-section">

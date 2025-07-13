@@ -5,7 +5,6 @@ import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { StickyNote } from "./StickyNote";
-import { Header } from "./Header";
 import { BoardTitle } from "./BoardTitle";
 import { CursorDisplay } from "./CursorDisplay";
 import { useHistory } from "../hooks/useHistory";
@@ -22,7 +21,9 @@ interface BoardProps {
 export function Board({ user }: BoardProps) {
   const navigate = useNavigate();
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
+    new Set()
+  );
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
   const [sessionId] = useState<string>(() =>
@@ -33,19 +34,32 @@ export function Board({ user }: BoardProps) {
   const [currentUndoRedoNoteId, setCurrentUndoRedoNoteId] = useState<
     string | null
   >(null);
-  
+
   // 範囲選択用の状態
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
-  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  const [selectionStart, setSelectionStart] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(false);
-  const [justFinishedSelection, setJustFinishedSelection] = useState<boolean>(false);
-  
+  const [justFinishedSelection, setJustFinishedSelection] =
+    useState<boolean>(false);
+
   // 一括移動用の状態
   const [isDraggingMultiple, setIsDraggingMultiple] = useState<boolean>(false);
-  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
-  const [initialSelectedPositions, setInitialSelectedPositions] = useState<Record<string, { x: number; y: number }>>({});
-  const [justFinishedBulkDrag, setJustFinishedBulkDrag] = useState<boolean>(false);
+  const [dragStartPos, setDragStartPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [initialSelectedPositions, setInitialSelectedPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const [justFinishedBulkDrag, setJustFinishedBulkDrag] =
+    useState<boolean>(false);
 
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -84,7 +98,6 @@ export function Board({ user }: BoardProps) {
       setNextZIndex(maxZ + 1);
     }
   }, [notes]);
-
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
@@ -205,12 +218,15 @@ export function Board({ user }: BoardProps) {
     }
   };
 
-  const handleActivateNote = (noteId: string, isMultiSelect: boolean = false) => {
+  const handleActivateNote = (
+    noteId: string,
+    isMultiSelect: boolean = false
+  ) => {
     // 一括ドラッグ直後や範囲選択直後はアクティベートを無視
     if (isDraggingMultiple || justFinishedBulkDrag || justFinishedSelection) {
       return;
     }
-    
+
     if (isMultiSelect) {
       // Ctrl/Cmdキーが押されている場合は複数選択
       const newSelectedIds = new Set(selectedNoteIds);
@@ -220,7 +236,7 @@ export function Board({ user }: BoardProps) {
         newSelectedIds.add(noteId);
       }
       setSelectedNoteIds(newSelectedIds);
-      
+
       // 最後に選択された付箋をアクティブにする
       if (newSelectedIds.has(noteId)) {
         setActiveNoteId(noteId);
@@ -234,7 +250,7 @@ export function Board({ user }: BoardProps) {
       setActiveNoteId(noteId);
       setSelectedNoteIds(new Set([noteId]));
     }
-    
+
     // Bring to front by updating zIndex
     const note = notes.find((n) => n.id === noteId);
     if (note) {
@@ -248,7 +264,7 @@ export function Board({ user }: BoardProps) {
     if (isSelecting || justFinishedSelection || justFinishedBulkDrag) {
       return;
     }
-    
+
     setActiveNoteId(null);
     setSelectedNoteIds(new Set());
   };
@@ -257,23 +273,23 @@ export function Board({ user }: BoardProps) {
   const handleBoardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 付箋やボタンをクリックした場合は範囲選択しない
     const target = e.target as HTMLElement;
-    if (target.closest('.sticky-note') || target.closest('button')) {
+    if (target.closest(".sticky-note") || target.closest("button")) {
       return;
     }
 
-    const app = document.querySelector('.app') as HTMLElement;
+    const app = document.querySelector(".app") as HTMLElement;
     const rect = app?.getBoundingClientRect() || { left: 0, top: 0 };
     const x = e.clientX - rect.left + (app?.scrollLeft || 0);
     const y = e.clientY - rect.top + (app?.scrollTop || 0);
 
     const isMultiSelect = e.ctrlKey || e.metaKey;
-    
+
     setIsSelecting(true);
     setIsMultiSelectMode(isMultiSelect);
     setSelectionStart({ x, y });
     setSelectionEnd({ x, y });
     setJustFinishedSelection(false); // 新しい選択開始時にフラグをクリア
-    
+
     // Ctrlキーが押されていない場合は既存の選択をクリア
     if (!isMultiSelect) {
       setSelectedNoteIds(new Set());
@@ -282,64 +298,69 @@ export function Board({ user }: BoardProps) {
   };
 
   // 範囲選択の更新
-  const handleBoardMouseMove = useCallback((e: MouseEvent) => {
-    if (!isSelecting || !selectionStart) return;
+  const handleBoardMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isSelecting || !selectionStart) return;
 
-    const app = document.querySelector('.app') as HTMLElement;
-    const rect = app?.getBoundingClientRect() || { left: 0, top: 0 };
-    const x = e.clientX - rect.left + (app?.scrollLeft || 0);
-    const y = e.clientY - rect.top + (app?.scrollTop || 0);
+      const app = document.querySelector(".app") as HTMLElement;
+      const rect = app?.getBoundingClientRect() || { left: 0, top: 0 };
+      const x = e.clientX - rect.left + (app?.scrollLeft || 0);
+      const y = e.clientY - rect.top + (app?.scrollTop || 0);
 
-    setSelectionEnd({ x, y });
+      setSelectionEnd({ x, y });
 
-    // 選択範囲内の付箋を取得
-    const minX = Math.min(selectionStart.x, x);
-    const maxX = Math.max(selectionStart.x, x);
-    const minY = Math.min(selectionStart.y, y);
-    const maxY = Math.max(selectionStart.y, y);
+      // 選択範囲内の付箋を取得
+      const minX = Math.min(selectionStart.x, x);
+      const maxX = Math.max(selectionStart.x, x);
+      const minY = Math.min(selectionStart.y, y);
+      const maxY = Math.max(selectionStart.y, y);
 
-    const notesInSelection = notes.filter(note => {
-      const noteX = note.x;
-      const noteY = note.y;
-      const noteWidth = note.width || 250;
-      const noteHeight = 100; // 推定高さ
+      const notesInSelection = notes.filter((note) => {
+        const noteX = note.x;
+        const noteY = note.y;
+        const noteWidth = note.width || 250;
+        const noteHeight = 100; // 推定高さ
 
-      return noteX + noteWidth >= minX && 
-             noteX <= maxX && 
-             noteY + noteHeight >= minY && 
-             noteY <= maxY;
-    });
+        return (
+          noteX + noteWidth >= minX &&
+          noteX <= maxX &&
+          noteY + noteHeight >= minY &&
+          noteY <= maxY
+        );
+      });
 
-    // 範囲選択による選択状態を設定
-    const newSelectedIds = new Set<string>();
-    
-    // マルチセレクトモードの場合は既存の選択を保持
-    if (isMultiSelectMode) {
-      selectedNoteIds.forEach(id => newSelectedIds.add(id));
-    }
-    
-    // 範囲選択された付箋を追加
-    notesInSelection.forEach(note => newSelectedIds.add(note.id));
-    
-    setSelectedNoteIds(newSelectedIds);
-  }, [isSelecting, selectionStart, notes, isMultiSelectMode, selectedNoteIds]);
+      // 範囲選択による選択状態を設定
+      const newSelectedIds = new Set<string>();
+
+      // マルチセレクトモードの場合は既存の選択を保持
+      if (isMultiSelectMode) {
+        selectedNoteIds.forEach((id) => newSelectedIds.add(id));
+      }
+
+      // 範囲選択された付箋を追加
+      notesInSelection.forEach((note) => newSelectedIds.add(note.id));
+
+      setSelectedNoteIds(newSelectedIds);
+    },
+    [isSelecting, selectionStart, notes, isMultiSelectMode, selectedNoteIds]
+  );
 
   // 範囲選択の終了
   const handleBoardMouseUp = useCallback(() => {
     if (isSelecting && selectionStart && selectionEnd) {
       // 実際にドラッグが行われたかを確認（5px以上の移動で選択とみなす）
       const dragDistance = Math.sqrt(
-        Math.pow(selectionEnd.x - selectionStart.x, 2) + 
-        Math.pow(selectionEnd.y - selectionStart.y, 2)
+        Math.pow(selectionEnd.x - selectionStart.x, 2) +
+          Math.pow(selectionEnd.y - selectionStart.y, 2)
       );
-      
+
       const wasActualDrag = dragDistance > 5;
-      
+
       setIsSelecting(false);
       setSelectionStart(null);
       setSelectionEnd(null);
       setIsMultiSelectMode(false);
-      
+
       if (wasActualDrag) {
         setJustFinishedSelection(true);
         // 少し後にフラグをクリア
@@ -351,7 +372,10 @@ export function Board({ user }: BoardProps) {
   }, [isSelecting, selectionStart, selectionEnd]);
 
   // 一括移動の開始
-  const startBulkDrag = (noteId: string, e: React.MouseEvent<HTMLDivElement>) => {
+  const startBulkDrag = (
+    noteId: string,
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
     if (!selectedNoteIds.has(noteId)) {
       return;
     }
@@ -359,11 +383,11 @@ export function Board({ user }: BoardProps) {
     setIsDraggingMultiple(true);
     setDragStartPos({ x: e.clientX, y: e.clientY });
     setJustFinishedBulkDrag(false); // 新しいドラッグ開始時にフラグをクリア
-    
+
     // 選択された付箋の初期位置を記録
     const positions: Record<string, { x: number; y: number }> = {};
-    selectedNoteIds.forEach(id => {
-      const note = notes.find(n => n.id === id);
+    selectedNoteIds.forEach((id) => {
+      const note = notes.find((n) => n.id === id);
       if (note) {
         positions[id] = { x: note.x, y: note.y };
       }
@@ -372,33 +396,43 @@ export function Board({ user }: BoardProps) {
   };
 
   // 一括移動の処理
-  const handleBulkDragMove = useCallback((e: MouseEvent) => {
-    if (!isDraggingMultiple || !dragStartPos) return;
+  const handleBulkDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingMultiple || !dragStartPos) return;
 
-    const deltaX = e.clientX - dragStartPos.x;
-    const deltaY = e.clientY - dragStartPos.y;
+      const deltaX = e.clientX - dragStartPos.x;
+      const deltaY = e.clientY - dragStartPos.y;
 
-    selectedNoteIds.forEach(noteId => {
-      const initialPos = initialSelectedPositions[noteId];
-      if (initialPos) {
-        const newX = initialPos.x + deltaX;
-        const newY = initialPos.y + deltaY;
-        
-        updateNote(noteId, {
-          x: newX,
-          y: newY,
-          isDragging: true,
-          draggedBy: user.uid,
-        });
-      }
-    });
-  }, [isDraggingMultiple, dragStartPos, selectedNoteIds, initialSelectedPositions, updateNote, user.uid]);
+      selectedNoteIds.forEach((noteId) => {
+        const initialPos = initialSelectedPositions[noteId];
+        if (initialPos) {
+          const newX = initialPos.x + deltaX;
+          const newY = initialPos.y + deltaY;
+
+          updateNote(noteId, {
+            x: newX,
+            y: newY,
+            isDragging: true,
+            draggedBy: user.uid,
+          });
+        }
+      });
+    },
+    [
+      isDraggingMultiple,
+      dragStartPos,
+      selectedNoteIds,
+      initialSelectedPositions,
+      updateNote,
+      user.uid,
+    ]
+  );
 
   // 一括移動の終了
   const handleBulkDragEnd = useCallback(() => {
     if (isDraggingMultiple) {
       // 最終位置を確定
-      selectedNoteIds.forEach(noteId => {
+      selectedNoteIds.forEach((noteId) => {
         updateNote(noteId, {
           isDragging: false,
           draggedBy: null,
@@ -406,14 +440,14 @@ export function Board({ user }: BoardProps) {
       });
 
       setJustFinishedBulkDrag(true);
-      
+
       // 一括ドラッグ状態を遅延してクリア（クリックイベントを防ぐため）
       setTimeout(() => {
         setIsDraggingMultiple(false);
         setDragStartPos(null);
         setInitialSelectedPositions({});
       }, 100);
-      
+
       // さらに後にフラグをクリア
       setTimeout(() => {
         setJustFinishedBulkDrag(false);
@@ -424,22 +458,22 @@ export function Board({ user }: BoardProps) {
   // マウスイベントのリスナー設定
   useEffect(() => {
     if (isSelecting) {
-      document.addEventListener('mousemove', handleBoardMouseMove);
-      document.addEventListener('mouseup', handleBoardMouseUp);
+      document.addEventListener("mousemove", handleBoardMouseMove);
+      document.addEventListener("mouseup", handleBoardMouseUp);
       return () => {
-        document.removeEventListener('mousemove', handleBoardMouseMove);
-        document.removeEventListener('mouseup', handleBoardMouseUp);
+        document.removeEventListener("mousemove", handleBoardMouseMove);
+        document.removeEventListener("mouseup", handleBoardMouseUp);
       };
     }
   }, [isSelecting, handleBoardMouseMove, handleBoardMouseUp]);
 
   useEffect(() => {
     if (isDraggingMultiple) {
-      document.addEventListener('mousemove', handleBulkDragMove);
-      document.addEventListener('mouseup', handleBulkDragEnd);
+      document.addEventListener("mousemove", handleBulkDragMove);
+      document.addEventListener("mouseup", handleBulkDragEnd);
       return () => {
-        document.removeEventListener('mousemove', handleBulkDragMove);
-        document.removeEventListener('mouseup', handleBulkDragEnd);
+        document.removeEventListener("mousemove", handleBulkDragMove);
+        document.removeEventListener("mouseup", handleBulkDragEnd);
       };
     }
   }, [isDraggingMultiple, handleBulkDragMove, handleBulkDragEnd]);
@@ -453,7 +487,7 @@ export function Board({ user }: BoardProps) {
 
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
-    selectedNoteIds.forEach(noteId => {
+    selectedNoteIds.forEach((noteId) => {
       const note = notes.find((n) => n.id === noteId);
       if (note && note.userId === user.uid) {
         deleteNote(noteId);
@@ -596,8 +630,9 @@ export function Board({ user }: BoardProps) {
         } else if (e.key === "v" && copiedNote) {
           // Check if a textarea (note editor) is focused
           const activeElement = document.activeElement;
-          const isTextareaFocused = activeElement && activeElement.tagName === 'TEXTAREA';
-          
+          const isTextareaFocused =
+            activeElement && activeElement.tagName === "TEXTAREA";
+
           // Only paste note if no textarea is focused
           if (!isTextareaFocused) {
             e.preventDefault();
@@ -607,23 +642,28 @@ export function Board({ user }: BoardProps) {
         } else if (e.key === "a") {
           // テキストエリアにフォーカスがある場合は通常のテキスト選択を許可
           const activeElement = document.activeElement;
-          const isTextareaFocused = activeElement && activeElement.tagName === 'TEXTAREA';
-          
+          const isTextareaFocused =
+            activeElement && activeElement.tagName === "TEXTAREA";
+
           if (!isTextareaFocused) {
             e.preventDefault();
             // Select all notes
-            const allNoteIds = new Set(notes.map(note => note.id));
+            const allNoteIds = new Set(notes.map((note) => note.id));
             setSelectedNoteIds(allNoteIds);
             if (notes.length > 0) {
               setActiveNoteId(notes[notes.length - 1].id);
             }
           }
         }
-      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedNoteIds.size > 0) {
+      } else if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedNoteIds.size > 0
+      ) {
         // Delete selected notes if no textarea is focused
         const activeElement = document.activeElement;
-        const isTextareaFocused = activeElement && activeElement.tagName === 'TEXTAREA';
-        
+        const isTextareaFocused =
+          activeElement && activeElement.tagName === "TEXTAREA";
+
         if (!isTextareaFocused) {
           e.preventDefault();
           deleteSelectedNotes();
@@ -665,14 +705,14 @@ export function Board({ user }: BoardProps) {
       <div
         className="selection-box"
         style={{
-          position: 'absolute',
+          position: "absolute",
           left: `${minX}px`,
           top: `${minY}px`,
           width: `${width}px`,
           height: `${height}px`,
-          border: '2px dashed #5b97ff',
-          backgroundColor: 'rgba(91, 151, 255, 0.1)',
-          pointerEvents: 'none',
+          border: "2px dashed #5b97ff",
+          backgroundColor: "rgba(91, 151, 255, 0.1)",
+          pointerEvents: "none",
           zIndex: 9999,
         }}
       />
@@ -680,23 +720,11 @@ export function Board({ user }: BoardProps) {
   };
 
   return (
-    <div 
-      className="board" 
+    <div
+      className="board"
       onClick={handleBoardClick}
       onMouseDown={handleBoardMouseDown}
     >
-      <Header user={user}>
-        <div className="board-title-edit">
-          <BoardTitle
-            isEditingTitle={isEditingTitle}
-            editingBoardName={editingBoardName}
-            boardName={boardName}
-            onEditStart={() => setIsEditingTitle(true)}
-            onEditChange={setEditingBoardName}
-            onEditSave={saveBoardName}
-          />
-        </div>
-      </Header>
       <div className="notes-container">
         {notes.map((note) => (
           <StickyNote

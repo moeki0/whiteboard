@@ -4,7 +4,6 @@ import { rtdb } from "../config/firebase";
 import { ref, set } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
-import { Header } from "./Header";
 import { User } from "../types";
 import "./ProjectCreate.css";
 
@@ -75,8 +74,6 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
 
   return (
     <div className="project-create">
-      <Header title="Create New Project" user={user} />
-
       <div className="create-container">
         <div className="create-section">
           <h2>Project Details</h2>

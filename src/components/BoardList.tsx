@@ -4,7 +4,6 @@ import { rtdb, auth } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { signOut } from "firebase/auth";
 import { customAlphabet } from "nanoid";
-import { Header } from "./Header";
 import { useProject } from "../contexts/ProjectContext";
 import { User, Board, Cursor } from "../types";
 
@@ -22,8 +21,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const [projectName, setProjectName] = useState<string>("");
   const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
   const [newBoardName, setNewBoardName] = useState<string>("");
-  const [boardCursors, setBoardCursors] = useState<Record<string, Record<string, Cursor>>>({});
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
+  const [boardCursors, setBoardCursors] = useState<
+    Record<string, Record<string, Cursor>>
+  >({});
+  const nanoid = customAlphabet(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    21
+  );
 
   useEffect(() => {
     if (!projectId) return;
@@ -48,7 +52,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       const projectBoardsData = snapshot.val();
       if (projectBoardsData) {
         const boardIds = Object.keys(projectBoardsData);
-        
+
         // Fetch actual board data from boards collection
         const boardPromises = boardIds.map(async (boardId) => {
           const boardRef = ref(rtdb, `boards/${boardId}`);
@@ -61,9 +65,9 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           }
           return null;
         });
-        
+
         const boardResults = await Promise.all(boardPromises);
-        const validBoards = boardResults.filter(board => board !== null);
+        const validBoards = boardResults.filter((board) => board !== null);
         setBoards(validBoards.sort((a, b) => b.createdAt - a.createdAt));
       } else {
         setBoards([]);
@@ -85,7 +89,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       const unsubscribe = onValue(cursorsRef, (snapshot) => {
         const data = snapshot.val();
         const activeCursors: Record<string, Cursor> = {};
-        
+
         if (data) {
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
@@ -94,17 +98,20 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
             // Only show recent cursors (active users)
             if (now - cursor.timestamp < CURSOR_TIMEOUT) {
               // Extract userId from cursorId (format: userId-sessionId)
-              const userId = cursorId.split('-')[0];
-              if (!activeCursors[userId] || cursor.timestamp > activeCursors[userId].timestamp) {
+              const userId = cursorId.split("-")[0];
+              if (
+                !activeCursors[userId] ||
+                cursor.timestamp > activeCursors[userId].timestamp
+              ) {
                 activeCursors[userId] = cursor as Cursor;
               }
             }
           });
         }
 
-        setBoardCursors(prev => ({
+        setBoardCursors((prev) => ({
           ...prev,
-          [board.id]: activeCursors
+          [board.id]: activeCursors,
         }));
       });
 
@@ -112,7 +119,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     });
 
     return () => {
-      unsubscribes.forEach(unsubscribe => unsubscribe());
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
   }, [boards]);
 
@@ -129,7 +136,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     // Store board with both references
     const boardRef = ref(rtdb, `boards/${boardId}`);
     await set(boardRef, board);
-    
+
     const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
     await set(projectBoardRef, board);
 
@@ -141,7 +148,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const ActiveMembers = ({ boardId }: { boardId: string }) => {
     const cursors = boardCursors[boardId] || {};
     const activeUsers = Object.values(cursors);
-    
+
     if (activeUsers.length === 0) {
       return null;
     }
@@ -153,9 +160,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     return (
       <div className="active-members">
         {displayUsers.map((cursor, index) => {
-          const userId = cursor.fullName?.split(' (')[0] || 'User';
-          const initials = userId.split(' ').map(name => name.charAt(0).toUpperCase()).slice(0, 2).join('');
-          
+          const userId = cursor.fullName?.split(" (")[0] || "User";
+          const initials = userId
+            .split(" ")
+            .map((name) => name.charAt(0).toUpperCase())
+            .slice(0, 2)
+            .join("");
+
           return (
             <div
               key={index}
@@ -178,23 +189,20 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
   return (
     <div className="board-list">
-      <Header title={projectName} user={user!}>
+      <div className="board-list-header">
         <button
           className="fab-new-board-btn"
           onClick={createBoard}
           title="Create New Board"
         >
-          +
+          Create New Board
         </button>
-      </Header>
+      </div>
 
       <div className="boards-grid">
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
-            <Link
-              to={`/${board.id}`}
-              className="board-card"
-            >
+            <Link to={`/${board.id}`} className="board-card">
               <div className="board-card-content">
                 <p className="board-name">{board.name}</p>
                 <ActiveMembers boardId={board.id} />

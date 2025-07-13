@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
 import { signOut } from "firebase/auth";
-import { Header } from "./Header";
 import { User } from "../types";
 import "./UserSettings.css";
 
@@ -32,8 +31,6 @@ export function UserSettings({ user }: UserSettingsProps) {
 
   return (
     <div className="user-settings">
-      <Header title="User Settings" user={user} />
-
       <div className="settings-container">
         {/* User Information */}
         <div className="settings-section">

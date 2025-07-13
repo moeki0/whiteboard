@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, get } from "firebase/database";
@@ -10,7 +10,7 @@ interface UnifiedMenuProps {
   user: User;
 }
 
-export function UnifiedMenu({ user }: UnifiedMenuProps) {
+export const UnifiedMenu = memo(function UnifiedMenu({ user }: UnifiedMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentProjectId } = useProject();
@@ -19,15 +19,18 @@ export function UnifiedMenu({ user }: UnifiedMenuProps) {
   const [canEditBoard, setCanEditBoard] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Check if we're on a board page
-  const currentBoardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
-  const isOnBoardPage =
-    currentBoardId &&
-    !location.pathname.includes("/project/") &&
-    !location.pathname.includes("/user/") &&
-    !location.pathname.includes("/create-") &&
-    !location.pathname.includes("/invite/") &&
-    !location.pathname.includes("/board/");
+  // Check if we're on a board page - memoized to avoid recalculation
+  const { currentBoardId, isOnBoardPage } = useMemo(() => {
+    const boardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
+    const onBoardPage = boardId &&
+      !location.pathname.includes("/project/") &&
+      !location.pathname.includes("/user/") &&
+      !location.pathname.includes("/create-") &&
+      !location.pathname.includes("/invite/") &&
+      !location.pathname.includes("/board/");
+    
+    return { currentBoardId: boardId, isOnBoardPage: onBoardPage };
+  }, [location.pathname]);
 
   useEffect(() => {
     // Listen to user's projects
@@ -121,40 +124,44 @@ export function UnifiedMenu({ user }: UnifiedMenuProps) {
     };
   }, []);
 
-  const handleProjectSelect = (projectId: string) => {
+  const handleProjectSelect = useCallback((projectId: string) => {
     setIsOpen(false);
     navigate(`/project/${projectId}`);
-  };
+  }, [navigate]);
 
-  const handleProjectSettings = () => {
+  const handleProjectSettings = useCallback(() => {
     setIsOpen(false);
     if (currentProjectId) {
       navigate(`/project/${currentProjectId}/settings`);
     }
-  };
+  }, [navigate, currentProjectId]);
 
-  const handleCreateProject = () => {
+  const handleCreateProject = useCallback(() => {
     setIsOpen(false);
     navigate("/create-project");
-  };
+  }, [navigate]);
 
-  const handleUserSettings = () => {
+  const handleUserSettings = useCallback(() => {
     setIsOpen(false);
     navigate("/user/settings");
-  };
+  }, [navigate]);
 
-  const handleBoardSettings = () => {
+  const handleBoardSettings = useCallback(() => {
     setIsOpen(false);
     if (currentBoardId) {
       navigate(`/board/${currentBoardId}/settings`);
     }
-  };
+  }, [navigate, currentBoardId]);
+
+  const toggleMenu = useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
 
   return (
     <div className="unified-menu" ref={dropdownRef}>
       <button
         className="menu-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleMenu}
         title={user.displayName || user.email || undefined}
       >
         {user.photoURL ? (
@@ -222,4 +229,4 @@ export function UnifiedMenu({ user }: UnifiedMenuProps) {
       )}
     </div>
   );
-}
+});

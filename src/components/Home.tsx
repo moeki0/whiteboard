@@ -4,7 +4,6 @@ import { rtdb } from "../config/firebase";
 import { ref, onValue, set } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
-import { Header } from "./Header";
 import { BoardList } from "./BoardList";
 import { User, Project } from "../types";
 
@@ -128,7 +127,6 @@ export function Home({ user }: HomeProps) {
   if (projects.length === 0) {
     return (
       <div className="welcome-screen">
-        <Header title="Welcome to Maplap" user={user} />
         <div className="welcome-content">
           <div className="welcome-card">
             <h2>Welcome to Maplap!</h2>
