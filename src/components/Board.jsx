@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { StickyNote } from "./StickyNote";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
@@ -10,6 +10,7 @@ import { useHistory } from "../hooks/useHistory";
 
 export function Board({ user }) {
   const { boardId } = useParams();
+  const navigate = useNavigate();
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [nextZIndex, setNextZIndex] = useState(100);
@@ -21,6 +22,7 @@ export function Board({ user }) {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [sessionId] = useState(() => Math.random().toString(36).substr(2, 9));
   const [projectId, setProjectId] = useState(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
@@ -67,6 +69,28 @@ export function Board({ user }) {
     setIsEditingTitle(false);
   };
 
+  // Check access permissions function
+  const checkAccess = async (boardData) => {
+    if (!boardData.isPublic && boardData.projectId) {
+      const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
+      const projectSnapshot = await get(projectRef);
+
+      if (projectSnapshot.exists()) {
+        const projectData = projectSnapshot.val();
+        const isMember = projectData.members?.[user.uid];
+
+        if (!isMember) {
+          alert(
+            "This board is private. Only project members can access it."
+          );
+          navigate("/");
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   useEffect(() => {
     // Get board info and project ID
     const getBoardInfo = async () => {
@@ -77,10 +101,38 @@ export function Board({ user }) {
         setBoardName(boardData.name);
         setEditingBoardName(boardData.name);
         setProjectId(boardData.projectId);
+
+        // Check initial access permissions
+        const hasAccess = await checkAccess(boardData);
+        if (!hasAccess) return;
+        
+        // Access check complete, allow rendering
+        setIsCheckingAccess(false);
       }
     };
 
     getBoardInfo();
+
+    // Listen to board changes for real-time access control
+    const boardRef = ref(rtdb, `boards/${boardId}`);
+    const unsubscribeBoard = onValue(boardRef, async (snapshot) => {
+      if (snapshot.exists()) {
+        const boardData = snapshot.val();
+        setBoardName(boardData.name);
+        setEditingBoardName(boardData.name);
+        setProjectId(boardData.projectId);
+
+        // Check access permissions in real-time
+        if (!isCheckingAccess) {
+          await checkAccess(boardData);
+        }
+      } else {
+        // Board was deleted
+        alert("This board has been deleted.");
+        navigate("/");
+      }
+    });
+
 
     const notesRef = ref(rtdb, `boardNotes/${boardId}`);
     const cursorsRef = ref(rtdb, `boardCursors/${boardId}`);
@@ -140,10 +192,34 @@ export function Board({ user }) {
     });
 
     return () => {
+      unsubscribeBoard();
       unsubscribeNotes();
       unsubscribeCursors();
     };
   }, [boardId, user.uid, sessionId, isInitialLoad]);
+
+  // Listen to project membership changes for real-time access control
+  useEffect(() => {
+    if (!projectId) return;
+
+    const projectRef = ref(rtdb, `projects/${projectId}/members/${user.uid}`);
+    const unsubscribeProject = onValue(projectRef, async (snapshot) => {
+      if (!snapshot.exists()) {
+        // User was removed from project
+        const boardRef = ref(rtdb, `boards/${boardId}`);
+        const boardSnapshot = await get(boardRef);
+        if (boardSnapshot.exists()) {
+          const boardData = boardSnapshot.val();
+          if (!boardData.isPublic) {
+            alert("You have been removed from this project and can no longer access this private board.");
+            navigate("/");
+          }
+        }
+      }
+    });
+
+    return () => unsubscribeProject();
+  }, [projectId, user.uid, boardId, navigate]);
 
   const addNote = () => {
     const app = document.querySelector(".app");
@@ -373,7 +449,7 @@ export function Board({ user }) {
       "#BB8FCE", // ライトパープル
       "#F8C471", // ピーチ
     ];
-    
+
     // Use the same hash logic as cursor color
     const hash = userId
       .split("")
@@ -513,6 +589,11 @@ export function Board({ user }) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [boardId, user.uid, sessionId]);
+
+  // Show loading state while checking access
+  if (isCheckingAccess) {
+    return <div className="loading">Loading...</div>;
+  }
 
   return (
     <div className="board" onClick={handleBoardClick}>

@@ -192,6 +192,22 @@
   background-color: #45a049;
 }
 
+.generate-btn {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.generate-btn:hover {
+  background-color: #1976d2;
+}
+
 /* Members List */
 .members-list {
   display: flex;

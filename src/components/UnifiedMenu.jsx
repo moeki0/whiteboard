@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, get } from "firebase/database";
 import "./UnifiedMenu.css";
 
 export function UnifiedMenu({ user, currentProjectId }) {
@@ -23,21 +23,18 @@ export function UnifiedMenu({ user, currentProjectId }) {
       if (userProjectData) {
         const projectIds = Object.keys(userProjectData);
         const projectPromises = projectIds.map(async (projectId) => {
-          const projectRef = ref(rtdb, `projects/${projectId}`);
-          return new Promise((resolve) => {
-            onValue(
-              projectRef,
-              (projectSnapshot) => {
-                const project = projectSnapshot.val();
-                if (project) {
-                  resolve({ id: projectId, ...project });
-                } else {
-                  resolve(null);
-                }
-              },
-              { onlyOnce: true }
-            );
-          });
+          try {
+            const projectRef = ref(rtdb, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            if (projectSnapshot.exists()) {
+              return { id: projectId, ...projectSnapshot.val() };
+            } else {
+              return null;
+            }
+          } catch (error) {
+            console.error(`Error fetching project ${projectId}:`, error);
+            return null;
+          }
         });
 
         const projectResults = await Promise.all(projectPromises);

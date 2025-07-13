@@ -14,6 +14,8 @@ export function BoardSettings({ user }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     const loadBoardSettings = async () => {
@@ -26,6 +28,29 @@ export function BoardSettings({ user }) {
           setBoard(boardData);
           setBoardName(boardData.name || "");
           setIsPublic(boardData.isPublic || false);
+          
+          // Check if user has access to this board
+          if (boardData.projectId) {
+            const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
+            const projectSnapshot = await get(projectRef);
+            
+            if (projectSnapshot.exists()) {
+              const projectData = projectSnapshot.val();
+              const userMember = projectData.members?.[user.uid];
+              
+              if (userMember) {
+                setUserRole(userMember.role);
+                setHasAccess(true);
+              } else {
+                setHasAccess(false);
+              }
+            } else {
+              setHasAccess(false);
+            }
+          } else {
+            // If no project, allow access for now
+            setHasAccess(true);
+          }
         } else {
           alert("Board not found");
           navigate("/");
@@ -117,6 +142,26 @@ export function BoardSettings({ user }) {
     return <div className="loading">Board not found</div>;
   }
 
+  if (!hasAccess) {
+    return (
+      <div className="board-settings">
+        <Header title="Board Settings" user={user} />
+        <div className="settings-container">
+          <div className="settings-section">
+            <h2>Access Denied</h2>
+            <p>You don't have permission to access this board's settings. Only project members can modify board settings.</p>
+            <button
+              onClick={() => navigate(`/${boardId}`)}
+              className="cancel-btn"
+            >
+              Back to Board
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="board-settings">
       <Header title="Board Settings" user={user} />
@@ -148,8 +193,8 @@ export function BoardSettings({ user }) {
                 <label className="toggle-label">
                   <input
                     type="checkbox"
-                    checked={isPublic}
-                    onChange={(e) => setIsPublic(e.target.checked)}
+                    checked={!isPublic}
+                    onChange={(e) => setIsPublic(!e.target.checked)}
                     disabled={isSaving}
                   />
                   <span className="toggle-slider"></span>

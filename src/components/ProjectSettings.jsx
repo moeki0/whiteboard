@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { rtdb, auth } from "../config/firebase";
+import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
-import { signOut } from "firebase/auth";
+import { customAlphabet } from "nanoid";
 import { Header } from "./Header";
 import "./ProjectSettings.css";
 
@@ -14,6 +14,8 @@ export function ProjectSettings({ user }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [members, setMembers] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -25,6 +27,17 @@ export function ProjectSettings({ user }) {
           const projectData = { id: projectId, ...projectSnapshot.val() };
           setProject(projectData);
           setNewProjectName(projectData.name);
+
+          // Check user role
+          const userMember = projectData.members?.[user.uid];
+          if (userMember) {
+            setUserRole(userMember.role);
+            setIsOwner(userMember.role === "owner");
+          } else {
+            // User is not a member
+            setUserRole(null);
+            setIsOwner(false);
+          }
 
           // Convert members object to array for easier rendering
           if (projectData.members) {
@@ -51,6 +64,11 @@ export function ProjectSettings({ user }) {
   }, [projectId, navigate]);
 
   const updateProjectName = async () => {
+    if (!isOwner) {
+      alert("Only project owners can modify project settings");
+      return;
+    }
+
     if (!newProjectName.trim() || newProjectName === project.name) {
       setIsEditingName(false);
       setNewProjectName(project.name);
@@ -70,6 +88,11 @@ export function ProjectSettings({ user }) {
   };
 
   const removeMember = async (memberUid) => {
+    if (!isOwner) {
+      alert("Only project owners can remove members");
+      return;
+    }
+
     if (memberUid === user.uid) {
       alert("You cannot remove yourself from the project");
       return;
@@ -99,7 +122,53 @@ export function ProjectSettings({ user }) {
     }
   };
 
+  const generateInviteCode = async () => {
+    if (!isOwner) {
+      alert("Only project owners can generate invite codes");
+      return;
+    }
+
+    try {
+      const nanoid = customAlphabet(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        12
+      );
+      const newInviteCode = nanoid();
+
+      // Update project with new invite code
+      const projectRef = ref(rtdb, `projects/${projectId}/inviteCode`);
+      await set(projectRef, newInviteCode);
+
+      // Create invite mapping
+      const inviteRef = ref(rtdb, `invites/${newInviteCode}`);
+      await set(inviteRef, { projectId: projectId, createdAt: Date.now() });
+
+      // Update local state
+      setProject((prev) => ({ ...prev, inviteCode: newInviteCode }));
+
+      alert("New invite link generated!");
+    } catch (error) {
+      console.error("Error generating invite code:", error);
+      alert("Failed to generate invite code");
+    }
+  };
+
   const copyInviteLink = async () => {
+    if (!project.inviteCode) {
+      if (isOwner) {
+        const shouldGenerate = window.confirm(
+          "No invite code found. Would you like to generate one?"
+        );
+        if (shouldGenerate) {
+          await generateInviteCode();
+          return;
+        }
+      } else {
+        alert("No invite code found for this project");
+      }
+      return;
+    }
+
     const baseUrl = window.location.origin;
     const inviteUrl = `${baseUrl}/invite/${project.inviteCode}`;
 
@@ -119,6 +188,11 @@ export function ProjectSettings({ user }) {
   };
 
   const deleteProject = async () => {
+    if (!isOwner) {
+      alert("Only project owners can delete projects");
+      return;
+    }
+
     if (
       !window.confirm(
         "Are you sure you want to delete this project? This action cannot be undone."
@@ -183,7 +257,22 @@ export function ProjectSettings({ user }) {
     return <div className="loading">Project not found</div>;
   }
 
-  const isOwner = project.createdBy === user.uid;
+  if (!userRole) {
+    return (
+      <div className="project-settings">
+        <Header title="Project Settings" user={user} />
+        <div className="settings-container">
+          <div className="settings-section">
+            <h2>Access Denied</h2>
+            <p>You don't have permission to access this project's settings.</p>
+            <button onClick={() => navigate("/")} className="cancel-btn">
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="project-settings">
@@ -199,7 +288,7 @@ export function ProjectSettings({ user }) {
           <h2>Project Information</h2>
           <div className="setting-item">
             <label>Project Name</label>
-            {isEditingName ? (
+            {isEditingName && isOwner ? (
               <div className="edit-name-container">
                 <input
                   type="text"
@@ -235,16 +324,6 @@ export function ProjectSettings({ user }) {
               </div>
             )}
           </div>
-
-          <div className="setting-item">
-            <label>Created</label>
-            <span>{new Date(project.createdAt).toLocaleDateString()}</span>
-          </div>
-
-          <div className="setting-item">
-            <label>Project ID</label>
-            <span className="project-id">{projectId}</span>
-          </div>
         </div>
 
         {/* Invite Link */}
@@ -255,7 +334,11 @@ export function ProjectSettings({ user }) {
             <div className="invite-link-container">
               <input
                 type="text"
-                value={`${window.location.origin}/invite/${project.inviteCode}`}
+                value={
+                  project.inviteCode
+                    ? `${window.location.origin}/invite/${project.inviteCode}`
+                    : "No invite code generated"
+                }
                 readOnly
                 className="invite-link-input"
                 onClick={(e) => e.target.select()}
@@ -263,6 +346,11 @@ export function ProjectSettings({ user }) {
               <button onClick={copyInviteLink} className="copy-btn">
                 Copy
               </button>
+              {isOwner && (
+                <button onClick={generateInviteCode} className="generate-btn">
+                  {project.inviteCode ? "Regenerate" : "Generate"}
+                </button>
+              )}
             </div>
           </div>
         </div>
