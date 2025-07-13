@@ -12,6 +12,7 @@ import { useBoard } from "../hooks/useBoard";
 import { useCursor } from "../hooks/useCursor";
 import { getUserColor } from "../utils/colors";
 import { FirebaseUtils } from "../utils/firebase";
+import { copyStickyNoteToClipboard, copyMultipleStickyNotesToClipboard } from "../utils/clipboardUtils";
 import { User, Note } from "../types";
 
 interface BoardProps {
@@ -485,6 +486,26 @@ export function Board({ user }: BoardProps) {
     }
   };
 
+  // 付箋を画像としてクリップボードにコピー
+  const copyNotesAsImage = async () => {
+    if (selectedNoteIds.size === 0) {
+      return;
+    }
+
+    try {
+      const noteIds = Array.from(selectedNoteIds);
+      let success = false;
+
+      if (noteIds.length === 1) {
+        success = await copyStickyNoteToClipboard(noteIds[0]);
+      } else {
+        success = await copyMultipleStickyNotesToClipboard(noteIds);
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  };
+
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
     selectedNoteIds.forEach((noteId) => {
@@ -624,6 +645,19 @@ export function Board({ user }: BoardProps) {
         } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
           e.preventDefault();
           performRedo();
+        } else if (e.key === "c" && selectedNoteIds.size > 0) {
+          // Check if a textarea (note editor) is focused
+          const activeElement = document.activeElement;
+          const isTextareaFocused =
+            activeElement && activeElement.tagName === "TEXTAREA";
+
+          // Only copy as image if no textarea is focused
+          if (!isTextareaFocused) {
+            // Ctrl+C: Copy selected notes as image
+            e.preventDefault();
+            copyNotesAsImage();
+          }
+          // If textarea is focused, let the default copy behavior happen
         } else if (e.key === "c" && activeNoteId) {
           e.preventDefault();
           copyNote(activeNoteId);

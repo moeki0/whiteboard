@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/html2canvas": "^0.5.35",
     "firebase": "^11.10.0",
+    "html2canvas": "^1.4.1",
     "lodash.throttle": "^4.1.1",
     "nanoid": "^5.1.5",
     "react": "^19.1.0",
