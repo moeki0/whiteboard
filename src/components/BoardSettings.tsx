@@ -27,22 +27,22 @@ export function BoardSettings({ user }: BoardSettingsProps) {
       try {
         const boardRef = ref(rtdb, `boards/${boardId}`);
         const boardSnapshot = await get(boardRef);
-        
+
         if (boardSnapshot.exists()) {
           const boardData = boardSnapshot.val();
           setBoard(boardData);
           setBoardName(boardData.name || "");
           setIsPublic(boardData.isPublic || false);
-          
+
           // Check if user has access to this board
           if (boardData.projectId) {
             const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
             const projectSnapshot = await get(projectRef);
-            
+
             if (projectSnapshot.exists()) {
               const projectData = projectSnapshot.val();
               const userMember = projectData.members?.[user.uid];
-              
+
               if (userMember) {
                 setUserRole(userMember.role);
                 setHasAccess(true);
@@ -82,7 +82,7 @@ export function BoardSettings({ user }: BoardSettingsProps) {
       const updates = {
         name: boardName.trim(),
         isPublic: isPublic,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       };
 
       const boardRef = ref(rtdb, `boards/${boardId}`);
@@ -90,7 +90,10 @@ export function BoardSettings({ user }: BoardSettingsProps) {
 
       // Also update in projectBoards for consistency
       if (board?.projectId) {
-        const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
+        const projectBoardRef = ref(
+          rtdb,
+          `projectBoards/${board.projectId}/${boardId}`
+        );
         await set(projectBoardRef, { ...board, ...updates });
       }
 
@@ -104,11 +107,19 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   };
 
   const deleteBoard = async () => {
-    if (!window.confirm("Are you sure you want to delete this board? This action cannot be undone.")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this board? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
-    if (!window.confirm("This will permanently delete all notes and data on this board. Are you absolutely sure?")) {
+    if (
+      !window.confirm(
+        "This will permanently delete all notes and data on this board. Are you absolutely sure?"
+      )
+    ) {
       return;
     }
 
@@ -116,10 +127,13 @@ export function BoardSettings({ user }: BoardSettingsProps) {
     try {
       const boardRef = ref(rtdb, `boards/${boardId}`);
       await remove(boardRef);
-      
+
       // Also remove from projectBoards for consistency
       if (board?.projectId) {
-        const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
+        const projectBoardRef = ref(
+          rtdb,
+          `projectBoards/${board.projectId}/${boardId}`
+        );
         await remove(projectBoardRef);
       }
 
@@ -140,7 +154,7 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   };
 
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading"></div>;
   }
 
   if (!board) {
@@ -154,7 +168,10 @@ export function BoardSettings({ user }: BoardSettingsProps) {
         <div className="settings-container">
           <div className="settings-section">
             <h2>Access Denied</h2>
-            <p>You don't have permission to access this board's settings. Only project members can modify board settings.</p>
+            <p>
+              You don't have permission to access this board's settings. Only
+              project members can modify board settings.
+            </p>
             <button
               onClick={() => navigate(`/${boardId}`)}
               className="cancel-btn"
@@ -205,7 +222,9 @@ export function BoardSettings({ user }: BoardSettingsProps) {
                   />
                   <span className="radio-text">
                     <strong>Public</strong>
-                    <small>Anyone with the link can view and edit this board</small>
+                    <small>
+                      Anyone with the link can view and edit this board
+                    </small>
                   </span>
                 </label>
                 <label className="radio-label">
@@ -245,7 +264,9 @@ export function BoardSettings({ user }: BoardSettingsProps) {
 
         <div className="danger-zone">
           <h3>Danger Zone</h3>
-          <p>Once you delete a board, there is no going back. Please be certain.</p>
+          <p>
+            Once you delete a board, there is no going back. Please be certain.
+          </p>
           <button
             onClick={deleteBoard}
             disabled={isDeleting || isSaving}

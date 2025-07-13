@@ -17,11 +17,17 @@ export function Home({ user }: HomeProps) {
   const { currentProjectId, updateCurrentProject } = useProject();
   const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
+  const nanoid = customAlphabet(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    21
+  );
 
   const createFirstProject = async () => {
     const projectId = nanoid();
-    const inviteCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 12)();
+    const inviteCode = customAlphabet(
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+      12
+    )();
     const project = {
       name: "My First Project",
       createdBy: user.uid,
@@ -59,7 +65,7 @@ export function Home({ user }: HomeProps) {
     const unsubscribe = onValue(userProjectsRef, async (snapshot) => {
       const userProjectData = snapshot.val();
       console.log("User projects data:", userProjectData);
-      
+
       if (userProjectData) {
         const projectIds = Object.keys(userProjectData);
         const projectPromises = projectIds.map(async (projectId) => {
@@ -84,7 +90,7 @@ export function Home({ user }: HomeProps) {
         const validProjects = projectResults.filter((p) => p !== null);
         console.log("Valid projects:", validProjects);
         console.log("Current project ID:", currentProjectId);
-        
+
         setProjects(validProjects as (Project & { id: string })[]);
 
         // If user has no current project but has projects, set the first one
@@ -94,7 +100,10 @@ export function Home({ user }: HomeProps) {
           updateCurrentProject(firstProject.id);
         }
         // If current project doesn't exist, clear it
-        else if (currentProjectId && !validProjects.find(p => (p as any).id === currentProjectId)) {
+        else if (
+          currentProjectId &&
+          !validProjects.find((p) => (p as any).id === currentProjectId)
+        ) {
           console.log("Current project not found, clearing");
           updateCurrentProject(null);
         }
@@ -112,7 +121,7 @@ export function Home({ user }: HomeProps) {
   console.log("Home component state:", { loading, projects, currentProjectId });
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading"></div>;
   }
 
   // If user has no projects, show welcome screen
@@ -123,8 +132,14 @@ export function Home({ user }: HomeProps) {
         <div className="welcome-content">
           <div className="welcome-card">
             <h2>Welcome to Maplap!</h2>
-            <p>You don't have any projects yet. Let's create your first project to get started.</p>
-            <button onClick={createFirstProject} className="create-first-project-btn">
+            <p>
+              You don't have any projects yet. Let's create your first project
+              to get started.
+            </p>
+            <button
+              onClick={createFirstProject}
+              className="create-first-project-btn"
+            >
               Create Your First Project
             </button>
           </div>
@@ -140,5 +155,5 @@ export function Home({ user }: HomeProps) {
   }
 
   // Fallback - should not happen
-  return <div className="loading">Loading...</div>;
+  return <div className="loading"></div>;
 }

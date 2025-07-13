@@ -5,14 +5,14 @@ interface LoadingSpinnerProps {
   size?: "small" | "medium" | "large";
 }
 
-export function LoadingSpinner({ 
-  message = "Loading...", 
-  size = "medium" 
+export function LoadingSpinner({
+  message = "Loading...",
+  size = "medium",
 }: LoadingSpinnerProps) {
   const sizeClasses = {
     small: "loading-small",
-    medium: "loading-medium", 
-    large: "loading-large"
+    medium: "loading-medium",
+    large: "loading-large",
   };
 
   return (

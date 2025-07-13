@@ -36,7 +36,7 @@ function App() {
   // Protected Route Component
   function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (loading) {
-      return <div className="loading">Loading...</div>;
+      return <div className="loading"></div>;
     }
 
     if (!user) {

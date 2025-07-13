@@ -24,15 +24,20 @@ export function Board({ user }: BoardProps) {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
-  const [sessionId] = useState<string>(() => Math.random().toString(36).substr(2, 9));
-  const [isUndoRedoOperation, setIsUndoRedoOperation] = useState<boolean>(false);
-  const [currentUndoRedoNoteId, setCurrentUndoRedoNoteId] = useState<string | null>(null);
-  
+  const [sessionId] = useState<string>(() =>
+    Math.random().toString(36).substr(2, 9)
+  );
+  const [isUndoRedoOperation, setIsUndoRedoOperation] =
+    useState<boolean>(false);
+  const [currentUndoRedoNoteId, setCurrentUndoRedoNoteId] = useState<
+    string | null
+  >(null);
+
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
   );
-  
+
   const { addToHistory, undo, redo } = useHistory();
   const {
     boardId,
@@ -47,7 +52,7 @@ export function Board({ user }: BoardProps) {
     setEditingBoardName,
     saveBoardName,
   } = useBoard(user, navigate, sessionId);
-  
+
   const cursorColor = getUserColor(user.uid);
 
   // Use cursor tracking hook
@@ -57,7 +62,6 @@ export function Board({ user }: BoardProps) {
     sessionId,
     cursorColor,
   });
-
 
   // Update maxZIndex when notes change
   useEffect(() => {
@@ -80,7 +84,9 @@ export function Board({ user }: BoardProps) {
         if (boardSnapshot.exists()) {
           const boardData = boardSnapshot.val();
           if (!boardData.isPublic) {
-            alert("You have been removed from this project and can no longer access this private board.");
+            alert(
+              "You have been removed from this project and can no longer access this private board."
+            );
             navigate("/");
           }
         }
@@ -92,7 +98,7 @@ export function Board({ user }: BoardProps) {
 
   const addNote = () => {
     const app = document.querySelector(".app") as HTMLElement;
-    const newNote: Omit<Note, 'id'> = {
+    const newNote: Omit<Note, "id"> = {
       content: "",
       x: Math.random() * (window.innerWidth - 250) + (app?.scrollLeft || 0),
       y: Math.random() * (window.innerHeight - 250) + (app?.scrollTop || 0),
@@ -130,7 +136,11 @@ export function Board({ user }: BoardProps) {
 
       // Add to history only for significant changes by the current user
       // Skip history tracking if this is an undo/redo operation for this specific note
-      if (!isUndoRedoOperation && note.userId === user.uid && currentUndoRedoNoteId !== noteId) {
+      if (
+        !isUndoRedoOperation &&
+        note.userId === user.uid &&
+        currentUndoRedoNoteId !== noteId
+      ) {
         // Only track position changes (not dragging state changes)
         if (updates.x !== undefined || updates.y !== undefined) {
           addToHistory({
@@ -206,7 +216,7 @@ export function Board({ user }: BoardProps) {
       // Remove id and other properties that should be unique
       const { id, ...noteData } = copiedNote;
 
-      const newNote: Omit<Note, 'id'> = {
+      const newNote: Omit<Note, "id"> = {
         ...noteData,
         x: copiedNote.x + 20,
         y: copiedNote.y + 20,
@@ -237,7 +247,7 @@ export function Board({ user }: BoardProps) {
     try {
       const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
-      
+
       switch (action.type) {
         case "CREATE_NOTE":
           remove(noteRef);
@@ -277,7 +287,7 @@ export function Board({ user }: BoardProps) {
     try {
       const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
-      
+
       switch (action.type) {
         case "CREATE_NOTE":
           set(noteRef, action.note);
@@ -306,7 +316,6 @@ export function Board({ user }: BoardProps) {
       }, 500);
     }
   }, [redo, user.uid, boardId, notes]);
-
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -341,15 +350,14 @@ export function Board({ user }: BoardProps) {
     performRedo,
   ]);
 
-
   // Show loading state while checking access
   if (isCheckingAccess) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading"></div>;
   }
 
   return (
     <div className="board" onClick={handleBoardClick}>
-      <Header user={user} currentProjectId={projectId || undefined}>
+      <Header user={user}>
         <div className="board-title-edit">
           <BoardTitle
             isEditingTitle={isEditingTitle}

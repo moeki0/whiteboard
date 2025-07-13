@@ -13,11 +13,10 @@ interface HeaderProps {
   backButton?: BackButton;
   user: User;
   children?: ReactNode;
-  currentProjectId?: string;
   title?: string;
 }
 
-export function Header({ backButton, user, children, currentProjectId, title }: HeaderProps) {
+export function Header({ backButton, user, children, title }: HeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -35,7 +34,7 @@ export function Header({ backButton, user, children, currentProjectId, title }: 
         {children}
       </div>
       <div className="user-info">
-        <UnifiedMenu user={user} currentProjectId={currentProjectId} />
+        <UnifiedMenu user={user} />
       </div>
     </div>
   );
