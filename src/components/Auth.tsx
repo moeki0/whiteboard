@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { User } from "../types";
 
-export function Auth({ user }) {
+interface AuthProps {
+  user: User | null;
+}
+
+export function Auth({ user }: AuthProps) {
   const [error, setError] = useState("");
 
   const handleGoogleSignIn = async () => {
@@ -10,7 +15,7 @@ export function Auth({ user }) {
     try {
       await signInWithPopup(auth, provider);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 
@@ -18,7 +23,7 @@ export function Auth({ user }) {
     try {
       await signOut(auth);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 

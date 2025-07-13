@@ -14,9 +14,10 @@ interface HeaderProps {
   user: User;
   children?: ReactNode;
   currentProjectId?: string;
+  title?: string;
 }
 
-export function Header({ backButton, user, children, currentProjectId }: HeaderProps) {
+export function Header({ backButton, user, children, currentProjectId, title }: HeaderProps) {
   const navigate = useNavigate();
 
   return (

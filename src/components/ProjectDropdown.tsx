@@ -2,14 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue } from "firebase/database";
+import { User, Project } from "../types";
 import "./ProjectDropdown.css";
 import { LuMenu } from "react-icons/lu";
 
-export function ProjectDropdown({ user, currentProjectId }) {
+interface ProjectDropdownProps {
+  user: User;
+  currentProjectId: string | null;
+}
+
+export function ProjectDropdown({ user, currentProjectId }: ProjectDropdownProps) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const dropdownRef = useRef(null);
+  const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Listen to user's projects
@@ -38,7 +44,7 @@ export function ProjectDropdown({ user, currentProjectId }) {
 
         const projectResults = await Promise.all(projectPromises);
         const validProjects = projectResults.filter((p) => p !== null);
-        setProjects(validProjects);
+        setProjects(validProjects as (Project & { id: string })[]);
       } else {
         setProjects([]);
       }
@@ -49,8 +55,8 @@ export function ProjectDropdown({ user, currentProjectId }) {
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -61,7 +67,7 @@ export function ProjectDropdown({ user, currentProjectId }) {
     };
   }, []);
 
-  const handleProjectSelect = (projectId) => {
+  const handleProjectSelect = (projectId: string) => {
     setIsOpen(false);
     navigate(`/project/${projectId}`);
   };

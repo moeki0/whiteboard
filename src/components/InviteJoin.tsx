@@ -2,13 +2,18 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set } from "firebase/database";
+import { User, Project } from "../types";
 
-export function InviteJoin({ user }) {
+interface InviteJoinProps {
+  user: User;
+}
+
+export function InviteJoin({ user }: InviteJoinProps) {
   const { inviteCode } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState<(Project & { id: string }) | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
@@ -114,8 +119,8 @@ export function InviteJoin({ user }) {
       <div className="invite-card">
         <h2>You've been invited to a project</h2>
         <div className="project-preview">
-          <h3>{project.name}</h3>
-          <p>Members: {Object.keys(project.members || {}).length}</p>
+          <h3>{project!.name}</h3>
+          <p>Members: {Object.keys(project!.members || {}).length}</p>
         </div>
         <p>Would you like to join this project?</p>
         <div className="invite-actions">

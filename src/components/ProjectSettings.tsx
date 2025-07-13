@@ -4,17 +4,30 @@ import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { Header } from "./Header";
+import { User, Project } from "../types";
 import "./ProjectSettings.css";
 
-export function ProjectSettings({ user }) {
+interface ProjectSettingsProps {
+  user: User;
+}
+
+interface Member {
+  uid: string;
+  displayName?: string;
+  email?: string;
+  role: string;
+  [key: string]: any;
+}
+
+export function ProjectSettings({ user }: ProjectSettingsProps) {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
-  const [members, setMembers] = useState([]);
-  const [userRole, setUserRole] = useState(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
@@ -44,7 +57,7 @@ export function ProjectSettings({ user }) {
             const membersArray = Object.entries(projectData.members).map(
               ([uid, member]) => ({
                 uid,
-                ...member,
+                ...(member as any),
               })
             );
             setMembers(membersArray);
@@ -69,9 +82,9 @@ export function ProjectSettings({ user }) {
       return;
     }
 
-    if (!newProjectName.trim() || newProjectName === project.name) {
+    if (!newProjectName.trim() || newProjectName === project?.name) {
       setIsEditingName(false);
-      setNewProjectName(project.name);
+      setNewProjectName(project?.name || "");
       return;
     }
 
@@ -79,7 +92,7 @@ export function ProjectSettings({ user }) {
       const projectRef = ref(rtdb, `projects/${projectId}/name`);
       await set(projectRef, newProjectName);
 
-      setProject((prev) => ({ ...prev, name: newProjectName }));
+      setProject((prev) => (prev ? { ...prev, name: newProjectName } : null));
       setIsEditingName(false);
     } catch (error) {
       console.error("Error updating project name:", error);
@@ -87,7 +100,7 @@ export function ProjectSettings({ user }) {
     }
   };
 
-  const removeMember = async (memberUid) => {
+  const removeMember = async (memberUid: string) => {
     if (!isOwner) {
       alert("Only project owners can remove members");
       return;
@@ -144,7 +157,7 @@ export function ProjectSettings({ user }) {
       await set(inviteRef, { projectId: projectId, createdAt: Date.now() });
 
       // Update local state
-      setProject((prev) => ({ ...prev, inviteCode: newInviteCode }));
+      setProject((prev) => (prev ? { ...prev, inviteCode: newInviteCode } : null));
 
       alert("New invite link generated!");
     } catch (error) {
@@ -154,7 +167,7 @@ export function ProjectSettings({ user }) {
   };
 
   const copyInviteLink = async () => {
-    if (!project.inviteCode) {
+    if (!project?.inviteCode) {
       if (isOwner) {
         const shouldGenerate = window.confirm(
           "No invite code found. Would you like to generate one?"
@@ -170,7 +183,7 @@ export function ProjectSettings({ user }) {
     }
 
     const baseUrl = window.location.origin;
-    const inviteUrl = `${baseUrl}/invite/${project.inviteCode}`;
+    const inviteUrl = `${baseUrl}/invite/${project?.inviteCode}`;
 
     try {
       await navigator.clipboard.writeText(inviteUrl);
@@ -215,7 +228,7 @@ export function ProjectSettings({ user }) {
       await remove(projectRef);
 
       // Remove from all user project lists
-      if (project.members) {
+      if (project?.members) {
         const memberPromises = Object.keys(project.members).map(
           async (memberId) => {
             const userProjectRef = ref(
@@ -237,7 +250,7 @@ export function ProjectSettings({ user }) {
       await remove(projectCursorsRef);
 
       // Remove invite mapping
-      if (project.inviteCode) {
+      if (project?.inviteCode) {
         const inviteRef = ref(rtdb, `invites/${project.inviteCode}`);
         await remove(inviteRef);
       }
@@ -341,7 +354,7 @@ export function ProjectSettings({ user }) {
                 }
                 readOnly
                 className="invite-link-input"
-                onClick={(e) => e.target.select()}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button onClick={copyInviteLink} className="copy-btn">
                 Copy

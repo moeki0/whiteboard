@@ -6,11 +6,16 @@ import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { Header } from "./Header";
 import { BoardList } from "./BoardList";
+import { User, Project } from "../types";
 
-export function Home({ user }) {
+interface HomeProps {
+  user: User;
+}
+
+export function Home({ user }: HomeProps) {
   const navigate = useNavigate();
   const { currentProjectId, updateCurrentProject } = useProject();
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
@@ -80,15 +85,16 @@ export function Home({ user }) {
         console.log("Valid projects:", validProjects);
         console.log("Current project ID:", currentProjectId);
         
-        setProjects(validProjects);
+        setProjects(validProjects as (Project & { id: string })[]);
 
         // If user has no current project but has projects, set the first one
         if (!currentProjectId && validProjects.length > 0) {
-          console.log("Setting first project as current:", validProjects[0].id);
-          updateCurrentProject(validProjects[0].id);
+          const firstProject = validProjects[0] as Project & { id: string };
+          console.log("Setting first project as current:", firstProject.id);
+          updateCurrentProject(firstProject.id);
         }
         // If current project doesn't exist, clear it
-        else if (currentProjectId && !validProjects.find(p => p.id === currentProjectId)) {
+        else if (currentProjectId && !validProjects.find(p => (p as any).id === currentProjectId)) {
           console.log("Current project not found, clearing");
           updateCurrentProject(null);
         }

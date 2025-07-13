@@ -30,9 +30,9 @@ export function StickyNote({
     width: note.width || 250,
     height: "auto" as const,
   });
-  const noteRef = useRef(null);
+  const noteRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
-  const contentRef = useRef(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   // throttled update function
   const throttledUpdate = useCallback(
@@ -92,7 +92,7 @@ export function StickyNote({
     }
   }, [content, isEditing]);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
     dragOffset.current = {
       x: e.clientX - position.x,
@@ -103,7 +103,7 @@ export function StickyNote({
   };
 
   const handleMouseMove = useCallback(
-    (e) => {
+    (e: MouseEvent) => {
       if (isDragging && !isEditing) {
         const newX = e.clientX - dragOffset.current.x;
         const newY = e.clientY - dragOffset.current.y;
@@ -147,13 +147,13 @@ export function StickyNote({
 
   // throttled content update function
   const throttledContentUpdate = useCallback(
-    throttle((noteId, updates) => {
+    throttle((noteId: string, updates: Partial<Note>) => {
       onUpdate(noteId, updates);
     }, 300), // 300ms interval for text updates
     [onUpdate]
   );
 
-  const handleContentChange = (e) => {
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
 
@@ -161,13 +161,14 @@ export function StickyNote({
     if (e.target) {
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      context.font = "16px Arial, Helvetica, sans-serif";
+      if (!context) return;
+      context!.font = "16px Arial, Helvetica, sans-serif";
 
       const lines = newContent.split("\n");
       let maxWidth = 0;
 
-      lines.forEach((line) => {
-        const lineWidth = context.measureText(line || " ").width;
+      lines.forEach((line: string) => {
+        const lineWidth = context!.measureText(line || " ").width;
         maxWidth = Math.max(maxWidth, lineWidth);
       });
 
@@ -203,12 +204,12 @@ export function StickyNote({
     });
   };
 
-  const handleClick = (e) => {
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     onActivate(note.id);
   };
 
-  const handleDoubleClick = (e) => {
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isEditing) {
       return;
     }
@@ -217,7 +218,7 @@ export function StickyNote({
   };
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (
         !isEditing &&
         isActive &&

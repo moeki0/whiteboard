@@ -1,6 +1,12 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
-const ProjectContext = createContext();
+interface ProjectContextValue {
+  currentProjectId: string | null;
+  updateCurrentProject: (projectId: string | null) => void;
+  clearCurrentProject: () => void;
+}
+
+const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
 
 export function useProject() {
   const context = useContext(ProjectContext);
@@ -10,13 +16,17 @@ export function useProject() {
   return context;
 }
 
-export function ProjectProvider({ children }) {
-  const [currentProjectId, setCurrentProjectId] = useState(() => {
+interface ProjectProviderProps {
+  children: ReactNode;
+}
+
+export function ProjectProvider({ children }: ProjectProviderProps) {
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => {
     // Get from sessionStorage on initialization
     return sessionStorage.getItem("currentProjectId") || null;
   });
 
-  const updateCurrentProject = (projectId) => {
+  const updateCurrentProject = (projectId: string | null) => {
     setCurrentProjectId(projectId);
     if (projectId) {
       sessionStorage.setItem("currentProjectId", projectId);
@@ -30,7 +40,7 @@ export function ProjectProvider({ children }) {
     sessionStorage.removeItem("currentProjectId");
   };
 
-  const value = {
+  const value: ProjectContextValue = {
     currentProjectId,
     updateCurrentProject,
     clearCurrentProject

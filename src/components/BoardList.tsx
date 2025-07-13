@@ -77,26 +77,26 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   useEffect(() => {
     if (!boards.length) return;
 
-    const unsubscribes = [];
-    const newBoardCursors = {};
+    const unsubscribes: (() => void)[] = [];
+    const newBoardCursors: Record<string, Record<string, Cursor>> = {};
 
     boards.forEach((board) => {
       const cursorsRef = ref(rtdb, `boardCursors/${board.id}`);
       const unsubscribe = onValue(cursorsRef, (snapshot) => {
         const data = snapshot.val();
-        const activeCursors = {};
+        const activeCursors: Record<string, Cursor> = {};
         
         if (data) {
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
 
-          Object.entries(data).forEach(([cursorId, cursor]) => {
+          Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
             // Only show recent cursors (active users)
             if (now - cursor.timestamp < CURSOR_TIMEOUT) {
               // Extract userId from cursorId (format: userId-sessionId)
               const userId = cursorId.split('-')[0];
               if (!activeCursors[userId] || cursor.timestamp > activeCursors[userId].timestamp) {
-                activeCursors[userId] = cursor;
+                activeCursors[userId] = cursor as Cursor;
               }
             }
           });
@@ -120,7 +120,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     const boardId = nanoid();
     const board = {
       name: "Untitled",
-      createdBy: user.uid,
+      createdBy: user!.uid,
       createdAt: Date.now(),
       projectId: projectId,
       isPublic: false, // Default to private
@@ -138,7 +138,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   };
 
   // Component to render active members for a board
-  const ActiveMembers = ({ boardId }) => {
+  const ActiveMembers = ({ boardId }: { boardId: string }) => {
     const cursors = boardCursors[boardId] || {};
     const activeUsers = Object.values(cursors);
     
@@ -178,7 +178,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
   return (
     <div className="board-list">
-      <Header title={projectName} user={user} currentProjectId={projectId}>
+      <Header title={projectName} user={user!} currentProjectId={projectId}>
         <button
           className="fab-new-board-btn"
           onClick={createBoard}

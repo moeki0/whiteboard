@@ -3,18 +3,23 @@ import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { Header } from "./Header";
+import { User, Board } from "../types";
 import "./BoardSettings.css";
 
-export function BoardSettings({ user }) {
+interface BoardSettingsProps {
+  user: User;
+}
+
+export function BoardSettings({ user }: BoardSettingsProps) {
   const { boardId } = useParams();
   const navigate = useNavigate();
-  const [board, setBoard] = useState(null);
+  const [board, setBoard] = useState<Board | null>(null);
   const [boardName, setBoardName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [userRole, setUserRole] = useState(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
@@ -81,10 +86,10 @@ export function BoardSettings({ user }) {
       };
 
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      await set(boardRef, { ...board, ...updates });
+      await set(boardRef, board ? { ...board, ...updates } : updates);
 
       // Also update in projectBoards for consistency
-      if (board.projectId) {
+      if (board?.projectId) {
         const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
         await set(projectBoardRef, { ...board, ...updates });
       }
@@ -113,7 +118,7 @@ export function BoardSettings({ user }) {
       await remove(boardRef);
       
       // Also remove from projectBoards for consistency
-      if (board.projectId) {
+      if (board?.projectId) {
         const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
         await remove(projectBoardRef);
       }

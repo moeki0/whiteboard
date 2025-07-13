@@ -121,7 +121,7 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
       if (data) {
         const notesArray = Object.entries(data).map(([id, note]) => ({
           id,
-          ...note,
+          ...(note as any),
         })) as Note[];
         setNotes(notesArray);
       } else {

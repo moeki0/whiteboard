@@ -40,7 +40,7 @@ function App() {
     }
 
     if (!user) {
-      return <Auth />;
+      return <Auth user={user} />;
     }
 
     return children;
@@ -54,7 +54,7 @@ function App() {
             {/* Public Routes */}
             <Route
               path="/invite/:inviteCode"
-              element={user ? <InviteJoin user={user} /> : <Auth />}
+              element={user ? <InviteJoin user={user} /> : <Auth user={null} />}
             />
 
             {/* Protected Routes */}
@@ -62,7 +62,7 @@ function App() {
               path="/"
               element={
                 <ProtectedRoute>
-                  <Home user={user} />
+                  <Home user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -71,7 +71,7 @@ function App() {
               path="/project/:projectId"
               element={
                 <ProtectedRoute>
-                  <BoardList user={user} />
+                  <BoardList user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -80,7 +80,7 @@ function App() {
               path="/create-project"
               element={
                 <ProtectedRoute>
-                  <ProjectCreate user={user} />
+                  <ProjectCreate user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -89,7 +89,7 @@ function App() {
               path="/project/:projectId/settings"
               element={
                 <ProtectedRoute>
-                  <ProjectSettings user={user} />
+                  <ProjectSettings user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -98,7 +98,7 @@ function App() {
               path="/user/settings"
               element={
                 <ProtectedRoute>
-                  <UserSettings user={user} />
+                  <UserSettings user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -107,7 +107,7 @@ function App() {
               path="/board/:boardId/settings"
               element={
                 <ProtectedRoute>
-                  <BoardSettings user={user} />
+                  <BoardSettings user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -116,7 +116,7 @@ function App() {
               path="/:boardId"
               element={
                 <ProtectedRoute>
-                  <Board user={user} />
+                  <Board user={user!} />
                 </ProtectedRoute>
               }
             />

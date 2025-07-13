@@ -3,9 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
 import { signOut } from "firebase/auth";
 import { Header } from "./Header";
+import { User } from "../types";
 import "./UserSettings.css";
 
-export function UserSettings({ user }) {
+interface UserSettingsProps {
+  user: User;
+}
+
+export function UserSettings({ user }: UserSettingsProps) {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 

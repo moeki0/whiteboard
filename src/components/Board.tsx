@@ -112,7 +112,7 @@ export function Board({ user }: BoardProps) {
       addToHistory({
         type: "CREATE_NOTE",
         noteId: noteId,
-        note: newNote,
+        note: { ...newNote, id: noteId },
         userId: user.uid,
       });
     }
@@ -349,7 +349,7 @@ export function Board({ user }: BoardProps) {
 
   return (
     <div className="board" onClick={handleBoardClick}>
-      <Header user={user} currentProjectId={projectId}>
+      <Header user={user} currentProjectId={projectId || undefined}>
         <div className="board-title-edit">
           <BoardTitle
             isEditingTitle={isEditingTitle}

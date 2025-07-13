@@ -5,9 +5,14 @@ import { ref, set } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { Header } from "./Header";
+import { User } from "../types";
 import "./ProjectCreate.css";
 
-export function ProjectCreate({ user }) {
+interface ProjectCreateProps {
+  user: User;
+}
+
+export function ProjectCreate({ user }: ProjectCreateProps) {
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [projectName, setProjectName] = useState("");
@@ -62,7 +67,7 @@ export function ProjectCreate({ user }) {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !isCreating) {
       createProject();
     }

@@ -2,14 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, get } from "firebase/database";
+import { User, Project } from "../types";
 import "./UnifiedMenu.css";
 
-export function UnifiedMenu({ user, currentProjectId }) {
+interface UnifiedMenuProps {
+  user: User;
+  currentProjectId?: string;
+}
+
+export function UnifiedMenu({ user, currentProjectId }: UnifiedMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const dropdownRef = useRef(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if we're on a board page
   const currentBoardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
@@ -50,8 +56,8 @@ export function UnifiedMenu({ user, currentProjectId }) {
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -62,7 +68,7 @@ export function UnifiedMenu({ user, currentProjectId }) {
     };
   }, []);
 
-  const handleProjectSelect = (projectId) => {
+  const handleProjectSelect = (projectId: string) => {
     setIsOpen(false);
     navigate(`/project/${projectId}`);
   };
@@ -96,7 +102,7 @@ export function UnifiedMenu({ user, currentProjectId }) {
       <button
         className="menu-trigger"
         onClick={() => setIsOpen(!isOpen)}
-        title={user.displayName || user.email}
+        title={user.displayName || user.email || undefined}
       >
         {user.photoURL ? (
           <img
