@@ -20,28 +20,26 @@ export async function copyStickyNoteToClipboard(
       return false;
     }
 
-    // 一時的に選択状態のクラスを削除
-    const wasSelected = noteElement.classList.contains('selected');
-    const wasActive = noteElement.classList.contains('active');
-    
-    if (wasSelected) noteElement.classList.remove('selected');
-    if (wasActive) noteElement.classList.remove('active');
+    const canvas = await html2canvas(noteElement, {
+      backgroundColor: options.backgroundColor || '#ffffff',
+      scale: options.scale || 2,
+      useCORS: options.useCORS ?? true,
+      allowTaint: options.allowTaint ?? true,
+      logging: false,
+      onclone: (clonedDoc: Document) => {
+        // クローンされたDOM内でスタイルを変更
+        const clonedElement = clonedDoc.querySelector(`[data-note-id="${noteId}"]`) as HTMLElement;
+        if (clonedElement) {
+          // アクティブ・選択状態のスタイルを削除
+          clonedElement.classList.remove('active', 'selected');
+          // 通常のボーダーを適用
+          clonedElement.style.border = '1px solid #cccccc';
+          clonedElement.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
+        }
+      }
+    } as any);
 
-    try {
-      const canvas = await html2canvas(noteElement, {
-        backgroundColor: options.backgroundColor || '#ffffff',
-        scale: options.scale || 2,
-        useCORS: options.useCORS ?? true,
-        allowTaint: options.allowTaint ?? true,
-        logging: false,
-      } as any);
-
-      return await copyCanvasToClipboard(canvas);
-    } finally {
-      // クラスを元に戻す
-      if (wasSelected) noteElement.classList.add('selected');
-      if (wasActive) noteElement.classList.add('active');
-    }
+    return await copyCanvasToClipboard(canvas);
   } catch (error) {
     return false;
   }
@@ -68,46 +66,37 @@ export async function copyMultipleStickyNotesToClipboard(
       return false;
     }
 
-    // 一時的に選択状態のクラスを削除
-    const elementStates = noteElements.map(element => ({
-      element,
-      wasSelected: element.classList.contains('selected'),
-      wasActive: element.classList.contains('active')
-    }));
-
-    elementStates.forEach(({ element, wasSelected, wasActive }) => {
-      if (wasSelected) element.classList.remove('selected');
-      if (wasActive) element.classList.remove('active');
-    });
+    // 付箋の位置とサイズを計算
+    const bounds = calculateBounds(noteElements);
+    
+    // 仮想コンテナを作成
+    const container = createVirtualContainer(noteElements, bounds);
+    document.body.appendChild(container);
 
     try {
-      // 付箋の位置とサイズを計算
-      const bounds = calculateBounds(noteElements);
-      
-      // 仮想コンテナを作成
-      const container = createVirtualContainer(noteElements, bounds);
-      document.body.appendChild(container);
+      const canvas = await html2canvas(container, {
+        useCORS: options.useCORS ?? true,
+        allowTaint: options.allowTaint ?? true,
+        logging: false,
+        width: bounds.width,
+        height: bounds.height,
+        onclone: (clonedDoc: Document) => {
+          // クローンされたコンテナ内の全ての付箋のスタイルを変更
+          const clonedNotes = clonedDoc.querySelectorAll('.sticky-note');
+          clonedNotes.forEach((note: HTMLElement) => {
+            // アクティブ・選択状態のスタイルを削除
+            note.classList.remove('active', 'selected');
+            // 通常のボーダーを適用
+            note.style.border = '1px solid #cccccc';
+            note.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
+          });
+        }
+      } as any);
 
-      try {
-        const canvas = await html2canvas(container, {
-          useCORS: options.useCORS ?? true,
-          allowTaint: options.allowTaint ?? true,
-          logging: false,
-          width: bounds.width,
-          height: bounds.height,
-        } as any);
-
-        return await copyCanvasToClipboard(canvas);
-      } finally {
-        // 仮想コンテナを削除
-        document.body.removeChild(container);
-      }
+      return await copyCanvasToClipboard(canvas);
     } finally {
-      // クラスを元に戻す
-      elementStates.forEach(({ element, wasSelected, wasActive }) => {
-        if (wasSelected) element.classList.add('selected');
-        if (wasActive) element.classList.add('active');
-      });
+      // 仮想コンテナを削除
+      document.body.removeChild(container);
     }
   } catch (error) {
     return false;

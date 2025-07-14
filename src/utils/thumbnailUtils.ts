@@ -27,96 +27,84 @@ export async function generateBoardThumbnail(
     const thumbnailWidth = options.width || 1000;
     const thumbnailHeight = options.height || 750;
 
-    // 一時的に付箋の選択状態を削除
-    const noteElements = boardElement.querySelectorAll('.sticky-note');
-    const elementStates = Array.from(noteElements).map(element => ({
-      element: element as HTMLElement,
-      wasSelected: element.classList.contains('selected'),
-      wasActive: element.classList.contains('active')
-    }));
-
-    elementStates.forEach(({ element, wasSelected, wasActive }) => {
-      if (wasSelected) element.classList.remove('selected');
-      if (wasActive) element.classList.remove('active');
+    console.log('📷 Capturing board with html2canvas...');
+    console.log('Board dimensions:', {
+      scrollWidth: boardElement.scrollWidth,
+      scrollHeight: boardElement.scrollHeight,
+      clientWidth: boardElement.clientWidth,
+      clientHeight: boardElement.clientHeight
     });
 
-
-    try {
-      console.log('📷 Capturing board with html2canvas...');
-      console.log('Board dimensions:', {
-        scrollWidth: boardElement.scrollWidth,
-        scrollHeight: boardElement.scrollHeight,
-        clientWidth: boardElement.clientWidth,
-        clientHeight: boardElement.clientHeight
-      });
-
-      // ボードの左上1000pxをキャプチャ
-      const canvas = await html2canvas(boardElement, {
-        backgroundColor: options.backgroundColor || '#f5f5f5',
-        scale: options.scale || 1,
-        useCORS: true,
-        allowTaint: true,
-        logging: true,
-        width: 1000,
-        height: 1000,
-        x: 0,
-        y: 0,
-      } as any);
-
-      console.log('✅ Canvas generated:', {
-        width: canvas.width,
-        height: canvas.height
-      });
-
-      // サムネイルサイズにリサイズ
-      const thumbnailCanvas = document.createElement('canvas');
-      thumbnailCanvas.width = thumbnailWidth;
-      thumbnailCanvas.height = thumbnailHeight;
-      
-      const ctx = thumbnailCanvas.getContext('2d');
-      if (!ctx) return null;
-
-      // 背景色を設定
-      ctx.fillStyle = options.backgroundColor || '#f5f5f5';
-      ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
-
-      // アスペクト比を保持してリサイズ
-      const sourceAspect = canvas.width / canvas.height;
-      const targetAspect = thumbnailWidth / thumbnailHeight;
-
-      let drawWidth, drawHeight, drawX, drawY;
-
-      if (sourceAspect > targetAspect) {
-        // 幅に合わせる
-        drawWidth = thumbnailWidth;
-        drawHeight = thumbnailWidth / sourceAspect;
-        drawX = 0;
-        drawY = (thumbnailHeight - drawHeight) / 2;
-      } else {
-        // 高さに合わせる
-        drawHeight = thumbnailHeight;
-        drawWidth = thumbnailHeight * sourceAspect;
-        drawX = (thumbnailWidth - drawWidth) / 2;
-        drawY = 0;
+    // ボードの左上1000pxをキャプチャ
+    const canvas = await html2canvas(boardElement, {
+      backgroundColor: options.backgroundColor || '#f5f5f5',
+      scale: options.scale || 1,
+      useCORS: true,
+      allowTaint: true,
+      logging: true,
+      width: 1000,
+      height: 1000,
+      x: 0,
+      y: 0,
+      onclone: (clonedDoc: Document) => {
+        // クローンされたDOM内で付箋のスタイルを変更
+        const clonedNotes = clonedDoc.querySelectorAll('.sticky-note');
+        clonedNotes.forEach((note: HTMLElement) => {
+          // アクティブ・選択状態のスタイルを削除
+          note.classList.remove('active', 'selected');
+          // 通常のボーダーを適用
+          note.style.border = '1px solid #cccccc';
+          note.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
+        });
       }
+    } as any);
 
-      ctx.drawImage(canvas, drawX, drawY, drawWidth, drawHeight);
+    console.log('✅ Canvas generated:', {
+      width: canvas.width,
+      height: canvas.height
+    });
 
-      const dataUrl = thumbnailCanvas.toDataURL('image/png');
-      console.log('🖼️ Thumbnail generated:', {
-        dataUrlLength: dataUrl.length,
-        thumbnailSize: `${thumbnailWidth}x${thumbnailHeight}`
-      });
+    // サムネイルサイズにリサイズ
+    const thumbnailCanvas = document.createElement('canvas');
+    thumbnailCanvas.width = thumbnailWidth;
+    thumbnailCanvas.height = thumbnailHeight;
+    
+    const ctx = thumbnailCanvas.getContext('2d');
+    if (!ctx) return null;
 
-      return dataUrl;
-    } finally {
-      // クラスを元に戻す
-      elementStates.forEach(({ element, wasSelected, wasActive }) => {
-        if (wasSelected) element.classList.add('selected');
-        if (wasActive) element.classList.add('active');
-      });
-      
+    // 背景色を設定
+    ctx.fillStyle = options.backgroundColor || '#f5f5f5';
+    ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
+
+    // アスペクト比を保持してリサイズ
+    const sourceAspect = canvas.width / canvas.height;
+    const targetAspect = thumbnailWidth / thumbnailHeight;
+
+    let drawWidth, drawHeight, drawX, drawY;
+
+    if (sourceAspect > targetAspect) {
+      // 幅に合わせる
+      drawWidth = thumbnailWidth;
+      drawHeight = thumbnailWidth / sourceAspect;
+      drawX = 0;
+      drawY = (thumbnailHeight - drawHeight) / 2;
+    } else {
+      // 高さに合わせる
+      drawHeight = thumbnailHeight;
+      drawWidth = thumbnailHeight * sourceAspect;
+      drawX = (thumbnailWidth - drawWidth) / 2;
+      drawY = 0;
     }
+
+    ctx.drawImage(canvas, drawX, drawY, drawWidth, drawHeight);
+
+    const dataUrl = thumbnailCanvas.toDataURL('image/png');
+    console.log('🖼️ Thumbnail generated:', {
+      dataUrlLength: dataUrl.length,
+      thumbnailSize: `${thumbnailWidth}x${thumbnailHeight}`
+    });
+
+    return dataUrl;
   } catch (error) {
     return null;
   }
