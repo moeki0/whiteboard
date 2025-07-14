@@ -22,10 +22,11 @@ interface BoardProps {
 
 export function Board({ user }: BoardProps) {
   const navigate = useNavigate();
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  // activeNoteIdを削除 - selectedNoteIdsで管理
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
   );
+  // selectedNoteIdsRefを削除 - 別のアプローチを使用
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
   const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
@@ -231,8 +232,13 @@ export function Board({ user }: BoardProps) {
 
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     remove(noteRef);
-    if (activeNoteId === noteId) {
-      setActiveNoteId(null);
+    // 選択状態も削除
+    if (selectedNoteIds.has(noteId)) {
+      setSelectedNoteIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(noteId);
+        return newSet;
+      });
     }
   };
 
@@ -255,17 +261,8 @@ export function Board({ user }: BoardProps) {
       }
       setSelectedNoteIds(newSelectedIds);
 
-      // 最後に選択された付箋をアクティブにする
-      if (newSelectedIds.has(noteId)) {
-        setActiveNoteId(noteId);
-      } else if (newSelectedIds.size > 0) {
-        setActiveNoteId(Array.from(newSelectedIds)[newSelectedIds.size - 1]);
-      } else {
-        setActiveNoteId(null);
-      }
     } else {
       // 通常の単一選択
-      setActiveNoteId(noteId);
       setSelectedNoteIds(new Set([noteId]));
     }
 
@@ -283,7 +280,6 @@ export function Board({ user }: BoardProps) {
       return;
     }
 
-    setActiveNoteId(null);
     setSelectedNoteIds(new Set());
   };
 
@@ -311,7 +307,6 @@ export function Board({ user }: BoardProps) {
 
       // 既存の選択をクリア
       setSelectedNoteIds(new Set());
-      setActiveNoteId(null);
     } else {
       // 通常のドラッグでパン
       handlePanStart(e);
@@ -640,12 +635,7 @@ export function Board({ user }: BoardProps) {
     };
   }, [generateAndSaveThumbnail]);
 
-  const copyNote = (noteId: string) => {
-    const note = notes.find((n) => n.id === noteId);
-    if (note) {
-      setCopiedNote(note);
-    }
-  };
+  // copyNote関数を削除 - copyNotesCompleteで統一
 
   // 付箋を画像としてクリップボードにコピー
   const copyNotesAsImage = async () => {
@@ -690,6 +680,18 @@ export function Board({ user }: BoardProps) {
     
     // データとしても内部状態にコピー
     copyNotesAsData();
+    
+    // 単一選択の場合はcopiedNoteも設定（後方互換性のため）
+    if (selectedNoteIds.size === 1) {
+      const noteId = Array.from(selectedNoteIds)[0];
+      const note = notes.find((n) => n.id === noteId);
+      if (note) {
+        setCopiedNote(note);
+      }
+    } else {
+      // 複数選択の場合は単一コピーをクリア
+      setCopiedNote(null);
+    }
   };
 
 
@@ -719,7 +721,6 @@ export function Board({ user }: BoardProps) {
     });
 
     setSelectedNoteIds(new Set());
-    setActiveNoteId(null);
   };
 
   // コピーされた複数付箋を貼り付け
@@ -771,9 +772,6 @@ export function Board({ user }: BoardProps) {
     // 新しく作成された付箋を選択状態にする
     const newNoteIds = new Set(createdNotes.map(note => note.id));
     setSelectedNoteIds(newNoteIds);
-    if (createdNotes.length > 0) {
-      setActiveNoteId(createdNotes[0].id);
-    }
   };
 
   const pasteNote = () => {
@@ -927,7 +925,7 @@ export function Board({ user }: BoardProps) {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z" && !e.shiftKey) {
           e.preventDefault();
@@ -935,22 +933,36 @@ export function Board({ user }: BoardProps) {
         } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
           e.preventDefault();
           performRedo();
-        } else if (e.key === "c" && selectedNoteIds.size > 0) {
+        } else if (e.key === "c") {
           // Check if a textarea (note editor) is focused
           const activeElement = document.activeElement;
           const isTextareaFocused =
             activeElement && activeElement.tagName === "TEXTAREA";
 
-          // Only copy as image and data if no textarea is focused
-          if (!isTextareaFocused) {
-            // Ctrl+C: Copy selected notes as image and data
+          // Only copy if no textarea is focused
+          if (!isTextareaFocused && selectedNoteIds.size > 0) {
             e.preventDefault();
-            copyNotesComplete();
+            
+            if (e.shiftKey) {
+              // Shift+Cmd+C: Copy as image and data
+              await copyNotesComplete();
+            } else {
+              // Cmd+C: Copy data only (lightweight)
+              copyNotesAsData();
+              
+              // 単一選択の場合はcopiedNoteも設定
+              if (selectedNoteIds.size === 1) {
+                const noteId = Array.from(selectedNoteIds)[0];
+                const note = notes.find((n) => n.id === noteId);
+                if (note) {
+                  setCopiedNote(note);
+                }
+              } else {
+                setCopiedNote(null);
+              }
+            }
           }
           // If textarea is focused, let the default copy behavior happen
-        } else if (e.key === "c" && activeNoteId) {
-          e.preventDefault();
-          copyNote(activeNoteId);
         } else if (e.key === "v") {
           // Check if a textarea (note editor) is focused
           const activeElement = document.activeElement;
@@ -979,9 +991,6 @@ export function Board({ user }: BoardProps) {
             // Select all notes
             const allNoteIds = new Set(notes.map((note) => note.id));
             setSelectedNoteIds(allNoteIds);
-            if (notes.length > 0) {
-              setActiveNoteId(notes[notes.length - 1].id);
-            }
           }
         }
       } else if (
@@ -1005,7 +1014,7 @@ export function Board({ user }: BoardProps) {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [
-    activeNoteId,
+    // activeNoteId削除済み
     copiedNote,
     copiedNotes,
     nextZIndex,
@@ -1092,7 +1101,7 @@ export function Board({ user }: BoardProps) {
               note={note}
               onUpdate={updateNote}
               onDelete={deleteNote}
-              isActive={activeNoteId === note.id}
+              isActive={selectedNoteIds.has(note.id) && selectedNoteIds.size === 1}
               isSelected={selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
               onStartBulkDrag={startBulkDrag}
