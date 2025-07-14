@@ -28,6 +28,7 @@ export function Board({ user }: BoardProps) {
   );
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
+  const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
   const [sessionId] = useState<string>(() =>
     Math.random().toString(36).substr(2, 9)
   );
@@ -548,6 +549,31 @@ export function Board({ user }: BoardProps) {
     }
   };
 
+  // 付箋データを内部状態にコピー
+  const copyNotesAsData = () => {
+    if (selectedNoteIds.size === 0) {
+      return;
+    }
+
+    const selectedNotes = notes.filter(note => selectedNoteIds.has(note.id));
+    setCopiedNotes(selectedNotes);
+    // 複数選択の場合は単一コピーをクリア
+    setCopiedNote(null);
+  };
+
+  // 統合されたコピー機能（画像とデータの両方）
+  const copyNotesComplete = async () => {
+    if (selectedNoteIds.size === 0) {
+      return;
+    }
+
+    // 画像としてコピー
+    await copyNotesAsImage();
+    
+    // データとしても内部状態にコピー
+    copyNotesAsData();
+  };
+
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
     selectedNoteIds.forEach((noteId) => {
@@ -558,6 +584,59 @@ export function Board({ user }: BoardProps) {
     });
     setSelectedNoteIds(new Set());
     setActiveNoteId(null);
+  };
+
+  // コピーされた複数付箋を貼り付け
+  const pasteCopiedNotes = () => {
+    if (copiedNotes.length === 0) {
+      return;
+    }
+
+    // 複数の付箋を作成
+    let currentZIndex = nextZIndex;
+    const createdNotes = [];
+
+    for (const noteData of copiedNotes) {
+      const noteId = nanoid();
+      const newNote: Omit<Note, "id"> = {
+        content: noteData.content,
+        color: noteData.color,
+        width: noteData.width || 250,
+        x: noteData.x + 20, // 少しずらして配置
+        y: noteData.y + 20,
+        userId: user.uid,
+        createdAt: Date.now(),
+        zIndex: currentZIndex,
+        isDragging: false,
+        draggedBy: null,
+        isEditing: false,
+        editedBy: null,
+      };
+
+      // Add to history
+      if (!isUndoRedoOperation) {
+        addToHistory({
+          type: "CREATE_NOTE",
+          noteId: noteId,
+          note: { ...newNote, id: noteId },
+          userId: user.uid,
+        });
+      }
+
+      const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+      set(noteRef, newNote);
+      createdNotes.push({ id: noteId, ...newNote });
+      currentZIndex++;
+    }
+
+    setNextZIndex(currentZIndex);
+
+    // 新しく作成された付箋を選択状態にする
+    const newNoteIds = new Set(createdNotes.map(note => note.id));
+    setSelectedNoteIds(newNoteIds);
+    if (createdNotes.length > 0) {
+      setActiveNoteId(createdNotes[0].id);
+    }
   };
 
   const pasteNote = () => {
@@ -693,17 +772,17 @@ export function Board({ user }: BoardProps) {
           const isTextareaFocused =
             activeElement && activeElement.tagName === "TEXTAREA";
 
-          // Only copy as image if no textarea is focused
+          // Only copy as image and data if no textarea is focused
           if (!isTextareaFocused) {
-            // Ctrl+C: Copy selected notes as image
+            // Ctrl+C: Copy selected notes as image and data
             e.preventDefault();
-            copyNotesAsImage();
+            copyNotesComplete();
           }
           // If textarea is focused, let the default copy behavior happen
         } else if (e.key === "c" && activeNoteId) {
           e.preventDefault();
           copyNote(activeNoteId);
-        } else if (e.key === "v" && copiedNote) {
+        } else if (e.key === "v") {
           // Check if a textarea (note editor) is focused
           const activeElement = document.activeElement;
           const isTextareaFocused =
@@ -712,7 +791,12 @@ export function Board({ user }: BoardProps) {
           // Only paste note if no textarea is focused
           if (!isTextareaFocused) {
             e.preventDefault();
-            pasteNote();
+            // Try to paste copied notes first, fallback to single copiedNote
+            if (copiedNotes.length > 0) {
+              pasteCopiedNotes();
+            } else if (copiedNote) {
+              pasteNote();
+            }
           }
           // If textarea is focused, let the default paste behavior happen
         } else if (e.key === "a") {
@@ -754,6 +838,7 @@ export function Board({ user }: BoardProps) {
   }, [
     activeNoteId,
     copiedNote,
+    copiedNotes,
     nextZIndex,
     user.uid,
     performUndo,
