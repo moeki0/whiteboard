@@ -796,31 +796,33 @@ export function Board({ user }: BoardProps) {
   };
 
   return (
-    <div
-      ref={boardRef}
-      className="board"
-      onClick={handleBoardClick}
-      onMouseDown={handleBoardMouseDown}
-    >
-      <div className="notes-container">
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            onUpdate={updateNote}
-            onDelete={deleteNote}
-            isActive={activeNoteId === note.id}
-            isSelected={selectedNoteIds.has(note.id)}
-            onActivate={handleActivateNote}
-            onStartBulkDrag={startBulkDrag}
-            currentUserId={user.uid}
-            getUserColor={getUserColor}
-            isDraggingMultiple={isDraggingMultiple}
-          />
-        ))}
+    <div className="board-container">
+      <div
+        ref={boardRef}
+        className="board"
+        onClick={handleBoardClick}
+        onMouseDown={handleBoardMouseDown}
+      >
+        <div className="notes-container">
+          {notes.map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              onUpdate={updateNote}
+              onDelete={deleteNote}
+              isActive={activeNoteId === note.id}
+              isSelected={selectedNoteIds.has(note.id)}
+              onActivate={handleActivateNote}
+              onStartBulkDrag={startBulkDrag}
+              currentUserId={user.uid}
+              getUserColor={getUserColor}
+              isDraggingMultiple={isDraggingMultiple}
+            />
+          ))}
 
-        <CursorDisplay cursors={cursors} />
-        {renderSelectionBox()}
+          <CursorDisplay cursors={cursors} />
+          {renderSelectionBox()}
+        </div>
       </div>
       <button onClick={addNote} className="fab-add-btn">
         <LuPlus />

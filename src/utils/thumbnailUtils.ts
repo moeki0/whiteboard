@@ -40,12 +40,6 @@ export async function generateBoardThumbnail(
       if (wasActive) element.classList.remove('active');
     });
 
-    // 一時的にFABボタンを非表示にする
-    const fabButton = document.querySelector('.fab-add-btn') as HTMLElement;
-    const fabWasVisible = fabButton && fabButton.style.display !== 'none';
-    if (fabButton) {
-      fabButton.style.display = 'none';
-    }
 
     try {
       console.log('📷 Capturing board with html2canvas...');
@@ -122,10 +116,6 @@ export async function generateBoardThumbnail(
         if (wasActive) element.classList.add('active');
       });
       
-      // FABボタンの表示を元に戻す
-      if (fabButton && fabWasVisible) {
-        fabButton.style.display = '';
-      }
     }
   } catch (error) {
     return null;
