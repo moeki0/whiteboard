@@ -175,7 +175,6 @@
   border-radius: 8px;
   padding: 30px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #ffcdd2;
   background-color: #fafafa;
 }
 
@@ -217,15 +216,15 @@
   .settings-container {
     padding: 10px;
   }
-  
+
   .settings-section {
     padding: 20px;
   }
-  
+
   .settings-actions {
     flex-direction: column;
   }
-  
+
   .settings-actions button {
     width: 100%;
   }
