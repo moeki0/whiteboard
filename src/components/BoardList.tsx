@@ -5,6 +5,7 @@ import { ref, onValue, set, remove, get } from "firebase/database";
 import { signOut } from "firebase/auth";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
+import { getBoardThumbnail } from "../utils/thumbnailUtils";
 import { User, Board, Cursor } from "../types";
 
 interface BoardListProps {
@@ -23,6 +24,9 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const [newBoardName, setNewBoardName] = useState<string>("");
   const [boardCursors, setBoardCursors] = useState<
     Record<string, Record<string, Cursor>>
+  >({});
+  const [boardThumbnails, setBoardThumbnails] = useState<
+    Record<string, string>
   >({});
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -69,8 +73,38 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         const boardResults = await Promise.all(boardPromises);
         const validBoards = boardResults.filter((board) => board !== null);
         setBoards(validBoards.sort((a, b) => b.createdAt - a.createdAt));
+
+        // ボードのサムネイルを読み込み
+        const thumbnailPromises = validBoards.map(async (board) => {
+          const thumbnailUrl = await getBoardThumbnail(board.id);
+          return { boardId: board.id, thumbnailUrl };
+        });
+
+        const thumbnailResults = await Promise.all(thumbnailPromises);
+        const thumbnailMap: Record<string, string> = {};
+        thumbnailResults.forEach(({ boardId, thumbnailUrl }) => {
+          if (thumbnailUrl) {
+            thumbnailMap[boardId] = thumbnailUrl;
+          }
+        });
+        setBoardThumbnails(thumbnailMap);
+
+        // サムネイルの更新をリアルタイムで監視
+        validBoards.forEach((board) => {
+          const thumbnailRef = ref(rtdb, `boardThumbnails/${board.id}`);
+          onValue(thumbnailRef, (snapshot) => {
+            if (snapshot.exists()) {
+              const data = snapshot.val();
+              setBoardThumbnails((prev) => ({
+                ...prev,
+                [board.id]: data.url,
+              }));
+            }
+          });
+        });
       } else {
         setBoards([]);
+        setBoardThumbnails({});
       }
     });
 
@@ -206,6 +240,17 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
               <div className="board-card-content">
                 <p className="board-name">{board.name}</p>
                 <ActiveMembers boardId={board.id} />
+              </div>
+              <div className="board-thumbnail">
+                {boardThumbnails[board.id] ? (
+                  <img
+                    src={boardThumbnails[board.id]}
+                    alt={`${board.name} thumbnail`}
+                    className="thumbnail-image"
+                  />
+                ) : (
+                  <div className="thumbnail-placeholder"></div>
+                )}
               </div>
             </Link>
           </div>

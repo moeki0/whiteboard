@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
@@ -13,6 +13,7 @@ import { useCursor } from "../hooks/useCursor";
 import { getUserColor } from "../utils/colors";
 import { FirebaseUtils } from "../utils/firebase";
 import { copyStickyNoteToClipboard, copyMultipleStickyNotesToClipboard } from "../utils/clipboardUtils";
+import { generateBoardThumbnail, saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { User, Note } from "../types";
 
 interface BoardProps {
@@ -61,6 +62,8 @@ export function Board({ user }: BoardProps) {
   >({});
   const [justFinishedBulkDrag, setJustFinishedBulkDrag] =
     useState<boolean>(false);
+
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -479,6 +482,45 @@ export function Board({ user }: BoardProps) {
     }
   }, [isDraggingMultiple, handleBulkDragMove, handleBulkDragEnd]);
 
+  // サムネイル生成とローカル保存
+  const generateAndSaveThumbnail = useCallback(async () => {
+    if (!boardRef.current || !boardId) return;
+
+    try {
+      const thumbnailDataUrl = await generateBoardThumbnail(boardRef.current);
+      if (thumbnailDataUrl) {
+        await saveBoardThumbnail(boardId, thumbnailDataUrl);
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  }, [boardId]);
+
+  // ページ離脱時やnotes変更時、ボード名変更時にサムネイルを生成
+  useEffect(() => {
+    if (notes.length === 0 && !boardName) return;
+
+    const timeoutId = setTimeout(() => {
+      generateAndSaveThumbnail();
+    }, 2000); // 2秒後に生成（ユーザーの操作が落ち着いてから）
+
+    return () => clearTimeout(timeoutId);
+  }, [notes, boardName, generateAndSaveThumbnail]);
+
+  // ページ離脱時にサムネイルを生成
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      generateAndSaveThumbnail();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // コンポーネント破棄時にもサムネイル生成
+      generateAndSaveThumbnail();
+    };
+  }, [generateAndSaveThumbnail]);
+
   const copyNote = (noteId: string) => {
     const note = notes.find((n) => n.id === noteId);
     if (note) {
@@ -755,6 +797,7 @@ export function Board({ user }: BoardProps) {
 
   return (
     <div
+      ref={boardRef}
       className="board"
       onClick={handleBoardClick}
       onMouseDown={handleBoardMouseDown}

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { User, Note, Cursor } from "../types";
+import { useProject } from "../contexts/ProjectContext";
 
 interface UseBoardReturn {
   boardId: string | undefined;
@@ -20,6 +21,7 @@ interface UseBoardReturn {
 
 export function useBoard(user: User, navigate: any, sessionId: string): UseBoardReturn {
   const { boardId } = useParams<{ boardId: string }>();
+  const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
   const [boardName, setBoardName] = useState<string>("");
@@ -80,6 +82,11 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
         setBoardName(boardData.name);
         setEditingBoardName(boardData.name);
         setProjectId(boardData.projectId);
+        
+        // Update current project in context
+        if (boardData.projectId) {
+          updateCurrentProject(boardData.projectId);
+        }
 
         // Check initial access permissions
         const hasAccess = await checkAccess(boardData);
@@ -100,6 +107,11 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
         setBoardName(boardData.name);
         setEditingBoardName(boardData.name);
         setProjectId(boardData.projectId);
+        
+        // Update current project in context
+        if (boardData.projectId) {
+          updateCurrentProject(boardData.projectId);
+        }
 
         // Check access permissions in real-time
         if (!isCheckingAccess) {

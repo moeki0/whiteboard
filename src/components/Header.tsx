@@ -15,6 +15,12 @@ interface HeaderProps {
   children?: ReactNode;
   title?: string;
   subtitle?: string;
+  titleLink?: string;
+  onSubtitleClick?: () => void;
+  isEditingSubtitle?: boolean;
+  editingSubtitle?: string;
+  onSubtitleChange?: (value: string) => void;
+  onSubtitleSave?: () => void;
 }
 
 export const Header = memo(function Header({
@@ -23,6 +29,12 @@ export const Header = memo(function Header({
   children,
   title,
   subtitle,
+  titleLink,
+  onSubtitleClick,
+  isEditingSubtitle,
+  editingSubtitle,
+  onSubtitleChange,
+  onSubtitleSave,
 }: HeaderProps) {
   const navigate = useNavigate();
 
@@ -31,13 +43,32 @@ export const Header = memo(function Header({
       <div className="header-left">
         {title && (
           <div className="header-titles">
-            <Link to={"/"} className="header-title">
+            <Link to={titleLink || "/"} className="header-title">
               {title}
             </Link>
             {subtitle && (
               <>
                 <span className="header-separator">/</span>
-                <span className="header-subtitle">{subtitle}</span>
+                {isEditingSubtitle ? (
+                  <input
+                    type="text"
+                    value={editingSubtitle ?? subtitle}
+                    onChange={(e) => onSubtitleChange?.(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && onSubtitleSave?.()}
+                    onBlur={onSubtitleSave}
+                    autoFocus
+                    className="board-title-input"
+                  />
+                ) : (
+                  <span 
+                    className="header-subtitle" 
+                    onClick={onSubtitleClick}
+                    style={{ cursor: onSubtitleClick ? 'pointer' : 'default' }}
+                    title={onSubtitleClick ? "Click to edit" : undefined}
+                  >
+                    {subtitle}
+                  </span>
+                )}
               </>
             )}
           </div>

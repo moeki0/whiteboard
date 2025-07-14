@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set } from "firebase/database";
+import { ref, onValue, set, get } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { BoardList } from "./BoardList";
@@ -68,21 +68,19 @@ export function Home({ user }: HomeProps) {
       if (userProjectData) {
         const projectIds = Object.keys(userProjectData);
         const projectPromises = projectIds.map(async (projectId) => {
-          const projectRef = ref(rtdb, `projects/${projectId}`);
-          return new Promise((resolve) => {
-            onValue(
-              projectRef,
-              (projectSnapshot) => {
-                const project = projectSnapshot.val();
-                if (project) {
-                  resolve({ id: projectId, ...project });
-                } else {
-                  resolve(null);
-                }
-              },
-              { onlyOnce: true }
-            );
-          });
+          try {
+            const projectRef = ref(rtdb, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            if (projectSnapshot.exists()) {
+              const project = projectSnapshot.val();
+              return { id: projectId, ...project };
+            } else {
+              return null;
+            }
+          } catch (error) {
+            console.error(`Error fetching project ${projectId}:`, error);
+            return null;
+          }
         });
 
         const projectResults = await Promise.all(projectPromises);
@@ -115,16 +113,19 @@ export function Home({ user }: HomeProps) {
     });
 
     return () => unsubscribe();
-  }, [user.uid, updateCurrentProject]);
+  }, [user.uid, updateCurrentProject, currentProjectId]);
 
-  console.log("Home component state:", { loading, projects, currentProjectId });
-
+  console.log("🏠 Home component state:", { loading, projects: projects.length, currentProjectId });
+  console.log("🏠 Projects found:", projects.map(p => ({ id: p.id, name: p.name })));
+  
   if (loading) {
+    console.log("🏠 Still loading...");
     return <div className="loading"></div>;
   }
 
   // If user has no projects, show welcome screen
   if (projects.length === 0) {
+    console.log("🏠 No projects found, showing welcome screen");
     return (
       <div className="welcome-screen">
         <div className="welcome-content">
@@ -146,12 +147,23 @@ export function Home({ user }: HomeProps) {
     );
   }
 
-  // If user has a current project, show its boards
+  // If user has a current project, redirect to project page
   if (currentProjectId) {
-    console.log("Rendering BoardList with projectId:", currentProjectId);
-    return <BoardList user={user} projectId={currentProjectId} />;
+    console.log("🏠 Redirecting to project page:", currentProjectId);
+    navigate(`/project/${currentProjectId}`, { replace: true });
+    return <div className="loading">Redirecting...</div>;
+  }
+
+  // If user has projects but no current project, redirect to first project
+  if (projects.length > 0) {
+    const firstProject = projects[0];
+    console.log("🏠 Redirecting to first project:", firstProject.id);
+    updateCurrentProject(firstProject.id);
+    navigate(`/project/${firstProject.id}`);
+    return <div className="loading">Redirecting...</div>;
   }
 
   // Fallback - should not happen
+  console.log("🏠 Fallback case - this should not happen");
   return <div className="loading"></div>;
 }
