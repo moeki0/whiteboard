@@ -542,7 +542,7 @@ button {
 .boards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 14px;
   padding: 10px;
   max-width: 1200px;
   margin: 0 auto;
