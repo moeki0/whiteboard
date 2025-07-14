@@ -28,6 +28,9 @@ interface StickyNoteProps {
   currentUserId: string;
   getUserColor: (userId: string) => string;
   isDraggingMultiple?: boolean;
+  zoom?: number;
+  onDragEnd?: (noteId: string, oldPosition: { x: number; y: number }, newPosition: { x: number; y: number }) => void;
+  hasMultipleSelected?: boolean;
 }
 
 export function StickyNote({
@@ -41,6 +44,9 @@ export function StickyNote({
   currentUserId,
   getUserColor,
   isDraggingMultiple = false,
+  zoom = 1,
+  onDragEnd,
+  hasMultipleSelected = false,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -101,8 +107,10 @@ export function StickyNote({
     // 通常の単体ドラッグ
     setIsDragging(true);
     dragOffset.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: e.clientX,
+      y: e.clientY,
+      startX: position.x,
+      startY: position.y,
     };
     // ドラッグ開始をFirebaseに通知
     onUpdate(note.id, { isDragging: true, draggedBy: currentUserId });
@@ -111,8 +119,12 @@ export function StickyNote({
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (isDragging && !isEditing) {
-        const newX = e.clientX - dragOffset.current.x;
-        const newY = e.clientY - dragOffset.current.y;
+        // ズームを考慮した移動距離計算
+        const deltaX = (e.clientX - dragOffset.current.x) / zoom;
+        const deltaY = (e.clientY - dragOffset.current.y) / zoom;
+        const newX = dragOffset.current.startX + deltaX;
+        const newY = dragOffset.current.startY + deltaY;
+        
         setPosition({ x: newX, y: newY });
 
         // Lodash throttleを使用したFirebase更新
@@ -124,12 +136,20 @@ export function StickyNote({
         });
       }
     },
-    [currentUserId, isDragging, note.id, throttledUpdate]
+    [currentUserId, isDragging, note.id, throttledUpdate, zoom]
   );
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
+      
+      // ドラッグ完了時に移動履歴を記録
+      const startX = dragOffset.current.startX;
+      const startY = dragOffset.current.startY;
+      if (onDragEnd && (startX !== position.x || startY !== position.y)) {
+        onDragEnd(note.id, { x: startX, y: startY }, { x: position.x, y: position.y });
+      }
+      
       // 最終位置を即座に更新（throttleをバイパス）
       onUpdate(note.id, {
         x: position.x,
@@ -138,7 +158,7 @@ export function StickyNote({
         draggedBy: null,
       });
     }
-  }, [isDragging, note.id, onUpdate, position.x, position.y]);
+  }, [isDragging, note.id, onUpdate, onDragEnd, position.x, position.y]);
 
   useEffect(() => {
     if (isDragging) {
@@ -334,7 +354,7 @@ export function StickyNote({
     }
     
     e.stopPropagation();
-    const isMultiSelect = e.ctrlKey || e.metaKey;
+    const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
     onActivate(note.id, isMultiSelect);
   };
 
@@ -354,6 +374,7 @@ export function StickyNote({
           ?.focusNode?.parentElement?.classList.contains("sticky-note") &&
         !isEditing &&
         isActive &&
+        !hasMultipleSelected &&
         (e.key === "Delete" || e.key === "Backspace")
       ) {
         onDelete(note.id);
@@ -366,7 +387,7 @@ export function StickyNote({
         document.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, [isActive, note.id, onDelete]);
+  }, [isActive, note.id, onDelete, hasMultipleSelected]);
 
   // Get border color if someone else is interacting with this note
   const getInteractionBorderColor = () => {

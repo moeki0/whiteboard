@@ -57,12 +57,15 @@ export interface Cursor {
 }
 
 export interface HistoryAction {
-  type: 'CREATE_NOTE' | 'DELETE_NOTE' | 'MOVE_NOTE' | 'EDIT_NOTE';
+  type: 'CREATE_NOTES' | 'DELETE_NOTES' | 'MOVE_NOTES' | 'EDIT_NOTE';
   noteId: string;
   userId: string;
-  note?: Note;
-  oldPosition?: { x: number; y: number };
-  newPosition?: { x: number; y: number };
+  notes?: Note[];
   oldContent?: string;
   newContent?: string;
+  moves?: Array<{
+    noteId: string;
+    oldPosition: { x: number; y: number };
+    newPosition: { x: number; y: number };
+  }>;
 }

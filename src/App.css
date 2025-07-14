@@ -40,7 +40,7 @@ button {
 
 .app {
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 40px);
   position: relative;
   overflow: scroll;
 }
@@ -151,11 +151,12 @@ button {
   padding: 0;
 }
 
+
 .notes-container {
   position: relative;
-  width: 4000px;
-  height: 4000px;
-  overflow: hidden;
+  width: 10000px;
+  height: 10000px;
+  overflow: visible;
 }
 
 .sticky-note {
