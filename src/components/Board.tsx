@@ -1180,11 +1180,22 @@ export function Board({ user }: BoardProps) {
           // Only paste note if no input is focused
           if (!isInputFocused) {
             e.preventDefault();
+            
             // Try to paste copied notes first, fallback to single copiedNote
             if (copiedNotes.length > 0) {
               pasteCopiedNotes();
             } else if (copiedNote) {
               pasteNote();
+            } else {
+              // If no internal notes are copied, try to paste from clipboard
+              navigator.clipboard.readText().then((text) => {
+                if (text.trim()) {
+                  console.log('Pasting text from clipboard:', text);
+                  createNotesFromText(text);
+                }
+              }).catch(() => {
+                console.log('Failed to read clipboard');
+              });
             }
           }
           // If input is focused, let the default paste behavior happen
@@ -1272,6 +1283,95 @@ export function Board({ user }: BoardProps) {
     },
     [isUndoRedoOperation, addToHistory, user?.uid]
   );
+
+  // テキストから付箋を作成する関数
+  const createNotesFromText = useCallback((text: string) => {
+    console.log('createNotesFromText called with:', text);
+    const lines = text.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    console.log('Processed lines:', lines);
+    
+    if (lines.length === 0) {
+      console.log('No lines to create notes from');
+      return;
+    }
+
+    // ビューポートの中央を基準点として設定
+    const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
+    const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+    
+    // 複数の付箋を格子状に配置
+    const cols = Math.ceil(Math.sqrt(lines.length));
+    const rows = Math.ceil(lines.length / cols);
+    const spacing = 200; // 付箋間のスペース
+    
+    // 開始位置を計算（中央に配置するため）
+    const startX = viewportCenterX - (cols - 1) * spacing / 2;
+    const startY = viewportCenterY - (rows - 1) * spacing / 2;
+    
+    const createdNotes: Note[] = [];
+    
+    console.log('Creating notes at positions:', { startX, startY, cols, rows, spacing });
+    
+    lines.forEach((line, index) => {
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      const noteX = startX + col * spacing;
+      const noteY = startY + row * spacing;
+      
+      const noteId = nanoid();
+      const newNote: Note = {
+        id: noteId,
+        content: line,
+        x: noteX,
+        y: noteY,
+        color: "#ffeb3b",
+        userId: user?.uid || 'anonymous',
+        createdAt: Date.now(),
+        zIndex: nextZIndex + index,
+        width: 160,
+        isDragging: false,
+        draggedBy: null,
+      };
+      
+      console.log(`Creating note ${index + 1}/${lines.length}:`, { noteId, content: line, x: noteX, y: noteY });
+      
+      createdNotes.push(newNote);
+      
+      // Firebaseに保存
+      const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+      set(noteRef, newNote);
+    });
+    
+    // 履歴に追加
+    if (!isUndoRedoOperation) {
+      console.log('Adding to history:', createdNotes.length, 'notes');
+      addToHistory({
+        type: "CREATE_NOTES",
+        noteId: createdNotes[0].id,
+        notes: createdNotes,
+        userId: user?.uid || 'anonymous',
+      });
+    }
+    
+    // zIndexを更新
+    console.log('Updating nextZIndex from', nextZIndex, 'to', nextZIndex + lines.length);
+    setNextZIndex(prev => prev + lines.length);
+  }, [panX, panY, zoom, user?.uid, boardId, nanoid, nextZIndex, isUndoRedoOperation, addToHistory]);
+
+
+  // ペーストイベントリスナーの登録（キーボードイベントで処理するため削除）
+  // useEffect(() => {
+  //   console.log('Registering paste event listener');
+  //   document.addEventListener('paste', handlePaste);
+  //   return () => {
+  //     console.log('Removing paste event listener');
+  //     document.removeEventListener('paste', handlePaste);
+  //   };
+  // }, [handlePaste]);
 
   // Show loading state while checking access
   if (isCheckingAccess) {

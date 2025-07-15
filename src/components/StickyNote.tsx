@@ -365,20 +365,24 @@ export function StickyNote({
       if (part.startsWith("__LINK__") && part.endsWith("__LINK__")) {
         const url = part.slice(8, -8); // __LINK__を除去
         return (
-          <a
+          <span
             key={index}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
             style={{
               color: "#0066cc",
               textDecoration: "underline",
               cursor: "pointer",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Cmd/Ctrl + クリックの場合のみリンクを開く
+              if (e.metaKey || e.ctrlKey) {
+                window.open(url, "_blank", "noopener,noreferrer");
+              }
+            }}
+            title={`${navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + クリックで開く`}
           >
             {url}
-          </a>
+          </span>
         );
       }
       return part;
