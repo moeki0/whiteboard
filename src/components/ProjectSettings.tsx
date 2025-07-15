@@ -4,7 +4,7 @@ import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { User, Project } from "../types";
-import "./ProjectSettings.css";
+import "./SettingsCommon.css";
 
 interface ProjectSettingsProps {
   user: User;
@@ -224,19 +224,16 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       return;
     }
 
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this project? This action cannot be undone."
-      )
-    ) {
-      return;
+    const userInput = window.prompt(
+      `To delete this project, please type the project name exactly as shown:\n\n${project?.name}`
+    );
+
+    if (!userInput) {
+      return; // User cancelled
     }
 
-    if (
-      !window.confirm(
-        "This will permanently delete all boards and notes. Are you absolutely sure?"
-      )
-    ) {
+    if (userInput !== project?.name) {
+      alert("Project name doesn't match. Project deletion cancelled.");
       return;
     }
 
@@ -312,41 +309,20 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           <h2>Project Information</h2>
           <div className="setting-item">
             <label>Project Name</label>
-            {isEditingName && isOwner ? (
-              <div className="edit-name-container">
-                <input
-                  type="text"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && updateProjectName()}
-                  autoFocus
-                />
-                <button onClick={updateProjectName} className="save-btn">
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditingName(false);
-                    setNewProjectName(project.name);
-                  }}
-                  className="cancel-btn"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="name-display">
-                <span>{project.name}</span>
-                {isOwner && (
-                  <button
-                    onClick={() => setIsEditingName(true)}
-                    className="edit-btn"
-                  >
-                    Edit
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="edit-name-container">
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && updateProjectName()}
+                autoFocus
+              />
+            </div>
+            <div>
+              <button onClick={updateProjectName} className="save-btn">
+                Save
+              </button>
+            </div>
           </div>
         </div>
 
@@ -356,21 +332,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           <div className="setting-item">
             <label>Project Visibility</label>
             <div className="privacy-toggle">
-              <div className="privacy-option">
-                <input
-                  type="radio"
-                  id="private"
-                  name="privacy"
-                  value="private"
-                  checked={!project.isPublic}
-                  onChange={() => updateProjectPrivacy(false)}
-                  disabled={!isOwner}
-                />
-                <label htmlFor="private">
-                  <strong>Private</strong>
-                  <span>Only invited members can access this project</span>
-                </label>
-              </div>
               <div className="privacy-option">
                 <input
                   type="radio"
@@ -384,6 +345,21 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                 <label htmlFor="public">
                   <strong>Public</strong>
                   <span>Anyone can view this project (read-only)</span>
+                </label>
+              </div>
+              <div className="privacy-option">
+                <input
+                  type="radio"
+                  id="private"
+                  name="privacy"
+                  value="private"
+                  checked={!project.isPublic}
+                  onChange={() => updateProjectPrivacy(false)}
+                  disabled={!isOwner}
+                />
+                <label htmlFor="private">
+                  <strong>Private</strong>
+                  <span>Only invited members can access this project</span>
                 </label>
               </div>
             </div>
@@ -407,6 +383,8 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                 className="invite-link-input"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
+            </div>
+            <div className="btn-section">
               <button onClick={copyInviteLink} className="copy-btn">
                 Copy
               </button>
@@ -460,16 +438,15 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           <div className="settings-section danger-zone">
             <h2>Delete Project</h2>
             <div className="setting-item">
-              <div className="danger-info">
-                <strong>Delete Project</strong>
-                <p>
-                  This will permanently delete the project, all boards, and all
-                  notes. This action cannot be undone.
-                </p>
+              <p>
+                This will permanently delete the project, all boards, and all
+                notes. This action cannot be undone.
+              </p>
+              <div>
+                <button onClick={deleteProject} className="danger-btn">
+                  Delete Project
+                </button>
               </div>
-              <button onClick={deleteProject} className="danger-btn">
-                Delete Project
-              </button>
             </div>
           </div>
         )}

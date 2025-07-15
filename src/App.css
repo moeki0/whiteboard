@@ -697,9 +697,14 @@ button {
   color: #333;
 }
 
-.board-card:hover {
-  color: inherit;
-  text-decoration: none;
+.board-card:hover:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .board-card-header {
@@ -1039,6 +1044,12 @@ div.user-avatar-small {
   align-items: center;
   justify-content: center;
   outline: none;
+  gap: 4px;
+  padding-left: 10px;
+}
+
+.fab-new-board-btn:hover {
+  background-color: #268adc;
 }
 
 /* Board Title Editing */

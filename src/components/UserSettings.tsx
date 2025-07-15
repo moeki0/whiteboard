@@ -12,9 +12,21 @@ interface UserSettingsProps {
 export function UserSettings({ user }: UserSettingsProps) {
   const navigate = useNavigate();
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDeleteAccount = async () => {
+    const userInput = window.prompt(
+      `To delete your account, please type your email address exactly as shown:\n\n${user.email}`
+    );
+
+    if (!userInput) {
+      return; // User cancelled
+    }
+
+    if (userInput !== user.email) {
+      alert("Email address doesn't match. Account deletion cancelled.");
+      return;
+    }
+
     setIsDeletingAccount(true);
     try {
       const currentUser = auth.currentUser;
@@ -37,7 +49,6 @@ export function UserSettings({ user }: UserSettingsProps) {
       }
 
       setIsDeletingAccount(false);
-      setShowDeleteConfirm(false);
     }
   };
 
@@ -75,58 +86,22 @@ export function UserSettings({ user }: UserSettingsProps) {
           </div>
         </div>
 
-        {/* Account Deletion */}
         <div className="settings-section">
           <h2>Delete Account</h2>
           <div className="setting-item">
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={isDeletingAccount}
-              className="delete-account-btn"
-            >
-              Delete Account
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Delete Account</h3>
-            <p>
-              Are you absolutely sure you want to delete your account? This
-              action cannot be undone.
-            </p>
-            <p>
-              <strong>This will permanently delete:</strong>
-            </p>
-            <ul>
-              <li>Your account and profile information</li>
-              <li>All projects you own</li>
-              <li>All boards and notes you created</li>
-              <li>Your access to shared projects</li>
-            </ul>
-            <div className="modal-actions">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeletingAccount}
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
+            <div>
               <button
                 onClick={handleDeleteAccount}
                 disabled={isDeletingAccount}
-                className="confirm-delete-btn"
+                className="delete-account-btn"
               >
-                {isDeletingAccount ? "Deleting..." : "Yes, Delete My Account"}
+                {isDeletingAccount ? "Deleting..." : "Delete Account"}
               </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
+
     </div>
   );
 }

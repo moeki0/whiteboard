@@ -7,6 +7,7 @@ import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { getBoardThumbnail } from "../utils/thumbnailUtils";
 import { User, Board, Cursor } from "../types";
+import { LuPlus } from "react-icons/lu";
 
 interface BoardListProps {
   user: User | null;
@@ -226,12 +227,9 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   return (
     <div className="board-list">
       <div className="board-list-header">
-        <button
-          className="fab-new-board-btn"
-          onClick={createBoard}
-          title="Create New Board"
-        >
-          Create New Board
+        <button className="fab-new-board-btn" onClick={createBoard}>
+          <LuPlus />
+          <span>Create New Board</span>
         </button>
       </div>
 

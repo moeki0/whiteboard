@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { User, Board } from "../types";
-import "./BoardSettings.css";
+import "./SettingsCommon.css";
 
 interface BoardSettingsProps {
   user: User;
@@ -196,63 +196,32 @@ export function BoardSettings({ user }: BoardSettingsProps) {
                 maxLength={100}
                 disabled={isSaving}
               />
-            </div>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h2>Privacy Settings</h2>
-          <div className="settings-form">
-            <div className="form-group">
-              <div className="privacy-info">
-                <p>Board privacy is now managed at the project level.</p>
-                <p>
-                  To change privacy settings for this board, update the project
-                  settings.
-                </p>
+              <div>
                 <button
-                  onClick={() =>
-                    navigate(`/project/${board?.projectId}/settings`)
-                  }
-                  className="project-settings-btn"
+                  onClick={saveSettings}
                   disabled={isSaving}
+                  className="save-btn"
                 >
-                  Go to Project Settings
+                  {isSaving ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="settings-actions">
-          <button
-            onClick={saveSettings}
-            disabled={isSaving}
-            className="save-btn"
-          >
-            {isSaving ? "Saving..." : "Save Settings"}
-          </button>
-          <button
-            onClick={() => navigate(`/${boardId}`)}
-            disabled={isSaving}
-            className="cancel-btn"
-          >
-            Back to Board
-          </button>
-        </div>
-
-        <div className="danger-zone">
-          <h3>Delete Board</h3>
-          <p>
-            Once you delete a board, there is no going back. Please be certain.
-          </p>
-          <button
-            onClick={deleteBoard}
-            disabled={isDeleting || isSaving}
-            className="delete-btn"
-          >
-            {isDeleting ? "Deleting..." : "Delete Board"}
-          </button>
+        <div className="settings-section danger-zone">
+          <h2>Delete Board</h2>
+          <div className="setting-item">
+            <div>
+              <button
+                onClick={deleteBoard}
+                disabled={isDeleting || isSaving}
+                className="danger-btn"
+              >
+                Delete Board
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,10 @@
+.project-settings {
+  width: 100%;
+  height: calc(100vh - 40px);
+  background-color: #f5f5f5;
+  overflow-y: scroll;
+}
+
 /* Common Settings Page Styles */
 .settings-page {
   width: 100%;
@@ -32,11 +39,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 20px;
-}
-
-.setting-item:last-child {
-  margin-bottom: 0;
 }
 
 .setting-item label {
@@ -247,6 +249,7 @@
 .save-btn {
   background-color: #4caf50;
   color: white;
+  cursor: pointer;
 }
 
 .save-btn:hover:not(:disabled) {
@@ -537,40 +540,7 @@
   cursor: not-allowed;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .settings-container {
-    padding: 10px;
-  }
-
-  .settings-section {
-    padding: 20px;
-  }
-
-  .settings-actions {
-    flex-direction: column;
-  }
-
-  .settings-actions button {
-    width: 100%;
-  }
-
-  .invite-link-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .member-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .member-info {
-    justify-content: flex-start;
-  }
-
-  .member-actions {
-    justify-content: flex-end;
-  }
+.btn-section {
+  display: flex;
+  gap: 8px;
 }
