@@ -1,0 +1,576 @@
+/* Common Settings Page Styles */
+.settings-page {
+  width: 100%;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.settings-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.settings-section {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.settings-section h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.setting-item label {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.setting-item input[type="text"] {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.setting-item input[type="text"]:focus {
+  border-color: #4caf50;
+}
+
+.setting-item input[type="text"]:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+/* Form Groups */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group input[type="text"] {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input[type="text"]:focus {
+  border-color: #4caf50;
+}
+
+.form-group input[type="text"]:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.form-help {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Radio Button Group */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: normal;
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.radio-label:hover {
+  border-color: #4caf50;
+  background-color: #f8f9fa;
+}
+
+.radio-label input[type="radio"] {
+  margin: 4px 0 0 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #4caf50;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"]:checked + .radio-text {
+  color: #4caf50;
+}
+
+.radio-label:has(input[type="radio"]:checked) {
+  border-color: #4caf50;
+  background-color: #f1f8e9;
+}
+
+.radio-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.radio-text strong {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.radio-text small {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* Privacy Settings */
+.privacy-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.privacy-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: normal;
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.privacy-option:hover {
+  border-color: #4caf50;
+  background-color: #f8f9fa;
+}
+
+.privacy-option input[type="radio"] {
+  margin: 4px 0 0 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #4caf50;
+  cursor: pointer;
+}
+
+.privacy-option input[type="radio"]:checked + label {
+  color: #4caf50;
+}
+
+.privacy-option:has(input[type="radio"]:checked) {
+  border-color: #4caf50;
+  background-color: #f1f8e9;
+}
+
+.privacy-option label {
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.privacy-option label strong {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.privacy-option label span {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.privacy-option input[type="radio"]:disabled + label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Action Buttons */
+.settings-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.settings-actions button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.save-btn {
+  background-color: #4caf50;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.save-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.edit-btn {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.edit-btn:hover {
+  background-color: #1976d2;
+}
+
+/* Name Display */
+.name-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.name-display span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.edit-name-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-name-container input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+}
+
+.edit-name-container input:focus {
+  border-color: #4caf50;
+}
+
+/* Invite Link */
+.invite-link-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.invite-link-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #f9f9f9;
+  color: #666;
+  font-family: monospace;
+}
+
+.copy-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  background-color: #45a049;
+}
+
+.generate-btn {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.generate-btn:hover {
+  background-color: #1976d2;
+}
+
+/* Members List */
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #4caf50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.member-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.member-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.member-email {
+  color: #666;
+  font-size: 14px;
+}
+
+.member-role {
+  color: #888;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.member-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.remove-member-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.remove-member-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* Danger Zone */
+.danger-zone {
+  background-color: #fff5f5;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 20px;
+}
+
+.danger-zone h2 {
+  color: #d32f2f;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ffcdd2;
+  padding-bottom: 10px;
+}
+
+.danger-info {
+  margin-bottom: 20px;
+}
+
+.danger-info strong {
+  color: #d32f2f;
+  font-size: 16px;
+}
+
+.danger-info p {
+  color: #666;
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+.danger-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.danger-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Privacy info section */
+.privacy-info {
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+}
+
+.privacy-info p {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.privacy-info p:last-of-type {
+  margin-bottom: 20px;
+}
+
+.project-settings-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.project-settings-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.project-settings-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .settings-container {
+    padding: 10px;
+  }
+
+  .settings-section {
+    padding: 20px;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
+
+  .settings-actions button {
+    width: 100%;
+  }
+
+  .invite-link-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .member-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .member-info {
+    justify-content: flex-start;
+  }
+
+  .member-actions {
+    justify-content: flex-end;
+  }
+}

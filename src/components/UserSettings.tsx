@@ -11,25 +11,8 @@ interface UserSettingsProps {
 
 export function UserSettings({ user }: UserSettingsProps) {
   const navigate = useNavigate();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleLogout = async () => {
-    if (!window.confirm("Are you sure you want to logout?")) {
-      return;
-    }
-
-    setIsLoggingOut(true);
-    try {
-      await signOut(auth);
-      // Auth state change will automatically redirect to login
-    } catch (error) {
-      console.error("Error signing out:", error);
-      alert("Failed to logout. Please try again.");
-      setIsLoggingOut(false);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
@@ -44,13 +27,15 @@ export function UserSettings({ user }: UserSettingsProps) {
       navigate("/");
     } catch (error: any) {
       console.error("Error deleting account:", error);
-      
+
       if (error.code === "auth/requires-recent-login") {
-        alert("For security reasons, please logout and login again before deleting your account.");
+        alert(
+          "For security reasons, please logout and login again before deleting your account."
+        );
       } else {
         alert("Failed to delete account. Please try again.");
       }
-      
+
       setIsDeletingAccount(false);
       setShowDeleteConfirm(false);
     }
@@ -90,26 +75,10 @@ export function UserSettings({ user }: UserSettingsProps) {
           </div>
         </div>
 
-        {/* Session */}
-        <div className="settings-section danger-zone">
-          <div className="setting-item">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="logout-btn"
-            >
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
-          </div>
-        </div>
-
         {/* Account Deletion */}
-        <div className="settings-section danger-zone">
-          <h3>Danger Zone</h3>
+        <div className="settings-section">
+          <h2>Delete Account</h2>
           <div className="setting-item">
-            <div className="danger-warning">
-              <p>Once you delete your account, there is no going back. Please be certain.</p>
-            </div>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeletingAccount}
@@ -127,7 +96,8 @@ export function UserSettings({ user }: UserSettingsProps) {
           <div className="modal-content">
             <h3>Delete Account</h3>
             <p>
-              Are you absolutely sure you want to delete your account? This action cannot be undone.
+              Are you absolutely sure you want to delete your account? This
+              action cannot be undone.
             </p>
             <p>
               <strong>This will permanently delete:</strong>

@@ -15,9 +15,12 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [projectName, setProjectName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
+  const nanoid = customAlphabet(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    21
+  );
 
   const createProject = async () => {
     if (!projectName.trim()) {
@@ -28,7 +31,10 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
     setIsCreating(true);
     try {
       const projectId = nanoid();
-      const inviteCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 12)();
+      const inviteCode = customAlphabet(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        12
+      )();
       const project = {
         name: projectName.trim(),
         createdBy: user.uid,
@@ -87,19 +93,31 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Enter project name"
                 maxLength={100}
                 autoFocus
                 disabled={isCreating}
               />
-              <small className="form-help">
-                Choose a descriptive name for your project
-              </small>
             </div>
 
             <div className="form-group">
               <label>Privacy Settings</label>
               <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="privacy"
+                    checked={isPublic}
+                    onChange={() => setIsPublic(true)}
+                    disabled={isCreating}
+                  />
+                  <span className="radio-text">
+                    <strong>Public</strong>
+                    <small>
+                      Anyone with the link can view and edit boards in this
+                      project
+                    </small>
+                  </span>
+                </label>
                 <label className="radio-label">
                   <input
                     type="radio"
@@ -113,19 +131,6 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
                     <small>Only invited members can access this project</small>
                   </span>
                 </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="privacy"
-                    checked={isPublic}
-                    onChange={() => setIsPublic(true)}
-                    disabled={isCreating}
-                  />
-                  <span className="radio-text">
-                    <strong>Public</strong>
-                    <small>Anyone with the link can view and edit boards in this project</small>
-                  </span>
-                </label>
               </div>
             </div>
 
@@ -136,13 +141,6 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
                 className="create-btn"
               >
                 {isCreating ? "Creating..." : "Create Project"}
-              </button>
-              <button
-                onClick={() => navigate("/")}
-                disabled={isCreating}
-                className="cancel-btn"
-              >
-                Cancel
               </button>
             </div>
           </div>

@@ -99,6 +99,23 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
+  const updateProjectPrivacy = async (isPublic: boolean) => {
+    if (!isOwner) {
+      alert("Only project owners can modify project settings");
+      return;
+    }
+
+    try {
+      const projectRef = ref(rtdb, `projects/${projectId}/isPublic`);
+      await set(projectRef, isPublic);
+
+      setProject((prev) => (prev ? { ...prev, isPublic } : null));
+    } catch (error) {
+      console.error("Error updating project privacy:", error);
+      alert("Failed to update project privacy");
+    }
+  };
+
   const removeMember = async (memberUid: string) => {
     if (!isOwner) {
       alert("Only project owners can remove members");
@@ -156,7 +173,9 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       await set(inviteRef, { projectId: projectId, createdAt: Date.now() });
 
       // Update local state
-      setProject((prev) => (prev ? { ...prev, inviteCode: newInviteCode } : null));
+      setProject((prev) =>
+        prev ? { ...prev, inviteCode: newInviteCode } : null
+      );
 
       alert("New invite link generated!");
     } catch (error) {
@@ -331,6 +350,46 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           </div>
         </div>
 
+        {/* Privacy Settings */}
+        <div className="settings-section">
+          <h2>Privacy Settings</h2>
+          <div className="setting-item">
+            <label>Project Visibility</label>
+            <div className="privacy-toggle">
+              <div className="privacy-option">
+                <input
+                  type="radio"
+                  id="private"
+                  name="privacy"
+                  value="private"
+                  checked={!project.isPublic}
+                  onChange={() => updateProjectPrivacy(false)}
+                  disabled={!isOwner}
+                />
+                <label htmlFor="private">
+                  <strong>Private</strong>
+                  <span>Only invited members can access this project</span>
+                </label>
+              </div>
+              <div className="privacy-option">
+                <input
+                  type="radio"
+                  id="public"
+                  name="privacy"
+                  value="public"
+                  checked={project.isPublic}
+                  onChange={() => updateProjectPrivacy(true)}
+                  disabled={!isOwner}
+                />
+                <label htmlFor="public">
+                  <strong>Public</strong>
+                  <span>Anyone can view this project (read-only)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Invite Link */}
         <div className="settings-section">
           <h2>Invite Members</h2>
@@ -399,7 +458,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
         {/* Danger Zone */}
         {isOwner && (
           <div className="settings-section danger-zone">
-            <h2>Danger Zone</h2>
+            <h2>Delete Project</h2>
             <div className="setting-item">
               <div className="danger-info">
                 <strong>Delete Project</strong>

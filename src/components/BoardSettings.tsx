@@ -206,9 +206,14 @@ export function BoardSettings({ user }: BoardSettingsProps) {
             <div className="form-group">
               <div className="privacy-info">
                 <p>Board privacy is now managed at the project level.</p>
-                <p>To change privacy settings for this board, update the project settings.</p>
+                <p>
+                  To change privacy settings for this board, update the project
+                  settings.
+                </p>
                 <button
-                  onClick={() => navigate(`/project/${board?.projectId}/settings`)}
+                  onClick={() =>
+                    navigate(`/project/${board?.projectId}/settings`)
+                  }
                   className="project-settings-btn"
                   disabled={isSaving}
                 >
@@ -237,7 +242,7 @@ export function BoardSettings({ user }: BoardSettingsProps) {
         </div>
 
         <div className="danger-zone">
-          <h3>Danger Zone</h3>
+          <h3>Delete Board</h3>
           <p>
             Once you delete a board, there is no going back. Please be certain.
           </p>

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, memo, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { rtdb } from "../config/firebase";
+import { auth, rtdb } from "../config/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { User, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 import "./UnifiedMenu.css";
+import { signOut } from "firebase/auth";
 
 interface UnifiedMenuProps {
   user: User;
@@ -163,6 +164,14 @@ export const UnifiedMenu = memo(function UnifiedMenu({
     setIsOpen((prev) => !prev);
   }, []);
 
+  const handleLogout = async () => {
+    if (!window.confirm("Are you sure you want to logout?")) {
+      return;
+    }
+
+    await signOut(auth);
+  };
+
   return (
     <div className="unified-menu" ref={dropdownRef}>
       <button
@@ -229,6 +238,12 @@ export const UnifiedMenu = memo(function UnifiedMenu({
             {projects.length === 0 && (
               <div className="menu-item disabled">No projects found</div>
             )}
+
+            {projects.length > 0 && <div className="menu-divider" />}
+
+            <button className={`menu-item`} onClick={() => handleLogout()}>
+              <span className="project-name">Log out</span>
+            </button>
           </div>
         </div>
       )}

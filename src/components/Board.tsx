@@ -85,12 +85,14 @@ export function Board({ user }: BoardProps) {
   const [initialPan, setInitialPan] = useState<{ x: number; y: number } | null>(
     null
   );
-  
+
   // ズーム慣性用の状態
   const [zoomVelocity, setZoomVelocity] = useState<number>(0);
   const [lastWheelTime, setLastWheelTime] = useState<number>(0);
   const zoomAnimationRef = useRef<number | null>(null);
-  const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number } | null>(null);
+  const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -117,12 +119,17 @@ export function Board({ user }: BoardProps) {
     project,
   } = useBoard(user, navigate, sessionId);
 
-  const cursorColor = getUserColor(user?.uid || 'anonymous');
+  const cursorColor = getUserColor(user?.uid || "anonymous");
 
   // Use cursor tracking hook
   useCursor({
     boardId,
-    user: user || { uid: 'anonymous', email: null, displayName: 'Anonymous', photoURL: null },
+    user: user || {
+      uid: "anonymous",
+      email: null,
+      displayName: "Anonymous",
+      photoURL: null,
+    },
     sessionId,
     cursorColor,
     panX,
@@ -151,7 +158,10 @@ export function Board({ user }: BoardProps) {
   useEffect(() => {
     if (!projectId) return;
 
-    const projectRef = ref(rtdb, `projects/${projectId}/members/${user?.uid || 'anonymous'}`);
+    const projectRef = ref(
+      rtdb,
+      `projects/${projectId}/members/${user?.uid || "anonymous"}`
+    );
     const unsubscribeProject = onValue(projectRef, async (snapshot) => {
       if (!snapshot.exists()) {
         // User was removed from project
@@ -175,7 +185,7 @@ export function Board({ user }: BoardProps) {
   const addNote = (x?: number, y?: number): string => {
     // 未ログインユーザーは付箋を作成できない
     if (!user?.uid) return "";
-    
+
     // 権限チェック
     if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
       return "";
@@ -225,14 +235,14 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
-    
+
     return noteId;
   };
 
   const updateNote = (noteId: string, updates: Partial<Note>) => {
     // 未ログインユーザーは付箋を更新できない
     if (!user?.uid) return;
-    
+
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     const note = notes.find((n) => n.id === noteId);
     if (note) {
@@ -269,7 +279,7 @@ export function Board({ user }: BoardProps) {
   const deleteNote = (noteId: string) => {
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
-    
+
     const note = notes.find((n) => n.id === noteId);
 
     // Add to history only if it's user's own note and not undo/redo operation
@@ -358,10 +368,10 @@ export function Board({ user }: BoardProps) {
 
     // 指定された座標に付箋を作成
     const newNoteId = addNote(boardX, boardY);
-    
+
     // 作成した付箋にフォーカスを設定
     setNoteToFocus(newNoteId);
-    
+
     // 作成した付箋を選択状態にする
     setSelectedNoteIds(new Set([newNoteId]));
   };
@@ -654,17 +664,18 @@ export function Board({ user }: BoardProps) {
 
       const currentTime = Date.now();
       const timeDelta = currentTime - lastWheelTime;
-      
+
       // 中間的な感度設定
       const baseSensitivity = 0.001; // 基本感度を中間に
       const zoomFactor = Math.pow(1.2, -e.deltaY * baseSensitivity);
-      
+
       // 速度の計算（連続したホイール操作で適度に加速）
       let velocity = e.deltaY * baseSensitivity;
-      if (timeDelta < 50) { // 50ms以内の連続操作
+      if (timeDelta < 50) {
+        // 50ms以内の連続操作
         velocity *= 1.3; // 適度な加速
       }
-      
+
       setLastWheelTime(currentTime);
       setZoomVelocity(velocity);
 
@@ -674,7 +685,8 @@ export function Board({ user }: BoardProps) {
       const mouseY = e.clientY - rect.top;
 
       // ズームターゲットを設定（最初のホイール操作時のみ）
-      if (!zoomTarget || timeDelta > 200) { // 200ms以上経過したら新しいターゲット
+      if (!zoomTarget || timeDelta > 200) {
+        // 200ms以上経過したら新しいターゲット
         setZoomTarget({ x: mouseX, y: mouseY });
       }
 
@@ -706,45 +718,45 @@ export function Board({ user }: BoardProps) {
       const animate = () => {
         setZoomVelocity((prevVelocity) => {
           const newVelocity = prevVelocity * 0.95; // 減衰率を上げてゆっくりに
-          
+
           if (Math.abs(newVelocity) < 0.001) {
             // ズーム終了時にターゲットをクリア
             setZoomTarget(null);
             return 0;
           }
-          
+
           // ズームターゲットが設定されていればそれを使用、なければビューポート中心
           const targetX = zoomTarget?.x || window.innerWidth / 2;
           const targetY = zoomTarget?.y || window.innerHeight / 2;
-          
+
           setZoom((prevZoom) => {
             const zoomFactor = Math.pow(1.2, -newVelocity);
             const newZoom = Math.max(0.1, Math.min(5, prevZoom * zoomFactor));
-            
+
             // パンも調整
             if (boardRef.current) {
               setPanX((prevPanX) => {
                 const worldTargetX = (targetX - prevPanX) / prevZoom;
                 return targetX - worldTargetX * newZoom;
               });
-              
+
               setPanY((prevPanY) => {
                 const worldTargetY = (targetY - prevPanY) / prevZoom;
                 return targetY - worldTargetY * newZoom;
               });
             }
-            
+
             return newZoom;
           });
-          
+
           return newVelocity;
         });
-        
+
         zoomAnimationRef.current = requestAnimationFrame(animate);
       };
-      
+
       zoomAnimationRef.current = requestAnimationFrame(animate);
-      
+
       return () => {
         if (zoomAnimationRef.current) {
           cancelAnimationFrame(zoomAnimationRef.current);
@@ -800,7 +812,7 @@ export function Board({ user }: BoardProps) {
 
     // パッシブではないイベントリスナーを追加
     boardElement.addEventListener("wheel", preventScroll, { passive: false });
-    
+
     return () => {
       boardElement.removeEventListener("wheel", preventScroll);
     };
@@ -908,7 +920,7 @@ export function Board({ user }: BoardProps) {
   const deleteSelectedNotes = () => {
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
-    
+
     const notesToDelete: Note[] = [];
     selectedNoteIds.forEach((noteId) => {
       const note = notes.find((n) => n.id === noteId);
@@ -939,7 +951,7 @@ export function Board({ user }: BoardProps) {
   const pasteCopiedNotes = () => {
     // 未ログインユーザーは付箋を貼り付けできない
     if (!user?.uid) return;
-    
+
     if (copiedNotes.length === 0) {
       return;
     }
@@ -992,7 +1004,7 @@ export function Board({ user }: BoardProps) {
   const pasteNote = () => {
     // 未ログインユーザーは付箋を貼り付けできない
     if (!user?.uid) return;
-    
+
     if (copiedNote) {
       // Remove id and other properties that should be unique
       const { id, ...noteData } = copiedNote;
@@ -1032,7 +1044,7 @@ export function Board({ user }: BoardProps) {
   const performUndo = useCallback(() => {
     // 未ログインユーザーはundo/redoできない
     if (!user?.uid) return;
-    
+
     const action = undo();
     if (!action || action.userId !== user.uid) return;
 
@@ -1097,7 +1109,7 @@ export function Board({ user }: BoardProps) {
   const performRedo = useCallback(() => {
     // 未ログインユーザーはundo/redoできない
     if (!user?.uid) return;
-    
+
     const action = redo();
     if (!action || action.userId !== user.uid) return;
 
@@ -1173,7 +1185,9 @@ export function Board({ user }: BoardProps) {
           // Check if a textarea or input is focused
           const activeElement = document.activeElement;
           const isInputFocused =
-            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
 
           // Only copy if no input is focused
           if (!isInputFocused && selectedNoteIds.size > 0) {
@@ -1203,12 +1217,14 @@ export function Board({ user }: BoardProps) {
           // Check if a textarea or input is focused
           const activeElement = document.activeElement;
           const isInputFocused =
-            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
 
           // Only paste note if no input is focused
           if (!isInputFocused) {
             e.preventDefault();
-            
+
             // Try to paste copied notes first, fallback to single copiedNote
             if (copiedNotes.length > 0) {
               pasteCopiedNotes();
@@ -1216,14 +1232,17 @@ export function Board({ user }: BoardProps) {
               pasteNote();
             } else {
               // If no internal notes are copied, try to paste from clipboard
-              navigator.clipboard.readText().then((text) => {
-                if (text.trim()) {
-                  console.log('Pasting text from clipboard:', text);
-                  createNotesFromText(text);
-                }
-              }).catch(() => {
-                console.log('Failed to read clipboard');
-              });
+              navigator.clipboard
+                .readText()
+                .then((text) => {
+                  if (text.trim()) {
+                    console.log("Pasting text from clipboard:", text);
+                    createNotesFromText(text);
+                  }
+                })
+                .catch(() => {
+                  console.log("Failed to read clipboard");
+                });
             }
           }
           // If input is focused, let the default paste behavior happen
@@ -1231,7 +1250,9 @@ export function Board({ user }: BoardProps) {
           // テキストエリアやインプットにフォーカスがある場合は通常のテキスト選択を許可
           const activeElement = document.activeElement;
           const isInputFocused =
-            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
 
           if (!isInputFocused) {
             e.preventDefault();
@@ -1243,7 +1264,9 @@ export function Board({ user }: BoardProps) {
           // Check if a textarea or input is focused
           const activeElement = document.activeElement;
           const isInputFocused =
-            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
 
           // Only create new note if no input is focused
           if (!isInputFocused) {
@@ -1258,7 +1281,9 @@ export function Board({ user }: BoardProps) {
         // Delete selected notes if no input is focused
         const activeElement = document.activeElement;
         const isInputFocused =
-          activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+          activeElement &&
+          (activeElement.tagName === "TEXTAREA" ||
+            activeElement.tagName === "INPUT");
 
         if (!isInputFocused) {
           e.preventDefault();
@@ -1314,86 +1339,115 @@ export function Board({ user }: BoardProps) {
   );
 
   // テキストから付箋を作成する関数
-  const createNotesFromText = useCallback((text: string) => {
-    // 未ログインユーザーは付箋を作成できない
-    if (!user?.uid) return;
-    
-    console.log('createNotesFromText called with:', text);
-    const lines = text.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-    
-    console.log('Processed lines:', lines);
-    
-    if (lines.length === 0) {
-      console.log('No lines to create notes from');
-      return;
-    }
+  const createNotesFromText = useCallback(
+    (text: string) => {
+      // 未ログインユーザーは付箋を作成できない
+      if (!user?.uid) return;
 
-    // ビューポートの中央を基準点として設定
-    const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
-    const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
-    
-    // 複数の付箋を格子状に配置
-    const cols = Math.ceil(Math.sqrt(lines.length));
-    const rows = Math.ceil(lines.length / cols);
-    const spacing = 200; // 付箋間のスペース
-    
-    // 開始位置を計算（中央に配置するため）
-    const startX = viewportCenterX - (cols - 1) * spacing / 2;
-    const startY = viewportCenterY - (rows - 1) * spacing / 2;
-    
-    const createdNotes: Note[] = [];
-    
-    console.log('Creating notes at positions:', { startX, startY, cols, rows, spacing });
-    
-    lines.forEach((line, index) => {
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      
-      const noteX = startX + col * spacing;
-      const noteY = startY + row * spacing;
-      
-      const noteId = nanoid();
-      const newNote: Note = {
-        id: noteId,
-        content: line,
-        x: noteX,
-        y: noteY,
-        color: "#ffeb3b",
-        userId: user.uid,
-        createdAt: Date.now(),
-        zIndex: nextZIndex + index,
-        width: 160,
-        isDragging: false,
-        draggedBy: null,
-      };
-      
-      console.log(`Creating note ${index + 1}/${lines.length}:`, { noteId, content: line, x: noteX, y: noteY });
-      
-      createdNotes.push(newNote);
-      
-      // Firebaseに保存
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
-      set(noteRef, newNote);
-    });
-    
-    // 履歴に追加
-    if (!isUndoRedoOperation) {
-      console.log('Adding to history:', createdNotes.length, 'notes');
-      addToHistory({
-        type: "CREATE_NOTES",
-        noteId: createdNotes[0].id,
-        notes: createdNotes,
-        userId: user.uid,
+      console.log("createNotesFromText called with:", text);
+      const lines = text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      console.log("Processed lines:", lines);
+
+      if (lines.length === 0) {
+        console.log("No lines to create notes from");
+        return;
+      }
+
+      // ビューポートの中央を基準点として設定
+      const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
+      const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+
+      // 複数の付箋を格子状に配置
+      const cols = Math.ceil(Math.sqrt(lines.length));
+      const rows = Math.ceil(lines.length / cols);
+      const spacing = 200; // 付箋間のスペース
+
+      // 開始位置を計算（中央に配置するため）
+      const startX = viewportCenterX - ((cols - 1) * spacing) / 2;
+      const startY = viewportCenterY - ((rows - 1) * spacing) / 2;
+
+      const createdNotes: Note[] = [];
+
+      console.log("Creating notes at positions:", {
+        startX,
+        startY,
+        cols,
+        rows,
+        spacing,
       });
-    }
-    
-    // zIndexを更新
-    console.log('Updating nextZIndex from', nextZIndex, 'to', nextZIndex + lines.length);
-    setNextZIndex(prev => prev + lines.length);
-  }, [panX, panY, zoom, user?.uid, boardId, nanoid, nextZIndex, isUndoRedoOperation, addToHistory]);
 
+      lines.forEach((line, index) => {
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+
+        const noteX = startX + col * spacing;
+        const noteY = startY + row * spacing;
+
+        const noteId = nanoid();
+        const newNote: Note = {
+          id: noteId,
+          content: line,
+          x: noteX,
+          y: noteY,
+          color: "#ffeb3b",
+          userId: user.uid,
+          createdAt: Date.now(),
+          zIndex: nextZIndex + index,
+          width: 160,
+          isDragging: false,
+          draggedBy: null,
+        };
+
+        console.log(`Creating note ${index + 1}/${lines.length}:`, {
+          noteId,
+          content: line,
+          x: noteX,
+          y: noteY,
+        });
+
+        createdNotes.push(newNote);
+
+        // Firebaseに保存
+        const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+        set(noteRef, newNote);
+      });
+
+      // 履歴に追加
+      if (!isUndoRedoOperation) {
+        console.log("Adding to history:", createdNotes.length, "notes");
+        addToHistory({
+          type: "CREATE_NOTES",
+          noteId: createdNotes[0].id,
+          notes: createdNotes,
+          userId: user.uid,
+        });
+      }
+
+      // zIndexを更新
+      console.log(
+        "Updating nextZIndex from",
+        nextZIndex,
+        "to",
+        nextZIndex + lines.length
+      );
+      setNextZIndex((prev) => prev + lines.length);
+    },
+    [
+      panX,
+      panY,
+      zoom,
+      user?.uid,
+      boardId,
+      nanoid,
+      nextZIndex,
+      isUndoRedoOperation,
+      addToHistory,
+    ]
+  );
 
   // ペーストイベントリスナーの登録（キーボードイベントで処理するため削除）
   // useEffect(() => {
@@ -1409,6 +1463,14 @@ export function Board({ user }: BoardProps) {
   if (isCheckingAccess) {
     return <div className="loading"></div>;
   }
+
+  // ズームレベルに応じたドットの間隔を計算
+  const getDotSpacing = (zoomLevel: number) => {
+    if (zoomLevel <= 0.3) return 80; // 大きくズームアウトした時は間隔を広く
+    if (zoomLevel <= 0.5) return 40; // 中程度のズームアウト
+    if (zoomLevel <= 0.8) return 30; // 軽いズームアウト
+    return 20; // 通常時とズームイン時
+  };
 
   // 選択範囲の描画
   const renderSelectionBox = () => {
@@ -1448,6 +1510,9 @@ export function Board({ user }: BoardProps) {
         onWheel={handleWheel}
         style={{
           overflow: "hidden",
+          backgroundImage: `radial-gradient(circle, #aaa 1px, transparent 1px)`,
+          backgroundSize: `${getDotSpacing(zoom) * zoom}px ${getDotSpacing(zoom) * zoom}px`,
+          backgroundPosition: `${panX % (getDotSpacing(zoom) * zoom)}px ${panY % (getDotSpacing(zoom) * zoom)}px`,
         }}
       >
         <div
@@ -1470,7 +1535,7 @@ export function Board({ user }: BoardProps) {
               isSelected={selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
               onStartBulkDrag={startBulkDrag}
-              currentUserId={user?.uid || 'anonymous'}
+              currentUserId={user?.uid || "anonymous"}
               getUserColor={getUserColor}
               isDraggingMultiple={isDraggingMultiple}
               zoom={zoom}
@@ -1487,11 +1552,12 @@ export function Board({ user }: BoardProps) {
           {renderSelectionBox()}
         </div>
       </div>
-      {board && checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
-        <button onClick={() => addNote()} className="fab-add-btn">
-          <LuPlus />
-        </button>
-      )}
+      {board &&
+        checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
+          <button onClick={() => addNote()} className="fab-add-btn">
+            <LuPlus />
+          </button>
+        )}
     </div>
   );
 }
