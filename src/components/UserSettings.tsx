@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
 import { signOut, deleteUser, updateProfile } from "firebase/auth";
 import { User, UserProfile } from "../types";
-import { getUserProfile, updateUserProfile, checkUsernameAvailability, validateUsername } from "../utils/userProfile";
+import {
+  getUserProfile,
+  updateUserProfile,
+  checkUsernameAvailability,
+  validateUsername,
+} from "../utils/userProfile";
 import "./UserSettings.css";
 
 interface UserSettingsProps {
@@ -43,7 +48,7 @@ export function UserSettings({ user }: UserSettingsProps) {
 
   const handleUsernameChange = async (value: string) => {
     setUsername(value);
-    
+
     if (!value.trim()) {
       setUsernameError("");
       return;
@@ -66,7 +71,7 @@ export function UserSettings({ user }: UserSettingsProps) {
     setIsCheckingUsername(true);
     const isAvailable = await checkUsernameAvailability(value, user.uid);
     setIsCheckingUsername(false);
-    
+
     if (!isAvailable) {
       setUsernameError("Username is already taken");
     } else {
@@ -115,17 +120,17 @@ export function UserSettings({ user }: UserSettingsProps) {
 
   const handleUpdateProfile = async () => {
     if (!displayName.trim()) {
-      alert('Display name cannot be empty');
+      alert("Display name cannot be empty");
       return;
     }
 
     if (!username.trim()) {
-      alert('Username cannot be empty');
+      alert("Username cannot be empty");
       return;
     }
 
     if (usernameError) {
-      alert('Please fix the username error');
+      alert("Please fix the username error");
       return;
     }
 
@@ -189,7 +194,7 @@ export function UserSettings({ user }: UserSettingsProps) {
                   alt="Profile"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
-                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.style.display = "none";
                   }}
                 />
               ) : (
@@ -224,20 +229,41 @@ export function UserSettings({ user }: UserSettingsProps) {
                   }}
                 />
                 {isCheckingUsername && (
-                  <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#666",
+                      marginTop: "4px",
+                    }}
+                  >
                     Checking availability...
                   </div>
                 )}
                 {usernameError && (
-                  <div style={{ fontSize: "12px", color: "#ff4444", marginTop: "4px" }}>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#ff4444",
+                      marginTop: "4px",
+                    }}
+                  >
                     {usernameError}
                   </div>
                 )}
-                {!usernameError && username && !isCheckingUsername && username.toLowerCase() !== userProfile?.username && (
-                  <div style={{ fontSize: "12px", color: "#4CAF50", marginTop: "4px" }}>
-                    Username is available
-                  </div>
-                )}
+                {!usernameError &&
+                  username &&
+                  !isCheckingUsername &&
+                  username.toLowerCase() !== userProfile?.username && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#4CAF50",
+                        marginTop: "4px",
+                      }}
+                    >
+                      Username is available
+                    </div>
+                  )}
               </div>
               <div className="setting-item">
                 <label>Avatar URL</label>
@@ -254,21 +280,23 @@ export function UserSettings({ user }: UserSettingsProps) {
                 <span>{user.email}</span>
               </div>
               <div className="setting-item">
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={handleUpdateProfile}
-                    disabled={isUpdatingProfile || isLoadingProfile || !displayName.trim() || !username.trim() || !!usernameError || isCheckingUsername}
-                    className="save-btn"
-                  >
-                    {isUpdatingProfile ? "Saving..." : "Save Changes"}
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    disabled={isUpdatingProfile}
-                    className="cancel-btn"
-                  >
-                    Reset
-                  </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <div>
+                    <button
+                      onClick={handleUpdateProfile}
+                      disabled={
+                        isUpdatingProfile ||
+                        isLoadingProfile ||
+                        !displayName.trim() ||
+                        !username.trim() ||
+                        !!usernameError ||
+                        isCheckingUsername
+                      }
+                      className="save-btn"
+                    >
+                      {isUpdatingProfile ? "Saving..." : "Save"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -290,7 +318,6 @@ export function UserSettings({ user }: UserSettingsProps) {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

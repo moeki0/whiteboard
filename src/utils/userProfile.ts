@@ -99,10 +99,6 @@ export const validateUsername = (username: string): { isValid: boolean; error?: 
     return { isValid: false, error: "Username cannot be empty" };
   }
   
-  if (trimmed.length < 3) {
-    return { isValid: false, error: "Username must be at least 3 characters" };
-  }
-  
   if (trimmed.length > 20) {
     return { isValid: false, error: "Username must be 20 characters or less" };
   }
@@ -113,8 +109,8 @@ export const validateUsername = (username: string): { isValid: boolean; error?: 
     return { isValid: false, error: "Username can only contain letters, numbers, underscore, and hyphen" };
   }
   
-  // 最初と最後の文字は英数字のみ
-  const firstLastPattern = /^[a-zA-Z0-9].*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+  // 最初と最後の文字は英数字のみ（1文字の場合は最初の文字のみチェック）
+  const firstLastPattern = /^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$/;
   if (!firstLastPattern.test(trimmed)) {
     return { isValid: false, error: "Username must start and end with a letter or number" };
   }

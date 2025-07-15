@@ -21,6 +21,7 @@ import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
 import { ProjectProvider } from "./contexts/ProjectContext";
 import { User } from "./types";
+import { getUserProfile } from "./utils/userProfile";
 import "./App.css";
 
 function App() {
@@ -29,12 +30,23 @@ function App() {
   const [showInitialSetup, setShowInitialSetup] = useState<boolean>(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user as User | null);
       
-      // 初回ログイン時（displayNameが未設定）の場合、初期設定画面を表示
-      if (user && !user.displayName) {
-        setShowInitialSetup(true);
+      // 初回ログイン時（usernameが未設定）の場合、初期設定画面を表示
+      if (user) {
+        try {
+          const userProfile = await getUserProfile(user.uid);
+          if (!userProfile || !userProfile.username) {
+            setShowInitialSetup(true);
+          } else {
+            setShowInitialSetup(false);
+          }
+        } catch (error) {
+          console.error("Error checking user profile:", error);
+          // エラーの場合は初期設定画面を表示
+          setShowInitialSetup(true);
+        }
       } else {
         setShowInitialSetup(false);
       }
@@ -156,7 +168,7 @@ function App() {
                       <div
                         style={{
                           background: "white",
-                          padding: "10px 20px",
+                          padding: "6px 20px",
                           borderBottom: "1px solid #e0e0e0",
                           display: "flex",
                           justifyContent: "space-between",
@@ -170,7 +182,7 @@ function App() {
                         <button
                           onClick={() => (window.location.href = "/")}
                           style={{
-                            padding: "8px 16px",
+                            padding: "4px 16px",
                             background: "#007bff",
                             color: "white",
                             border: "none",

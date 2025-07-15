@@ -2,7 +2,11 @@ import { useState } from "react";
 import { auth } from "../config/firebase";
 import { updateProfile } from "firebase/auth";
 import { User, UserProfile } from "../types";
-import { updateUserProfile, checkUsernameAvailability, validateUsername } from "../utils/userProfile";
+import {
+  updateUserProfile,
+  checkUsernameAvailability,
+  validateUsername,
+} from "../utils/userProfile";
 import "./UserSettings.css";
 
 interface InitialProfileSetupProps {
@@ -10,7 +14,10 @@ interface InitialProfileSetupProps {
   onComplete: () => void;
 }
 
-export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupProps) {
+export function InitialProfileSetup({
+  user,
+  onComplete,
+}: InitialProfileSetupProps) {
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [username, setUsername] = useState("");
   const [photoURL, setPhotoURL] = useState(user.photoURL || "");
@@ -20,7 +27,7 @@ export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupPro
 
   const handleUsernameChange = async (value: string) => {
     setUsername(value);
-    
+
     if (!value.trim()) {
       setUsernameError("");
       return;
@@ -36,11 +43,15 @@ export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupPro
     // 重複チェック（初回登録時なのでexcludeUidは不要）
     setIsCheckingUsername(true);
     try {
-      console.log("InitialProfileSetup: Checking username", value, "without excludeUid");
+      console.log(
+        "InitialProfileSetup: Checking username",
+        value,
+        "without excludeUid"
+      );
       const isAvailable = await checkUsernameAvailability(value, undefined);
       console.log("InitialProfileSetup: Username available:", isAvailable);
       setIsCheckingUsername(false);
-      
+
       if (!isAvailable) {
         setUsernameError("Username is already taken");
       } else {
@@ -55,17 +66,17 @@ export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupPro
 
   const handleComplete = async () => {
     if (!displayName.trim()) {
-      alert('Display name cannot be empty');
+      alert("Display name cannot be empty");
       return;
     }
 
     if (!username.trim()) {
-      alert('Username cannot be empty');
+      alert("Username cannot be empty");
       return;
     }
 
     if (usernameError) {
-      alert('Please fix the username error');
+      alert("Please fix the username error");
       return;
     }
 
@@ -107,15 +118,11 @@ export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupPro
     }
   };
 
-  const handleSkip = () => {
-    onComplete();
-  };
-
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3>Welcome! Set up your profile</h3>
-        <p>Let's set up your profile to get started.</p>
+    <div className="page-container">
+      <div className="content-container">
+        <h2>Profile Setup</h2>
+        <p>Please set up your profile to continue.</p>
         
         <div className="user-profile">
           <div className="user-avatar">
@@ -190,14 +197,7 @@ export function InitialProfileSetup({ user, onComplete }: InitialProfileSetupPro
           </div>
         </div>
 
-        <div className="modal-actions">
-          <button
-            onClick={handleSkip}
-            disabled={isUpdating}
-            className="cancel-btn"
-          >
-            Skip for now
-          </button>
+        <div className="actions">
           <button
             onClick={handleComplete}
             disabled={isUpdating || !displayName.trim() || !username.trim() || !!usernameError || isCheckingUsername}
