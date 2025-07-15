@@ -68,9 +68,16 @@ export function StickyNote({
   const [content, setContent] = useState(note.content);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const [isDragging, setIsDragging] = useState(false);
-  
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [noteColor, setNoteColor] = useState(note.color || "white");
+  const [textSize, setTextSize] = useState(note.textSize || "medium");
+
   // 権限チェック
-  const { canEdit: canEditBoard } = checkBoardEditPermission(board, project, currentUserId);
+  const { canEdit: canEditBoard } = checkBoardEditPermission(
+    board,
+    project,
+    currentUserId
+  );
   const isNoteOwner = note.userId === currentUserId;
   const canEditNote = canEditBoard || isNoteOwner;
   const canDeleteNote = canEditBoard || isNoteOwner;
@@ -108,8 +115,24 @@ export function StickyNote({
       setPosition({ x: note.x, y: note.y });
     }
 
+    // 色とテキストサイズを更新
+    if (note.color !== noteColor) {
+      setNoteColor(note.color || "white");
+    }
+    if (note.textSize !== textSize) {
+      setTextSize(note.textSize || "medium");
+    }
+
     // 固定幅なので動的な幅調整を削除
-  }, [note, isDragging, isEditing, currentUserId, content]);
+  }, [
+    note,
+    isDragging,
+    isEditing,
+    currentUserId,
+    content,
+    noteColor,
+    textSize,
+  ]);
 
   // 固定幅なので自動リサイズは不要
 
@@ -226,6 +249,7 @@ export function StickyNote({
 
   const handleBlur = () => {
     setIsEditing(false);
+    setShowToolbar(false);
     onUpdate(note.id, {
       content,
       width: dimensions.width,
@@ -379,7 +403,9 @@ export function StickyNote({
                 window.open(url, "_blank", "noopener,noreferrer");
               }
             }}
-            title={`${navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"} + クリックで開く`}
+            title={`${
+              navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"
+            } + クリックで開く`}
           >
             {url}
           </span>
@@ -406,14 +432,15 @@ export function StickyNote({
     if (isEditing) {
       return;
     }
-    
+
     // 編集権限がない場合は編集モードに入らない
     if (!canEditNote) {
       return;
     }
-    
+
     e.stopPropagation();
     setIsEditing(true);
+    setShowToolbar(true);
   };
 
   useEffect(() => {
@@ -466,6 +493,66 @@ export function StickyNote({
 
   const interactionBorderColor = getInteractionBorderColor();
 
+  // 色選択ハンドラー
+  const handleColorSelect = (color: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNoteColor(color);
+    onUpdate(note.id, {
+      color,
+      isEditing: true,
+      editedBy: currentUserId,
+    });
+    // テキストボックスにフォーカスを戻す
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+    }, 0);
+  };
+
+  // 文字サイズ変更ハンドラー
+  const handleFontSizeChange = (size: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTextSize(size);
+    onUpdate(note.id, {
+      textSize: size,
+      isEditing: true,
+      editedBy: currentUserId,
+    });
+    // テキストボックスにフォーカスを戻す
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+    }, 0);
+  };
+
+  // 色のスタイルを取得
+  const getColorStyle = (color: string) => {
+    const colorMap: { [key: string]: string } = {
+      white: "#ffffff",
+      red: "#ffebee",
+      blue: "#e3f2fd",
+      green: "#e8f5e9",
+      yellow: "#fff9c4",
+      purple: "#f3e5f5",
+      transparent: "transparent",
+    };
+    return colorMap[color] || colorMap.white;
+  };
+
+  // 文字サイズのスタイルを取得
+  const getTextSizeStyle = (size: string) => {
+    const sizeMap: { [key: string]: number } = {
+      small: 11,
+      medium: 13,
+      large: 15,
+    };
+    return sizeMap[size] || sizeMap.medium;
+  };
+
   return (
     <div
       ref={noteRef}
@@ -476,10 +563,13 @@ export function StickyNote({
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        backgroundColor: "white",
+        backgroundColor: getColorStyle(noteColor),
+        boxShadow:
+          noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.05)",
+        border: noteColor === "transparent" ? "none" : "1px solid #cccccc",
         zIndex: note.zIndex || 1,
-        cursor: canMoveNote ? "move" : "default",
         opacity: canEditNote ? 1 : 0.8,
+        fontSize: `${getTextSizeStyle(textSize)}px`,
         ...(interactionBorderColor && {
           borderColor: interactionBorderColor,
           borderWidth: "1px",
@@ -495,7 +585,58 @@ export function StickyNote({
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
     >
-      <div className="note-content">
+      {/* ツールバー */}
+      {showToolbar && isEditing && canEditNote && (
+        <div className="note-toolbar">
+          {/* 色選択ボタン */}
+          <div className="toolbar-section">
+            <button
+              className="toolbar-color-btn white"
+              onClick={(e) => handleColorSelect("white", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="白"
+            />
+            <button
+              className="toolbar-color-btn transparent"
+              onClick={(e) => handleColorSelect("transparent", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="透明"
+            />
+            <button
+              className="toolbar-color-btn red"
+              onClick={(e) => handleColorSelect("red", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="赤"
+            />
+            <button
+              className="toolbar-color-btn blue"
+              onClick={(e) => handleColorSelect("blue", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="青"
+            />
+            <button
+              className="toolbar-color-btn green"
+              onClick={(e) => handleColorSelect("green", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="緑"
+            />
+            <button
+              className="toolbar-color-btn yellow"
+              onClick={(e) => handleColorSelect("yellow", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="黄"
+            />
+            <button
+              className="toolbar-color-btn purple"
+              onClick={(e) => handleColorSelect("purple", e)}
+              onMouseDown={(e) => e.preventDefault()}
+              title="紫"
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="note-content" style={{ position: "relative" }}>
         {isEditing && canEditNote ? (
           <TextareaAutosize
             ref={contentRef}

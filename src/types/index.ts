@@ -10,7 +10,8 @@ export interface Note {
   content: string;
   x: number;
   y: number;
-  color: string;
+  color?: string;
+  textSize?: string;
   userId: string;
   createdAt: number;
   zIndex: number;

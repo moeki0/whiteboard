@@ -165,8 +165,6 @@ button {
   display: flex;
   flex-direction: column;
   text-align: center;
-  border: 1px solid #cccccc;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
   border-radius: 3px;
 }
 
@@ -217,6 +215,106 @@ button {
 .note-content > div:empty::before {
   content: "\A";
   white-space: pre;
+}
+
+/* Note Toolbar */
+.note-toolbar {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  z-index: 10;
+  font-size: 0;
+}
+
+.toolbar-section {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.toolbar-section:not(:last-child)::after {
+  content: "";
+  width: 1px;
+  background: #ddd;
+}
+
+.toolbar-color-btn {
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.toolbar-color-btn.white {
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+}
+
+.toolbar-color-btn.transparent {
+  background-color: transparent;
+  border: 1px solid #ccc;
+  position: relative;
+}
+
+.toolbar-color-btn.transparent::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 1px;
+  height: 14px;
+  background: #ff0000;
+}
+
+.toolbar-color-btn.red {
+  background-color: #ffebee;
+  border: 1px solid #ff93a4;
+}
+
+.toolbar-color-btn.blue {
+  background-color: #e3f2fd;
+  border: 1px solid #76c6ff;
+}
+
+.toolbar-color-btn.green {
+  background-color: #e8f5e9;
+  border: 1px solid #4ace55;
+}
+
+.toolbar-color-btn.yellow {
+  background-color: #fff9c4;
+  border: 1px solid #e1d141;
+}
+
+.toolbar-color-btn.purple {
+  background-color: #f3e5f5;
+  border: 1px solid #eb69ff;
+}
+
+.toolbar-size-btn {
+  width: 20px;
+  height: 16px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  background: white;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.1s;
+}
+
+.toolbar-size-btn:hover {
+  background-color: #f0f0f0;
 }
 
 /* Cursor styles */
