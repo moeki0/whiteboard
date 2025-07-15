@@ -16,6 +16,7 @@ import { ProjectSettings } from "./components/ProjectSettings";
 import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
 import { BoardSettings } from "./components/BoardSettings";
+import { InitialProfileSetup } from "./components/InitialProfileSetup";
 import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
 import { ProjectProvider } from "./contexts/ProjectContext";
@@ -25,10 +26,19 @@ import "./App.css";
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showInitialSetup, setShowInitialSetup] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user as User | null);
+      
+      // 初回ログイン時（displayNameが未設定）の場合、初期設定画面を表示
+      if (user && !user.displayName) {
+        setShowInitialSetup(true);
+      } else {
+        setShowInitialSetup(false);
+      }
+      
       setLoading(false);
     });
 
@@ -43,6 +53,20 @@ function App() {
 
     if (!user) {
       return <Auth user={user} />;
+    }
+
+    // 初期設定画面を表示
+    if (showInitialSetup) {
+      return (
+        <InitialProfileSetup
+          user={user}
+          onComplete={() => {
+            setShowInitialSetup(false);
+            // ユーザー情報を再読み込み
+            window.location.reload();
+          }}
+        />
+      );
     }
 
     return (

@@ -1549,6 +1549,7 @@ export function Board({ user }: BoardProps) {
               onFocused={() => setNoteToFocus(null)}
               board={board!}
               project={project}
+              user={user}
             />
           ))}
 

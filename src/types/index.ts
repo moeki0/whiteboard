@@ -5,6 +5,16 @@ export interface User {
   photoURL: string | null;
 }
 
+export interface UserProfile {
+  uid: string;
+  username: string;
+  displayName: string;
+  photoURL?: string | null;
+  email: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Note {
   id: string;
   content: string;
@@ -20,6 +30,11 @@ export interface Note {
   draggedBy?: string | null;
   isEditing?: boolean;
   editedBy?: string | null;
+  signedBy?: {
+    uid: string;
+    displayName: string | null;
+    photoURL: string | null;
+  } | null;
 }
 
 export interface Board {

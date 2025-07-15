@@ -3,6 +3,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
 import { Note, Board, Project } from "../types";
 import { checkBoardEditPermission } from "../utils/permissions";
+import { LuPlus } from "react-icons/lu";
 
 interface ImageContent {
   type: "image";
@@ -43,6 +44,7 @@ interface StickyNoteProps {
   onFocused?: () => void;
   board: Board;
   project: Project | null;
+  user?: { displayName: string | null; photoURL: string | null } | null;
 }
 
 export function StickyNote({
@@ -63,6 +65,7 @@ export function StickyNote({
   onFocused,
   board,
   project,
+  user,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -72,6 +75,7 @@ export function StickyNote({
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
+  const [showSignButton, setShowSignButton] = useState(false);
 
   // 権限チェック
   const { canEdit: canEditBoard } = checkBoardEditPermission(
@@ -251,6 +255,7 @@ export function StickyNote({
   const handleBlur = () => {
     setIsEditing(false);
     setShowToolbar(false);
+    setShowSignButton(false); // 編集終了時にSignボタンも非表示に
     onUpdate(note.id, {
       content,
       width: dimensions.width,
@@ -366,17 +371,23 @@ export function StickyNote({
 
     for (const line of lines) {
       // まずScrapbox記法を処理
-      let processedLine = line.replace(/\[([^\]]+)\s+(https?:\/\/[^\s\]]+)\]/g, (match, linkText, url) => {
-        return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
-      });
-      
-      // 次に通常のURLを処理（Scrapbox記法内のURLは除外）
-      processedLine = processedLine.replace(/(https?:\/\/[^\s]+)(?!__SCRAPBOX__)/g, (url) => {
-        if (isUrl(url)) {
-          return `__LINK__${url}__LINK__`;
+      let processedLine = line.replace(
+        /\[([^\]]+)\s+(https?:\/\/[^\s\]]+)\]/g,
+        (match, linkText, url) => {
+          return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
         }
-        return url;
-      });
+      );
+
+      // 次に通常のURLを処理（Scrapbox記法内のURLは除外）
+      processedLine = processedLine.replace(
+        /(https?:\/\/[^\s]+)(?!__SCRAPBOX__)/g,
+        (url) => {
+          if (isUrl(url)) {
+            return `__LINK__${url}__LINK__`;
+          }
+          return url;
+        }
+      );
 
       result.push({
         type: "text",
@@ -390,8 +401,10 @@ export function StickyNote({
   // テキスト内のリンクを処理
   const renderTextWithLinks = (text: string) => {
     // 通常のリンクとScrapbox記法の両方を処理
-    const parts = text.split(/(__LINK__[^_]+__LINK__|__SCRAPBOX__.+?__SCRAPBOX__)/);
-    
+    const parts = text.split(
+      /(__LINK__[^_]+__LINK__|__SCRAPBOX__.+?__SCRAPBOX__)/
+    );
+
     return parts.map((part, index) => {
       if (part.startsWith("__LINK__") && part.endsWith("__LINK__")) {
         const url = part.slice(8, -8); // __LINK__を除去
@@ -406,7 +419,10 @@ export function StickyNote({
             {url}
           </span>
         );
-      } else if (part.startsWith("__SCRAPBOX__") && part.endsWith("__SCRAPBOX__")) {
+      } else if (
+        part.startsWith("__SCRAPBOX__") &&
+        part.endsWith("__SCRAPBOX__")
+      ) {
         // Scrapbox記法の処理
         const content = part.slice(12, -12); // __SCRAPBOX__を除去
         const [linkText, url] = content.split("__URL__");
@@ -444,14 +460,18 @@ export function StickyNote({
       return;
     }
 
-    // 編集権限がない場合は編集モードに入らない
-    if (!canEditNote) {
+    e.stopPropagation();
+
+    // 編集権限がある場合
+    if (canEditNote) {
+      setIsEditing(true);
+      setShowToolbar(true);
+      // 編集権限がある場合もSignボタンを表示可能にする
+      setShowSignButton(true);
+    } else {
+      // 編集権限がない場合は何もしない
       return;
     }
-
-    e.stopPropagation();
-    setIsEditing(true);
-    setShowToolbar(true);
   };
 
   useEffect(() => {
@@ -564,24 +584,67 @@ export function StickyNote({
     return sizeMap[size] || sizeMap.medium;
   };
 
+  // サインの追加・削除処理
+  const handleAddMe = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentUserId || currentUserId === "anonymous") {
+      alert("Please log in to mark this note as yours");
+      return;
+    }
+
+    // ユーザー情報を追加
+    onUpdate(note.id, {
+      signedBy: {
+        uid: currentUserId,
+        displayName: user?.displayName || null,
+        photoURL: user?.photoURL || null,
+      },
+    });
+
+    // ボタンは表示したままにして、テキストボックスにフォーカスを戻す
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+    }, 0);
+  };
+
+  const handleRemoveMe = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // サイン情報を削除
+    onUpdate(note.id, {
+      signedBy: null,
+    });
+
+    // ボタンは表示したままにして、テキストボックスにフォーカスを戻す
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.focus();
+      }
+    }, 0);
+  };
+
   // コンテンツ内のリンクを抽出
   const extractLinks = (text: string): string[] => {
     const links: string[] = [];
-    
+
     // 通常のURL
     const urlRegex = /(https?:\/\/[^\s\]]+)/g;
     const urlMatches = text.match(urlRegex);
     if (urlMatches) {
       links.push(...urlMatches);
     }
-    
+
     // Scrapbox記法 [text url] から URLを抽出
     const scrapboxRegex = /\[[^\]]+\s+(https?:\/\/[^\s\]]+)\]/g;
     let match;
     while ((match = scrapboxRegex.exec(text)) !== null) {
       links.push(match[1]);
     }
-    
+
     // 重複を削除
     return [...new Set(links)];
   };
@@ -716,6 +779,100 @@ export function StickyNote({
       )}
 
       <div className="note-content" style={{ position: "relative" }}>
+        {/* 作成者情報の表示またはAdd meボタン */}
+        {note.signedBy ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              marginBottom: "4px",
+              fontSize: "11px",
+              color: "#666",
+            }}
+          >
+            {note.signedBy.photoURL ? (
+              <img
+                src={note.signedBy.photoURL}
+                alt={note.signedBy.displayName || "User"}
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  borderRadius: "50%",
+                  backgroundColor: "#ccc",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "10px",
+                  color: "white",
+                }}
+              >
+                {(note.signedBy.displayName || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span>{note.signedBy.displayName || "Anonymous"}</span>
+            {/* 削除ボタン（自分のサインの場合のみ） */}
+            {showSignButton && note.signedBy.uid === currentUserId && (
+              <button
+                onClick={handleRemoveMe}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "#999",
+                  padding: "0",
+                  marginLeft: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "14px",
+                  height: "14px",
+                }}
+                title="Remove me"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ) : showSignButton ? (
+          <div
+            style={{
+              marginBottom: "4px",
+            }}
+          >
+            <button
+              onClick={handleAddMe}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                border: "none",
+                display: "flex",
+                gap: "4px",
+                padding: "0 4px",
+                fontSize: "11px",
+                cursor: "pointer",
+                background: "none",
+                whiteSpace: "nowrap",
+                color: "#888",
+              }}
+            >
+              <LuPlus />
+              <span>Add me</span>
+            </button>
+          </div>
+        ) : null}
+
         {isEditing && canEditNote ? (
           <TextareaAutosize
             ref={contentRef}
