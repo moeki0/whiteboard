@@ -44,7 +44,7 @@ export const Header = memo(function Header({
 
   // sessionStorageから直接読み取って即座に表示、フォールバックでContextを使用
   const savedProjectName = typeof window !== 'undefined' ? sessionStorage.getItem("currentProjectName") : null;
-  const displayTitle = savedProjectName || currentProjectName || title || "Maplap";
+  const displayTitle = savedProjectName || currentProjectName || title || "Whiteboard";
 
   return (
     <div className="app-header">

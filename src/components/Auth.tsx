@@ -38,7 +38,7 @@ export function Auth({ user }: AuthProps) {
 
   return (
     <div className="auth-container">
-      <h2>Welcome to Maplap</h2>
+      <h2>Welcome to Whiteboard</h2>
       <p>Collaborative Sticky Notes</p>
 
       <button onClick={handleGoogleSignIn} className="google-signin">

@@ -142,7 +142,7 @@ function App() {
                           width: "100%"
                         }}
                       >
-                        <h1 style={{ margin: 0, fontSize: "18px" }}>Maplap</h1>
+                        <h1 style={{ margin: 0, fontSize: "18px" }}>Whiteboard</h1>
                         <button
                           onClick={() => (window.location.href = "/")}
                           style={{

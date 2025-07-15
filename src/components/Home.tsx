@@ -130,7 +130,7 @@ export function Home({ user }: HomeProps) {
       <div className="welcome-screen">
         <div className="welcome-content">
           <div className="welcome-card">
-            <h2>Welcome to Maplap!</h2>
+            <h2>Welcome to Whiteboard!</h2>
             <p>
               You don't have any projects yet. Let's create your first project
               to get started.
