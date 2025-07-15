@@ -8,9 +8,12 @@ interface UseCursorProps {
   user: User;
   sessionId: string;
   cursorColor: string;
+  panX: number;
+  panY: number;
+  zoom: number;
 }
 
-export function useCursor({ boardId, user, sessionId, cursorColor }: UseCursorProps) {
+export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, zoom }: UseCursorProps) {
   const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -20,14 +23,9 @@ export function useCursor({ boardId, user, sessionId, cursorColor }: UseCursorPr
       if (throttleTimerRef.current) return;
 
       throttleTimerRef.current = setTimeout(() => {
-        // Get scroll position to calculate relative cursor position
-        const app = document.querySelector(".app") as HTMLElement;
-        const scrollLeft = app?.scrollLeft || 0;
-        const scrollTop = app?.scrollTop || 0;
-
-        // Calculate cursor position relative to the board content
-        const relativeX = e.clientX + scrollLeft;
-        const relativeY = e.clientY + scrollTop;
+        // Convert screen coordinates to board coordinates
+        const boardX = (e.clientX - panX) / zoom;
+        const boardY = (e.clientY - panY) / zoom;
 
         const cursorRef = ref(rtdb, `boardCursors/${boardId}/${user.uid}-${sessionId}`);
         const userName = user.displayName || user.email || "User";
@@ -38,8 +36,8 @@ export function useCursor({ boardId, user, sessionId, cursorColor }: UseCursorPr
           .join("");
 
         set(cursorRef, {
-          x: relativeX,
-          y: relativeY,
+          x: boardX,
+          y: boardY,
           name: initials,
           fullName: `${userName} (${sessionId})`,
           color: cursorColor,
@@ -86,5 +84,5 @@ export function useCursor({ boardId, user, sessionId, cursorColor }: UseCursorPr
       
       cleanup();
     };
-  }, [boardId, user.uid, sessionId, cursorColor, user.displayName, user.email]);
+  }, [boardId, user.uid, sessionId, cursorColor, user.displayName, user.email, panX, panY, zoom]);
 }

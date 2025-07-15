@@ -80,7 +80,7 @@ export function StickyNote({
     height: "auto" as const,
   });
   const noteRef = useRef<HTMLDivElement>(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
+  const dragOffset = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   // throttled update function

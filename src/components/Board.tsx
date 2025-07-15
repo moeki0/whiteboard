@@ -125,6 +125,9 @@ export function Board({ user }: BoardProps) {
     user: user || { uid: 'anonymous', email: null, displayName: 'Anonymous', photoURL: null },
     sessionId,
     cursorColor,
+    panX,
+    panY,
+    zoom,
   });
 
   // 初期位置を中央に設定
