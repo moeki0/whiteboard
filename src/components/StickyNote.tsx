@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
-import { Note } from "../types";
+import { Note, Board, Project } from "../types";
+import { checkBoardEditPermission } from "../utils/permissions";
 
 interface ImageContent {
   type: "image";
@@ -28,7 +29,7 @@ interface StickyNoteProps {
     noteId: string,
     e: React.MouseEvent<HTMLDivElement>
   ) => void;
-  currentUserId: string;
+  currentUserId: string | null;
   getUserColor: (userId: string) => string;
   isDraggingMultiple?: boolean;
   zoom?: number;
@@ -40,6 +41,8 @@ interface StickyNoteProps {
   hasMultipleSelected?: boolean;
   shouldFocus?: boolean;
   onFocused?: () => void;
+  board: Board;
+  project: Project | null;
 }
 
 export function StickyNote({
@@ -58,11 +61,20 @@ export function StickyNote({
   hasMultipleSelected = false,
   shouldFocus = false,
   onFocused,
+  board,
+  project,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const [isDragging, setIsDragging] = useState(false);
+  
+  // 権限チェック
+  const { canEdit: canEditBoard } = checkBoardEditPermission(board, project, currentUserId);
+  const isNoteOwner = note.userId === currentUserId;
+  const canEditNote = canEditBoard || isNoteOwner;
+  const canDeleteNote = canEditBoard || isNoteOwner;
+  const canMoveNote = canEditBoard || isNoteOwner;
   const [dimensions] = useState({
     width: 160, // 固定幅に設定
     height: "auto" as const,
@@ -107,6 +119,11 @@ export function StickyNote({
       return;
     }
 
+    // 移動権限がない場合はドラッグを無効化
+    if (!canMoveNote) {
+      return;
+    }
+
     // 複数選択されている場合は一括移動を開始
     if (isSelected) {
       e.preventDefault(); // デフォルトの動作を防ぐ
@@ -124,7 +141,7 @@ export function StickyNote({
       startY: position.y,
     };
     // ドラッグ開始をFirebaseに通知
-    onUpdate(note.id, { isDragging: true, draggedBy: currentUserId });
+    onUpdate(note.id, { isDragging: true, draggedBy: currentUserId || 'anonymous' });
   };
 
   const handleMouseMove = useCallback(
@@ -143,7 +160,7 @@ export function StickyNote({
           x: newX,
           y: newY,
           isDragging: true,
-          draggedBy: currentUserId,
+          draggedBy: currentUserId || 'anonymous',
         });
       }
     },
@@ -203,7 +220,7 @@ export function StickyNote({
       content: newContent,
       width: dimensions.width,
       isEditing: true,
-      editedBy: currentUserId,
+      editedBy: currentUserId || 'anonymous',
     });
   };
 
@@ -385,6 +402,12 @@ export function StickyNote({
     if (isEditing) {
       return;
     }
+    
+    // 編集権限がない場合は編集モードに入らない
+    if (!canEditNote) {
+      return;
+    }
+    
     e.stopPropagation();
     setIsEditing(true);
   };
@@ -398,7 +421,8 @@ export function StickyNote({
         !isEditing &&
         isActive &&
         !hasMultipleSelected &&
-        (e.key === "Delete" || e.key === "Backspace")
+        (e.key === "Delete" || e.key === "Backspace") &&
+        canDeleteNote
       ) {
         onDelete(note.id);
       }
@@ -410,18 +434,18 @@ export function StickyNote({
         document.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, [isActive, note.id, onDelete, hasMultipleSelected]);
+  }, [isActive, note.id, onDelete, hasMultipleSelected, canDeleteNote]);
 
   // shouldFocusがtrueの場合、編集モードにしてフォーカスを設定
   useEffect(() => {
-    if (shouldFocus && !isEditing) {
+    if (shouldFocus && !isEditing && canEditNote) {
       setIsEditing(true);
       // フォーカス完了を通知
       if (onFocused) {
         onFocused();
       }
     }
-  }, [shouldFocus, isEditing, onFocused]);
+  }, [shouldFocus, isEditing, onFocused, canEditNote]);
 
   // Get border color if someone else is interacting with this note
   const getInteractionBorderColor = () => {
@@ -450,10 +474,17 @@ export function StickyNote({
         top: `${position.y}px`,
         backgroundColor: "white",
         zIndex: note.zIndex || 1,
+        cursor: canMoveNote ? "move" : "default",
+        opacity: canEditNote ? 1 : 0.8,
         ...(interactionBorderColor && {
           borderColor: interactionBorderColor,
           borderWidth: "1px",
           borderStyle: "solid",
+        }),
+        ...(!canEditNote && {
+          borderColor: "#ccc",
+          borderWidth: "1px",
+          borderStyle: "dashed",
         }),
       }}
       onMouseDown={handleMouseDown}
@@ -461,7 +492,7 @@ export function StickyNote({
       onDoubleClick={handleDoubleClick}
     >
       <div className="note-content">
-        {isEditing ? (
+        {isEditing && canEditNote ? (
           <TextareaAutosize
             ref={contentRef}
             value={content}
@@ -477,8 +508,26 @@ export function StickyNote({
             style={{
               opacity:
                 note.isEditing && note.editedBy !== currentUserId ? 0.6 : 1,
+              position: "relative",
             }}
           >
+            {!canEditNote && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  fontSize: "10px",
+                  color: "#999",
+                  background: "rgba(255, 255, 255, 0.8)",
+                  padding: "1px 3px",
+                  borderRadius: "2px",
+                  zIndex: 1,
+                }}
+              >
+                {currentUserId ? "読み取り専用" : "ログインで編集可能"}
+              </div>
+            )}
             {parseContent(content).map((item, index) => {
               if (item.type === "image") {
                 return (

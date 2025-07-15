@@ -55,7 +55,7 @@ export function isProjectMember(
 export function checkBoardAccess(
   board: Board | null,
   project: Project | null,
-  userId: string
+  userId: string | null
 ): {
   hasAccess: boolean;
   reason?: string;
@@ -64,12 +64,16 @@ export function checkBoardAccess(
     return { hasAccess: false, reason: 'Board not found' };
   }
 
-  // パブリックボードの場合は誰でもアクセス可能
+  // パブリックボードの場合は誰でもアクセス可能（未ログインユーザー含む）
   if (board.isPublic) {
     return { hasAccess: true };
   }
 
-  // プライベートボードの場合はプロジェクトメンバーのみ
+  // プライベートボードの場合はログインしているプロジェクトメンバーのみ
+  if (!userId) {
+    return { hasAccess: false, reason: 'Login required for private boards' };
+  }
+
   if (!board.projectId) {
     return { hasAccess: false, reason: 'Private board without project' };
   }
@@ -92,7 +96,7 @@ export function checkBoardAccess(
 export function checkBoardEditPermission(
   board: Board | null,
   project: Project | null,
-  userId: string
+  userId: string | null
 ): {
   canEdit: boolean;
   reason?: string;
@@ -102,7 +106,12 @@ export function checkBoardEditPermission(
     return { canEdit: false, reason: accessCheck.reason };
   }
 
-  // パブリックボードの場合は誰でも編集可能
+  // パブリックボードでも編集にはログインが必要
+  if (!userId) {
+    return { canEdit: false, reason: 'Login required for editing' };
+  }
+
+  // パブリックボードの場合はログインユーザーなら誰でも編集可能
   if (board?.isPublic) {
     return { canEdit: true };
   }

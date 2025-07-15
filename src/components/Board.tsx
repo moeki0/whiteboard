@@ -20,10 +20,11 @@ import {
   generateBoardThumbnail,
   saveBoardThumbnail,
 } from "../utils/thumbnailUtils";
+import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note } from "../types";
 
 interface BoardProps {
-  user: User;
+  user: User | null;
 }
 
 export function Board({ user }: BoardProps) {
@@ -112,14 +113,16 @@ export function Board({ user }: BoardProps) {
     setIsEditingTitle,
     setEditingBoardName,
     saveBoardName,
+    board,
+    project,
   } = useBoard(user, navigate, sessionId);
 
-  const cursorColor = getUserColor(user.uid);
+  const cursorColor = getUserColor(user?.uid || 'anonymous');
 
   // Use cursor tracking hook
   useCursor({
     boardId,
-    user,
+    user: user || { uid: 'anonymous', email: null, displayName: 'Anonymous', photoURL: null },
     sessionId,
     cursorColor,
   });
@@ -145,7 +148,7 @@ export function Board({ user }: BoardProps) {
   useEffect(() => {
     if (!projectId) return;
 
-    const projectRef = ref(rtdb, `projects/${projectId}/members/${user.uid}`);
+    const projectRef = ref(rtdb, `projects/${projectId}/members/${user?.uid || 'anonymous'}`);
     const unsubscribeProject = onValue(projectRef, async (snapshot) => {
       if (!snapshot.exists()) {
         // User was removed from project
@@ -164,9 +167,14 @@ export function Board({ user }: BoardProps) {
     });
 
     return () => unsubscribeProject();
-  }, [projectId, user.uid, boardId, navigate]);
+  }, [projectId, user?.uid, boardId, navigate]);
 
   const addNote = (x?: number, y?: number): string => {
+    // 権限チェック
+    if (!board || !checkBoardEditPermission(board, project, user?.uid || null).canEdit) {
+      return "";
+    }
+
     let noteX: number;
     let noteY: number;
 
@@ -187,7 +195,7 @@ export function Board({ user }: BoardProps) {
       x: noteX,
       y: noteY,
       color: "#ffeb3b",
-      userId: user.uid,
+      userId: user?.uid || 'anonymous',
       createdAt: Date.now(),
       zIndex: nextZIndex,
       width: 250,
@@ -203,7 +211,7 @@ export function Board({ user }: BoardProps) {
         type: "CREATE_NOTES",
         noteId: noteId,
         notes: [{ ...newNote, id: noteId }],
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
       });
     }
 
@@ -224,7 +232,7 @@ export function Board({ user }: BoardProps) {
       // Skip history tracking if this is an undo/redo operation for this specific note
       if (
         !isUndoRedoOperation &&
-        note.userId === user.uid &&
+        note.userId === user?.uid &&
         currentUndoRedoNoteId !== noteId
       ) {
         // Don't track position changes during dragging - will be tracked on drag end
@@ -239,7 +247,7 @@ export function Board({ user }: BoardProps) {
             noteId: noteId,
             oldContent: note.content,
             newContent: updates.content,
-            userId: user.uid,
+            userId: user?.uid || 'anonymous',
           });
         }
       }
@@ -252,12 +260,12 @@ export function Board({ user }: BoardProps) {
     const note = notes.find((n) => n.id === noteId);
 
     // Add to history only if it's user's own note and not undo/redo operation
-    if (!isUndoRedoOperation && note && note.userId === user.uid) {
+    if (!isUndoRedoOperation && note && note.userId === user?.uid) {
       addToHistory({
         type: "DELETE_NOTES",
         noteId: noteId,
         notes: [note],
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
       });
     }
 
@@ -508,7 +516,7 @@ export function Board({ user }: BoardProps) {
             x: newX,
             y: newY,
             isDragging: true,
-            draggedBy: user.uid,
+            draggedBy: user?.uid || 'anonymous',
           });
         }
       });
@@ -519,7 +527,7 @@ export function Board({ user }: BoardProps) {
       selectedNoteIds,
       initialSelectedPositions,
       updateNote,
-      user.uid,
+      user?.uid,
     ]
   );
 
@@ -554,7 +562,7 @@ export function Board({ user }: BoardProps) {
         addToHistory({
           type: "MOVE_NOTES",
           noteId: moves[0].noteId, // 代表としてひとつ目のIDを使用
-          userId: user.uid,
+          userId: user?.uid || 'anonymous',
           moves: moves,
         });
       }
@@ -590,7 +598,7 @@ export function Board({ user }: BoardProps) {
     initialSelectedPositions,
     isUndoRedoOperation,
     addToHistory,
-    user.uid,
+    user?.uid,
   ]);
 
   // パン操作の開始
@@ -888,7 +896,7 @@ export function Board({ user }: BoardProps) {
     const notesToDelete: Note[] = [];
     selectedNoteIds.forEach((noteId) => {
       const note = notes.find((n) => n.id === noteId);
-      if (note && note.userId === user.uid) {
+      if (note && note.userId === user?.uid) {
         notesToDelete.push(note);
       }
     });
@@ -898,7 +906,7 @@ export function Board({ user }: BoardProps) {
         type: "DELETE_NOTES",
         noteId: notesToDelete[0].id, // 代表としてひとつめのIDを使用
         notes: notesToDelete,
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
       });
     }
 
@@ -930,7 +938,7 @@ export function Board({ user }: BoardProps) {
         width: noteData.width || 250,
         x: noteData.x + 20, // 少しずらして配置
         y: noteData.y + 20,
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
         createdAt: Date.now(),
         zIndex: currentZIndex,
         isDragging: false,
@@ -951,7 +959,7 @@ export function Board({ user }: BoardProps) {
         type: "CREATE_NOTES",
         noteId: createdNotes[0].id, // 代表としてひとつ目のIDを使用
         notes: createdNotes,
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
       });
     }
 
@@ -971,7 +979,7 @@ export function Board({ user }: BoardProps) {
         ...noteData,
         x: copiedNote.x + 20,
         y: copiedNote.y + 20,
-        userId: user.uid,
+        userId: user?.uid || 'anonymous',
         createdAt: Date.now(),
         zIndex: nextZIndex,
         isDragging: false,
@@ -988,7 +996,7 @@ export function Board({ user }: BoardProps) {
           type: "CREATE_NOTES",
           noteId: noteId,
           notes: [{ ...newNote, id: noteId }],
-          userId: user.uid,
+          userId: user?.uid || 'anonymous',
         });
       }
 
@@ -1001,7 +1009,7 @@ export function Board({ user }: BoardProps) {
   // Undo/Redo functions
   const performUndo = useCallback(() => {
     const action = undo();
-    if (!action || action.userId !== user.uid) return;
+    if (!action || action.userId !== user?.uid) return;
 
     setIsUndoRedoOperation(true);
     setCurrentUndoRedoNoteId(action.noteId);
@@ -1059,11 +1067,11 @@ export function Board({ user }: BoardProps) {
         setCurrentUndoRedoNoteId(null);
       }, 500);
     }
-  }, [undo, user.uid, boardId, notes]);
+  }, [undo, user?.uid, boardId, notes]);
 
   const performRedo = useCallback(() => {
     const action = redo();
-    if (!action || action.userId !== user.uid) return;
+    if (!action || action.userId !== user?.uid) return;
 
     setIsUndoRedoOperation(true);
     setCurrentUndoRedoNoteId(action.noteId);
@@ -1121,7 +1129,7 @@ export function Board({ user }: BoardProps) {
         setCurrentUndoRedoNoteId(null);
       }, 500);
     }
-  }, [redo, user.uid, boardId, notes]);
+  }, [redo, user?.uid, boardId, notes]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1229,7 +1237,7 @@ export function Board({ user }: BoardProps) {
     copiedNote,
     copiedNotes,
     nextZIndex,
-    user.uid,
+    user?.uid,
     performUndo,
     performRedo,
     selectedNoteIds,
@@ -1251,7 +1259,7 @@ export function Board({ user }: BoardProps) {
         addToHistory({
           type: "MOVE_NOTES",
           noteId: noteId,
-          userId: user.uid,
+          userId: user?.uid || 'anonymous',
           moves: [
             {
               noteId,
@@ -1262,7 +1270,7 @@ export function Board({ user }: BoardProps) {
         });
       }
     },
-    [isUndoRedoOperation, addToHistory, user.uid]
+    [isUndoRedoOperation, addToHistory, user?.uid]
   );
 
   // Show loading state while checking access
@@ -1330,7 +1338,7 @@ export function Board({ user }: BoardProps) {
               isSelected={selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
               onStartBulkDrag={startBulkDrag}
-              currentUserId={user.uid}
+              currentUserId={user?.uid || 'anonymous'}
               getUserColor={getUserColor}
               isDraggingMultiple={isDraggingMultiple}
               zoom={zoom}
@@ -1338,6 +1346,8 @@ export function Board({ user }: BoardProps) {
               hasMultipleSelected={selectedNoteIds.size > 1}
               shouldFocus={noteToFocus === note.id}
               onFocused={() => setNoteToFocus(null)}
+              board={board}
+              project={project}
             />
           ))}
 
@@ -1345,9 +1355,11 @@ export function Board({ user }: BoardProps) {
           {renderSelectionBox()}
         </div>
       </div>
-      <button onClick={addNote} className="fab-add-btn">
-        <LuPlus />
-      </button>
+      {board && checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
+        <button onClick={addNote} className="fab-add-btn">
+          <LuPlus />
+        </button>
+      )}
     </div>
   );
 }

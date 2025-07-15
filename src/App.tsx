@@ -122,9 +122,45 @@ function App() {
             <Route
               path="/:boardId"
               element={
-                <ProtectedRoute>
-                  <Board user={user!} />
-                </ProtectedRoute>
+                loading ? (
+                  <div className="loading"></div>
+                ) : (
+                  <Layout>
+                    {user ? (
+                      <HeaderWrapper user={user} />
+                    ) : (
+                      <div
+                        style={{
+                          background: "white",
+                          padding: "10px 20px",
+                          borderBottom: "1px solid #e0e0e0",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          position: "fixed",
+                          top: 0,
+                          width: "100%"
+                        }}
+                      >
+                        <h1 style={{ margin: 0, fontSize: "18px" }}>Maplap</h1>
+                        <button
+                          onClick={() => (window.location.href = "/")}
+                          style={{
+                            padding: "8px 16px",
+                            background: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ログイン
+                        </button>
+                      </div>
+                    )}
+                    <Board user={user} />
+                  </Layout>
+                )
               }
             />
 

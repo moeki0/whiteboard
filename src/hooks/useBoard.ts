@@ -18,9 +18,11 @@ interface UseBoardReturn {
   setIsEditingTitle: (editing: boolean) => void;
   setEditingBoardName: (name: string) => void;
   saveBoardName: () => Promise<void>;
+  board: Board | null;
+  project: Project | null;
 }
 
-export function useBoard(user: User, navigate: any, sessionId: string): UseBoardReturn {
+export function useBoard(user: User | null, navigate: any, sessionId: string): UseBoardReturn {
   const { boardId } = useParams<{ boardId: string }>();
   const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -30,24 +32,30 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
   const [isCheckingAccess, setIsCheckingAccess] = useState<boolean>(true);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [editingBoardName, setEditingBoardName] = useState<string>("");
+  const [board, setBoard] = useState<Board | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
 
   // Check access permissions function
   const checkAccess = async (boardData: any) => {
-    const board: Board = {
+    const currentBoard: Board = {
       id: boardId || '',
       ...boardData,
     };
 
-    let project: Project | null = null;
+    let currentProject: Project | null = null;
     if (boardData.projectId) {
       const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
       const projectSnapshot = await get(projectRef);
       if (projectSnapshot.exists()) {
-        project = { id: boardData.projectId, ...projectSnapshot.val() };
+        currentProject = { id: boardData.projectId, ...projectSnapshot.val() };
       }
     }
 
-    const accessResult = checkBoardAccess(board, project, user.uid);
+    // State を更新
+    setBoard(currentBoard);
+    setProject(currentProject);
+
+    const accessResult = checkBoardAccess(currentBoard, currentProject, user?.uid || null);
     if (!accessResult.hasAccess) {
       alert(`Access denied: ${accessResult.reason || 'You do not have permission to access this board.'}`);
       navigate("/");
@@ -180,7 +188,7 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
             return;
           }
 
-          if (cursorId !== `${user.uid}-${sessionId}`) {
+          if (cursorId !== `${user?.uid || 'anonymous'}-${sessionId}`) {
             // Don't show own session cursor
             cursorsObj[cursorId] = cursor;
           }
@@ -196,7 +204,7 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
       unsubscribeNotes();
       unsubscribeCursors();
     };
-  }, [boardId, user.uid, sessionId, isCheckingAccess, navigate]);
+  }, [boardId, user?.uid, sessionId, isCheckingAccess, navigate]);
 
   return {
     boardId,
@@ -210,5 +218,7 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
     setIsEditingTitle,
     setEditingBoardName,
     saveBoardName,
+    board,
+    project,
   };
 }
