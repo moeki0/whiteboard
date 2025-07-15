@@ -71,6 +71,7 @@ export function StickyNote({
   const [showToolbar, setShowToolbar] = useState(false);
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
+  const [isHovered, setIsHovered] = useState(false);
 
   // 権限チェック
   const { canEdit: canEditBoard } = checkBoardEditPermission(
@@ -394,18 +395,7 @@ export function StickyNote({
             style={{
               color: "#0066cc",
               textDecoration: "underline",
-              cursor: "pointer",
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Cmd/Ctrl + クリックの場合のみリンクを開く
-              if (e.metaKey || e.ctrlKey) {
-                window.open(url, "_blank", "noopener,noreferrer");
-              }
-            }}
-            title={`${
-              navigator.platform.includes("Mac") ? "Cmd" : "Ctrl"
-            } + クリックで開く`}
           >
             {url}
           </span>
@@ -553,6 +543,13 @@ export function StickyNote({
     return sizeMap[size] || sizeMap.medium;
   };
 
+  // コンテンツ内のリンクを抽出
+  const extractLinks = (text: string): string[] => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = text.match(urlRegex);
+    return matches || [];
+  };
+
   return (
     <div
       ref={noteRef}
@@ -584,7 +581,53 @@ export function StickyNote({
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
+      {/* リンクボタン */}
+      {isHovered && !isEditing && extractLinks(content).length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "-20px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            gap: "4px",
+            background: "rgba(255, 255, 255, 0.95)",
+            borderRadius: "4px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.15)",
+            zIndex: 1000,
+          }}
+        >
+          {extractLinks(content)
+            .slice(0, 3)
+            .map((link, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(link, "_blank", "noopener,noreferrer");
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  maxWidth: "150px",
+                  padding: "4px 8px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  color: "#0066cc",
+                }}
+                title={link}
+              >
+                {new URL(link).hostname}
+              </button>
+            ))}
+        </div>
+      )}
       {/* ツールバー */}
       {showToolbar && isEditing && canEditNote && (
         <div className="note-toolbar">
