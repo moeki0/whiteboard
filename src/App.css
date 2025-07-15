@@ -40,7 +40,7 @@ button {
 
 .app {
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 40px);
   position: relative;
   overflow: hidden;
 }
@@ -62,8 +62,8 @@ button {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #fff;
   padding: 2rem;
+  margin-top: -40px;
 }
 
 .auth-container h2 {
@@ -126,15 +126,18 @@ button {
   color: white;
   border: none;
   font-size: 28px;
-  cursor: default;
+  cursor: pointer;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s;
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   padding: 0;
+}
+
+.fab-add-btn:hover {
+  background-color: #4ba44e;
 }
 
 .notes-container {
