@@ -6,7 +6,7 @@ import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyB_z4gypbs7LpYPY2fABwJRoPOpbyF1lx8",
-  authDomain: "maplap-41b08.firebaseapp.com",
+  authDomain: "auth.whiteboard.moeki.org",
   projectId: "maplap-41b08",
   storageBucket: "maplap-41b08.firebasestorage.app",
   messagingSenderId: "618143200763",
