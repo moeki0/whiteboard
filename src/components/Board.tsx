@@ -1510,9 +1510,13 @@ export function Board({ user }: BoardProps) {
         onWheel={handleWheel}
         style={{
           overflow: "hidden",
-          backgroundImage: `radial-gradient(circle, #aaa 1px, transparent 1px)`,
-          backgroundSize: `${getDotSpacing(zoom) * zoom}px ${getDotSpacing(zoom) * zoom}px`,
-          backgroundPosition: `${panX % (getDotSpacing(zoom) * zoom)}px ${panY % (getDotSpacing(zoom) * zoom)}px`,
+          backgroundImage: `radial-gradient(circle, #aaa ${zoom}px, transparent 1px)`,
+          backgroundSize: `${getDotSpacing(zoom) * zoom}px ${
+            getDotSpacing(zoom) * zoom
+          }px`,
+          backgroundPosition: `${panX % (getDotSpacing(zoom) * zoom)}px ${
+            panY % (getDotSpacing(zoom) * zoom)
+          }px`,
         }}
       >
         <div
