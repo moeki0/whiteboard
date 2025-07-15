@@ -15,6 +15,7 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [projectName, setProjectName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 21);
 
@@ -33,7 +34,7 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
         createdBy: user.uid,
         createdAt: Date.now(),
         inviteCode: inviteCode,
-        isPublic: false, // Default to private
+        isPublic: isPublic,
         members: {
           [user.uid]: {
             email: user.email,
@@ -94,6 +95,38 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
               <small className="form-help">
                 Choose a descriptive name for your project
               </small>
+            </div>
+
+            <div className="form-group">
+              <label>Privacy Settings</label>
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="privacy"
+                    checked={!isPublic}
+                    onChange={() => setIsPublic(false)}
+                    disabled={isCreating}
+                  />
+                  <span className="radio-text">
+                    <strong>Private</strong>
+                    <small>Only invited members can access this project</small>
+                  </span>
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="privacy"
+                    checked={isPublic}
+                    onChange={() => setIsPublic(true)}
+                    disabled={isCreating}
+                  />
+                  <span className="radio-text">
+                    <strong>Public</strong>
+                    <small>Anyone with the link can view and edit boards in this project</small>
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div className="form-actions">

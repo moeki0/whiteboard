@@ -3,7 +3,6 @@ import {
   checkProjectMembership,
   getUserRole,
   isProjectOwner,
-  isProjectMember,
   checkBoardAccess,
   checkBoardEditPermission,
   checkProjectEditPermission,
@@ -35,22 +34,17 @@ const mockProject: Project = {
   },
 };
 
-const mockPublicBoard: Board = {
-  id: 'board1',
-  name: 'Public Board',
-  createdBy: 'owner1',
-  createdAt: Date.now(),
-  projectId: 'project1',
+const mockPublicProject: Project = {
+  ...mockProject,
   isPublic: true,
 };
 
-const mockPrivateBoard: Board = {
-  id: 'board2',
-  name: 'Private Board',
+const mockBoard: Board = {
+  id: 'board1',
+  name: 'Test Board',
   createdBy: 'owner1',
   createdAt: Date.now(),
   projectId: 'project1',
-  isPublic: false,
 };
 
 describe('権限チェック機能', () => {
@@ -104,18 +98,18 @@ describe('権限チェック機能', () => {
   });
 
   describe('ボードアクセス権限', () => {
-    it('パブリックボードは誰でもアクセス可能', () => {
-      const result = checkBoardAccess(mockPublicBoard, mockProject, 'nonmember');
+    it('パブリックプロジェクトのボードは誰でもアクセス可能', () => {
+      const result = checkBoardAccess(mockBoard, mockPublicProject, 'nonmember');
       expect(result.hasAccess).toBe(true);
     });
 
-    it('プライベートボードはプロジェクトメンバーのみアクセス可能', () => {
+    it('プライベートプロジェクトのボードはプロジェクトメンバーのみアクセス可能', () => {
       // メンバーのアクセス
-      const memberResult = checkBoardAccess(mockPrivateBoard, mockProject, 'member1');
+      const memberResult = checkBoardAccess(mockBoard, mockProject, 'member1');
       expect(memberResult.hasAccess).toBe(true);
 
       // 非メンバーのアクセス
-      const nonMemberResult = checkBoardAccess(mockPrivateBoard, mockProject, 'nonmember');
+      const nonMemberResult = checkBoardAccess(mockBoard, mockProject, 'nonmember');
       expect(nonMemberResult.hasAccess).toBe(false);
       expect(nonMemberResult.reason).toBe('Not a project member');
     });
@@ -127,25 +121,31 @@ describe('権限チェック機能', () => {
     });
 
     it('プロジェクトがnullの場合はアクセス拒否', () => {
-      const result = checkBoardAccess(mockPrivateBoard, null, 'owner1');
+      const result = checkBoardAccess(mockBoard, null, 'owner1');
       expect(result.hasAccess).toBe(false);
       expect(result.reason).toBe('Project not found');
     });
   });
 
   describe('ボード編集権限', () => {
-    it('パブリックボードは誰でも編集可能', () => {
-      const result = checkBoardEditPermission(mockPublicBoard, mockProject, 'nonmember');
-      expect(result.canEdit).toBe(true);
-    });
-
-    it('プライベートボードはプロジェクトメンバーのみ編集可能', () => {
+    it('パブリックプロジェクトでもメンバーのみ編集可能', () => {
       // メンバーの編集
-      const memberResult = checkBoardEditPermission(mockPrivateBoard, mockProject, 'member1');
+      const memberResult = checkBoardEditPermission(mockBoard, mockPublicProject, 'member1');
       expect(memberResult.canEdit).toBe(true);
 
       // 非メンバーの編集
-      const nonMemberResult = checkBoardEditPermission(mockPrivateBoard, mockProject, 'nonmember');
+      const nonMemberResult = checkBoardEditPermission(mockBoard, mockPublicProject, 'nonmember');
+      expect(nonMemberResult.canEdit).toBe(false);
+      expect(nonMemberResult.reason).toBe('Not a project member');
+    });
+
+    it('プライベートプロジェクトはプロジェクトメンバーのみ編集可能', () => {
+      // メンバーの編集
+      const memberResult = checkBoardEditPermission(mockBoard, mockProject, 'member1');
+      expect(memberResult.canEdit).toBe(true);
+
+      // 非メンバーの編集
+      const nonMemberResult = checkBoardEditPermission(mockBoard, mockProject, 'nonmember');
       expect(nonMemberResult.canEdit).toBe(false);
       expect(nonMemberResult.reason).toBe('Not a project member');
     });
@@ -228,14 +228,14 @@ describe('権限チェック機能', () => {
       expect(getUserRole(projectWithoutMembers, 'owner1')).toBe(null);
     });
 
-    it('プロジェクトIDが設定されていないプライベートボード', () => {
+    it('プロジェクトIDが設定されていないボード', () => {
       const boardWithoutProject = {
-        ...mockPrivateBoard,
+        ...mockBoard,
         projectId: '',
       };
-      const result = checkBoardAccess(boardWithoutProject, mockProject, 'owner1');
+      const result = checkBoardAccess(boardWithoutProject, null, 'owner1');
       expect(result.hasAccess).toBe(false);
-      expect(result.reason).toBe('Private board without project');
+      expect(result.reason).toBe('Project not found');
     });
   });
 });

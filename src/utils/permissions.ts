@@ -1,4 +1,4 @@
-import { Project, ProjectMember, Board } from '../types';
+import { Project, Board } from '../types';
 
 /**
  * プロジェクトのメンバーシップをチェック
@@ -64,22 +64,18 @@ export function checkBoardAccess(
     return { hasAccess: false, reason: 'Board not found' };
   }
 
-  // パブリックボードの場合は誰でもアクセス可能（未ログインユーザー含む）
-  if (board.isPublic) {
+  if (!project) {
+    return { hasAccess: false, reason: 'Project not found' };
+  }
+
+  // パブリックプロジェクトの場合は誰でもアクセス可能（未ログインユーザー含む）
+  if (project.isPublic) {
     return { hasAccess: true };
   }
 
-  // プライベートボードの場合はログインしているプロジェクトメンバーのみ
+  // プライベートプロジェクトの場合はログインしているプロジェクトメンバーのみ
   if (!userId) {
-    return { hasAccess: false, reason: 'Login required for private boards' };
-  }
-
-  if (!board.projectId) {
-    return { hasAccess: false, reason: 'Private board without project' };
-  }
-
-  if (!project) {
-    return { hasAccess: false, reason: 'Project not found' };
+    return { hasAccess: false, reason: 'Login required for private projects' };
   }
 
   const isMember = isProjectMember(project, userId);
@@ -106,17 +102,16 @@ export function checkBoardEditPermission(
     return { canEdit: false, reason: accessCheck.reason };
   }
 
-  // パブリックボードでも編集にはログインが必要
+  // 編集にはログインが必要（パブリック・プライベート問わず）
   if (!userId) {
     return { canEdit: false, reason: 'Login required for editing' };
   }
 
-  // パブリックボードの場合はログインユーザーなら誰でも編集可能
-  if (board?.isPublic) {
-    return { canEdit: true };
+  if (!project) {
+    return { canEdit: false, reason: 'Project not found' };
   }
 
-  // プライベートボードの場合はプロジェクトメンバーのみ編集可能
+  // プロジェクトメンバーのみ編集可能
   const isMember = isProjectMember(project, userId);
   if (!isMember) {
     return { canEdit: false, reason: 'Not a project member' };

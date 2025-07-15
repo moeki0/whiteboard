@@ -167,7 +167,6 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       createdBy: user!.uid,
       createdAt: Date.now(),
       projectId: projectId,
-      isPublic: false, // Default to private
     };
 
     // Store board with both references

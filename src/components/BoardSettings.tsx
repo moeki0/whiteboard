@@ -14,7 +14,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   const navigate = useNavigate();
   const [board, setBoard] = useState<Board | null>(null);
   const [boardName, setBoardName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -31,7 +30,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
           const boardData = boardSnapshot.val();
           setBoard(boardData);
           setBoardName(boardData.name || "");
-          setIsPublic(boardData.isPublic || false);
 
           // Check if user has access to this board
           if (boardData.projectId) {
@@ -80,7 +78,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
     try {
       const updates = {
         name: boardName.trim(),
-        isPublic: isPublic,
         updatedAt: Date.now(),
       };
 
@@ -207,35 +204,16 @@ export function BoardSettings({ user }: BoardSettingsProps) {
           <h2>Privacy Settings</h2>
           <div className="settings-form">
             <div className="form-group">
-              <div className="radio-group">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="privacy"
-                    checked={isPublic}
-                    onChange={() => setIsPublic(true)}
-                    disabled={isSaving}
-                  />
-                  <span className="radio-text">
-                    <strong>Public</strong>
-                    <small>
-                      Anyone with the link can view and edit this board
-                    </small>
-                  </span>
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="privacy"
-                    checked={!isPublic}
-                    onChange={() => setIsPublic(false)}
-                    disabled={isSaving}
-                  />
-                  <span className="radio-text">
-                    <strong>Private</strong>
-                    <small>Only project members can access this board</small>
-                  </span>
-                </label>
+              <div className="privacy-info">
+                <p>Board privacy is now managed at the project level.</p>
+                <p>To change privacy settings for this board, update the project settings.</p>
+                <button
+                  onClick={() => navigate(`/project/${board?.projectId}/settings`)}
+                  className="project-settings-btn"
+                  disabled={isSaving}
+                >
+                  Go to Project Settings
+                </button>
               </div>
             </div>
           </div>

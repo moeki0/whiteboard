@@ -49,12 +49,13 @@ export async function generateBoardThumbnail(
       onclone: (clonedDoc: Document) => {
         // クローンされたDOM内で付箋のスタイルを変更
         const clonedNotes = clonedDoc.querySelectorAll('.sticky-note');
-        clonedNotes.forEach((note: HTMLElement) => {
+        clonedNotes.forEach((note) => {
+          const htmlNote = note as HTMLElement;
           // アクティブ・選択状態のスタイルを削除
-          note.classList.remove('active', 'selected');
+          htmlNote.classList.remove('active', 'selected');
           // 通常のボーダーを適用
-          note.style.border = '1px solid #cccccc';
-          note.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
+          htmlNote.style.border = '1px solid #cccccc';
+          htmlNote.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
         });
       }
     } as any);

@@ -211,6 +211,47 @@
   cursor: not-allowed;
 }
 
+/* Privacy info section */
+.privacy-info {
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+}
+
+.privacy-info p {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.privacy-info p:last-of-type {
+  margin-bottom: 20px;
+}
+
+.project-settings-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.project-settings-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.project-settings-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .settings-container {

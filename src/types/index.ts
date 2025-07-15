@@ -27,7 +27,6 @@ export interface Board {
   createdBy: string;
   createdAt: number;
   projectId: string;
-  isPublic: boolean;
   updatedAt?: number;
 }
 
@@ -38,6 +37,7 @@ export interface Project {
   createdAt: number;
   inviteCode?: string;
   members: Record<string, ProjectMember>;
+  isPublic: boolean;
 }
 
 export interface ProjectMember {

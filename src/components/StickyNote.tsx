@@ -141,7 +141,7 @@ export function StickyNote({
       startY: position.y,
     };
     // ドラッグ開始をFirebaseに通知
-    onUpdate(note.id, { isDragging: true, draggedBy: currentUserId || 'anonymous' });
+    onUpdate(note.id, { isDragging: true, draggedBy: currentUserId });
   };
 
   const handleMouseMove = useCallback(
@@ -160,7 +160,7 @@ export function StickyNote({
           x: newX,
           y: newY,
           isDragging: true,
-          draggedBy: currentUserId || 'anonymous',
+          draggedBy: currentUserId,
         });
       }
     },
@@ -220,7 +220,7 @@ export function StickyNote({
       content: newContent,
       width: dimensions.width,
       isEditing: true,
-      editedBy: currentUserId || 'anonymous',
+      editedBy: currentUserId,
     });
   };
 

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { StickyNote } from '../components/StickyNote';
-import { Note } from '../types';
+import { Note, Board, Project } from '../types';
 
 const mockNote: Note = {
   id: '1',
@@ -15,6 +15,30 @@ const mockNote: Note = {
   width: 250,
 };
 
+const mockBoard: Board = {
+  id: 'board1',
+  name: 'Test Board',
+  createdBy: 'user1',
+  createdAt: Date.now(),
+  projectId: 'project1',
+};
+
+const mockProject: Project = {
+  id: 'project1',
+  name: 'Test Project',
+  createdBy: 'user1',
+  createdAt: Date.now(),
+  isPublic: false,
+  members: {
+    user1: {
+      role: 'owner',
+      displayName: 'Test User',
+      email: 'test@example.com',
+      joinedAt: Date.now(),
+    },
+  },
+};
+
 const mockProps = {
   note: mockNote,
   onUpdate: vi.fn(),
@@ -26,6 +50,8 @@ const mockProps = {
   currentUserId: 'user1',
   getUserColor: vi.fn(() => '#ff0000'),
   isDraggingMultiple: false,
+  board: mockBoard,
+  project: mockProject,
 };
 
 describe('StickyNote', () => {

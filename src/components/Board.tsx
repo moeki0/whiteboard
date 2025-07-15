@@ -155,11 +155,11 @@ export function Board({ user }: BoardProps) {
     const unsubscribeProject = onValue(projectRef, async (snapshot) => {
       if (!snapshot.exists()) {
         // User was removed from project
-        const boardRef = ref(rtdb, `boards/${boardId}`);
-        const boardSnapshot = await get(boardRef);
-        if (boardSnapshot.exists()) {
-          const boardData = boardSnapshot.val();
-          if (!boardData.isPublic) {
+        const projectFullRef = ref(rtdb, `projects/${projectId}`);
+        const projectSnapshot = await get(projectFullRef);
+        if (projectSnapshot.exists()) {
+          const projectData = projectSnapshot.val();
+          if (!projectData.isPublic) {
             alert(
               "You have been removed from this project and can no longer access this private board."
             );
@@ -173,8 +173,11 @@ export function Board({ user }: BoardProps) {
   }, [projectId, user?.uid, boardId, navigate]);
 
   const addNote = (x?: number, y?: number): string => {
+    // 未ログインユーザーは付箋を作成できない
+    if (!user?.uid) return "";
+    
     // 権限チェック
-    if (!board || !checkBoardEditPermission(board, project, user?.uid || null).canEdit) {
+    if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
       return "";
     }
 
@@ -198,7 +201,7 @@ export function Board({ user }: BoardProps) {
       x: noteX,
       y: noteY,
       color: "#ffeb3b",
-      userId: user?.uid || 'anonymous',
+      userId: user.uid,
       createdAt: Date.now(),
       zIndex: nextZIndex,
       width: 250,
@@ -214,7 +217,7 @@ export function Board({ user }: BoardProps) {
         type: "CREATE_NOTES",
         noteId: noteId,
         notes: [{ ...newNote, id: noteId }],
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
       });
     }
 
@@ -226,6 +229,9 @@ export function Board({ user }: BoardProps) {
   };
 
   const updateNote = (noteId: string, updates: Partial<Note>) => {
+    // 未ログインユーザーは付箋を更新できない
+    if (!user?.uid) return;
+    
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     const note = notes.find((n) => n.id === noteId);
     if (note) {
@@ -235,7 +241,7 @@ export function Board({ user }: BoardProps) {
       // Skip history tracking if this is an undo/redo operation for this specific note
       if (
         !isUndoRedoOperation &&
-        note.userId === user?.uid &&
+        note.userId === user.uid &&
         currentUndoRedoNoteId !== noteId
       ) {
         // Don't track position changes during dragging - will be tracked on drag end
@@ -250,7 +256,7 @@ export function Board({ user }: BoardProps) {
             noteId: noteId,
             oldContent: note.content,
             newContent: updates.content,
-            userId: user?.uid || 'anonymous',
+            userId: user.uid,
           });
         }
       }
@@ -260,15 +266,18 @@ export function Board({ user }: BoardProps) {
   };
 
   const deleteNote = (noteId: string) => {
+    // 未ログインユーザーは付箋を削除できない
+    if (!user?.uid) return;
+    
     const note = notes.find((n) => n.id === noteId);
 
     // Add to history only if it's user's own note and not undo/redo operation
-    if (!isUndoRedoOperation && note && note.userId === user?.uid) {
+    if (!isUndoRedoOperation && note && note.userId === user.uid) {
       addToHistory({
         type: "DELETE_NOTES",
         noteId: noteId,
         notes: [note],
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
       });
     }
 
@@ -519,7 +528,7 @@ export function Board({ user }: BoardProps) {
             x: newX,
             y: newY,
             isDragging: true,
-            draggedBy: user?.uid || 'anonymous',
+            draggedBy: user?.uid,
           });
         }
       });
@@ -561,11 +570,11 @@ export function Board({ user }: BoardProps) {
       });
 
       // 移動をhistoryに追加
-      if (moves.length > 0 && !isUndoRedoOperation) {
+      if (moves.length > 0 && !isUndoRedoOperation && user?.uid) {
         addToHistory({
           type: "MOVE_NOTES",
           noteId: moves[0].noteId, // 代表としてひとつ目のIDを使用
-          userId: user?.uid || 'anonymous',
+          userId: user.uid,
           moves: moves,
         });
       }
@@ -638,7 +647,7 @@ export function Board({ user }: BoardProps) {
   // ズーム操作（高感度・慣性付き）
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
-      e.preventDefault();
+      // preventDefaultは既にuseEffectで非passiveリスナーで実行されるため削除
 
       if (!boardRef.current) return;
 
@@ -896,10 +905,13 @@ export function Board({ user }: BoardProps) {
 
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
+    // 未ログインユーザーは付箋を削除できない
+    if (!user?.uid) return;
+    
     const notesToDelete: Note[] = [];
     selectedNoteIds.forEach((noteId) => {
       const note = notes.find((n) => n.id === noteId);
-      if (note && note.userId === user?.uid) {
+      if (note && note.userId === user.uid) {
         notesToDelete.push(note);
       }
     });
@@ -909,7 +921,7 @@ export function Board({ user }: BoardProps) {
         type: "DELETE_NOTES",
         noteId: notesToDelete[0].id, // 代表としてひとつめのIDを使用
         notes: notesToDelete,
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
       });
     }
 
@@ -924,6 +936,9 @@ export function Board({ user }: BoardProps) {
 
   // コピーされた複数付箋を貼り付け
   const pasteCopiedNotes = () => {
+    // 未ログインユーザーは付箋を貼り付けできない
+    if (!user?.uid) return;
+    
     if (copiedNotes.length === 0) {
       return;
     }
@@ -941,7 +956,7 @@ export function Board({ user }: BoardProps) {
         width: noteData.width || 250,
         x: noteData.x + 20, // 少しずらして配置
         y: noteData.y + 20,
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
         createdAt: Date.now(),
         zIndex: currentZIndex,
         isDragging: false,
@@ -962,7 +977,7 @@ export function Board({ user }: BoardProps) {
         type: "CREATE_NOTES",
         noteId: createdNotes[0].id, // 代表としてひとつ目のIDを使用
         notes: createdNotes,
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
       });
     }
 
@@ -974,6 +989,9 @@ export function Board({ user }: BoardProps) {
   };
 
   const pasteNote = () => {
+    // 未ログインユーザーは付箋を貼り付けできない
+    if (!user?.uid) return;
+    
     if (copiedNote) {
       // Remove id and other properties that should be unique
       const { id, ...noteData } = copiedNote;
@@ -982,7 +1000,7 @@ export function Board({ user }: BoardProps) {
         ...noteData,
         x: copiedNote.x + 20,
         y: copiedNote.y + 20,
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
         createdAt: Date.now(),
         zIndex: nextZIndex,
         isDragging: false,
@@ -999,7 +1017,7 @@ export function Board({ user }: BoardProps) {
           type: "CREATE_NOTES",
           noteId: noteId,
           notes: [{ ...newNote, id: noteId }],
-          userId: user?.uid || 'anonymous',
+          userId: user.uid,
         });
       }
 
@@ -1011,8 +1029,11 @@ export function Board({ user }: BoardProps) {
 
   // Undo/Redo functions
   const performUndo = useCallback(() => {
+    // 未ログインユーザーはundo/redoできない
+    if (!user?.uid) return;
+    
     const action = undo();
-    if (!action || action.userId !== user?.uid) return;
+    if (!action || action.userId !== user.uid) return;
 
     setIsUndoRedoOperation(true);
     setCurrentUndoRedoNoteId(action.noteId);
@@ -1073,8 +1094,11 @@ export function Board({ user }: BoardProps) {
   }, [undo, user?.uid, boardId, notes]);
 
   const performRedo = useCallback(() => {
+    // 未ログインユーザーはundo/redoできない
+    if (!user?.uid) return;
+    
     const action = redo();
-    if (!action || action.userId !== user?.uid) return;
+    if (!action || action.userId !== user.uid) return;
 
     setIsUndoRedoOperation(true);
     setCurrentUndoRedoNoteId(action.noteId);
@@ -1268,12 +1292,13 @@ export function Board({ user }: BoardProps) {
     ) => {
       if (
         !isUndoRedoOperation &&
+        user?.uid &&
         (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)
       ) {
         addToHistory({
           type: "MOVE_NOTES",
           noteId: noteId,
-          userId: user?.uid || 'anonymous',
+          userId: user.uid,
           moves: [
             {
               noteId,
@@ -1289,6 +1314,9 @@ export function Board({ user }: BoardProps) {
 
   // テキストから付箋を作成する関数
   const createNotesFromText = useCallback((text: string) => {
+    // 未ログインユーザーは付箋を作成できない
+    if (!user?.uid) return;
+    
     console.log('createNotesFromText called with:', text);
     const lines = text.split('\n')
       .map(line => line.trim())
@@ -1332,7 +1360,7 @@ export function Board({ user }: BoardProps) {
         x: noteX,
         y: noteY,
         color: "#ffeb3b",
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
         createdAt: Date.now(),
         zIndex: nextZIndex + index,
         width: 160,
@@ -1356,7 +1384,7 @@ export function Board({ user }: BoardProps) {
         type: "CREATE_NOTES",
         noteId: createdNotes[0].id,
         notes: createdNotes,
-        userId: user?.uid || 'anonymous',
+        userId: user.uid,
       });
     }
     
@@ -1449,7 +1477,7 @@ export function Board({ user }: BoardProps) {
               hasMultipleSelected={selectedNoteIds.size > 1}
               shouldFocus={noteToFocus === note.id}
               onFocused={() => setNoteToFocus(null)}
-              board={board}
+              board={board!}
               project={project}
             />
           ))}
@@ -1459,7 +1487,7 @@ export function Board({ user }: BoardProps) {
         </div>
       </div>
       {board && checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
-        <button onClick={addNote} className="fab-add-btn">
+        <button onClick={() => addNote()} className="fab-add-btn">
           <LuPlus />
         </button>
       )}
