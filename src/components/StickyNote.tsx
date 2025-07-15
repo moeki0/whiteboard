@@ -365,10 +365,14 @@ export function StickyNote({
     const result: ParsedContent[] = [];
 
     for (const line of lines) {
-      // URLを含むテキスト行の解析（リンク化）
-      const processedLine = line.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+      // まずScrapbox記法を処理
+      let processedLine = line.replace(/\[([^\]]+)\s+(https?:\/\/[^\s\]]+)\]/g, (match, linkText, url) => {
+        return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
+      });
+      
+      // 次に通常のURLを処理（Scrapbox記法内のURLは除外）
+      processedLine = processedLine.replace(/(https?:\/\/[^\s]+)(?!__SCRAPBOX__)/g, (url) => {
         if (isUrl(url)) {
-          // すべてのURLをリンクとして扱う
           return `__LINK__${url}__LINK__`;
         }
         return url;
@@ -385,7 +389,9 @@ export function StickyNote({
 
   // テキスト内のリンクを処理
   const renderTextWithLinks = (text: string) => {
-    const parts = text.split(/(__LINK__[^_]+__LINK__)/);
+    // 通常のリンクとScrapbox記法の両方を処理
+    const parts = text.split(/(__LINK__[^_]+__LINK__|__SCRAPBOX__.+?__SCRAPBOX__)/);
+    
     return parts.map((part, index) => {
       if (part.startsWith("__LINK__") && part.endsWith("__LINK__")) {
         const url = part.slice(8, -8); // __LINK__を除去
@@ -398,6 +404,21 @@ export function StickyNote({
             }}
           >
             {url}
+          </span>
+        );
+      } else if (part.startsWith("__SCRAPBOX__") && part.endsWith("__SCRAPBOX__")) {
+        // Scrapbox記法の処理
+        const content = part.slice(12, -12); // __SCRAPBOX__を除去
+        const [linkText, url] = content.split("__URL__");
+        return (
+          <span
+            key={index}
+            style={{
+              color: "#0066cc",
+              textDecoration: "underline",
+            }}
+          >
+            {linkText}
           </span>
         );
       }
@@ -545,9 +566,24 @@ export function StickyNote({
 
   // コンテンツ内のリンクを抽出
   const extractLinks = (text: string): string[] => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = text.match(urlRegex);
-    return matches || [];
+    const links: string[] = [];
+    
+    // 通常のURL
+    const urlRegex = /(https?:\/\/[^\s\]]+)/g;
+    const urlMatches = text.match(urlRegex);
+    if (urlMatches) {
+      links.push(...urlMatches);
+    }
+    
+    // Scrapbox記法 [text url] から URLを抽出
+    const scrapboxRegex = /\[[^\]]+\s+(https?:\/\/[^\s\]]+)\]/g;
+    let match;
+    while ((match = scrapboxRegex.exec(text)) !== null) {
+      links.push(match[1]);
+    }
+    
+    // 重複を削除
+    return [...new Set(links)];
   };
 
   return (
@@ -612,7 +648,7 @@ export function StickyNote({
                 style={{
                   background: "none",
                   border: "none",
-                  fontSize: "11px",
+                  fontSize: "13px",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   maxWidth: "150px",
