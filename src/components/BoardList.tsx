@@ -36,15 +36,18 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   useEffect(() => {
     if (!projectId) return;
 
-    // Update current project in context
-    updateCurrentProject(projectId);
-
-    // Get project name
+    // Get project name and update context
     const getProjectName = async () => {
       const projectRef = ref(rtdb, `projects/${projectId}`);
       const projectSnapshot = await get(projectRef);
       if (projectSnapshot.exists()) {
-        setProjectName(projectSnapshot.val().name);
+        const name = projectSnapshot.val().name;
+        setProjectName(name);
+        // Update current project in context with both ID and name
+        updateCurrentProject(projectId, name);
+      } else {
+        // Update current project with ID only if no name found
+        updateCurrentProject(projectId);
       }
     };
 

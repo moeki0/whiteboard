@@ -12,8 +12,14 @@ import { useBoard } from "../hooks/useBoard";
 import { useCursor } from "../hooks/useCursor";
 import { getUserColor } from "../utils/colors";
 import { FirebaseUtils } from "../utils/firebase";
-import { copyStickyNoteToClipboard, copyMultipleStickyNotesToClipboard } from "../utils/clipboardUtils";
-import { generateBoardThumbnail, saveBoardThumbnail } from "../utils/thumbnailUtils";
+import {
+  copyStickyNoteToClipboard,
+  copyMultipleStickyNotesToClipboard,
+} from "../utils/clipboardUtils";
+import {
+  generateBoardThumbnail,
+  saveBoardThumbnail,
+} from "../utils/thumbnailUtils";
 import { User, Note } from "../types";
 
 interface BoardProps {
@@ -38,6 +44,7 @@ export function Board({ user }: BoardProps) {
   const [currentUndoRedoNoteId, setCurrentUndoRedoNoteId] = useState<
     string | null
   >(null);
+  const [noteToFocus, setNoteToFocus] = useState<string | null>(null);
 
   // 範囲選択用の状態
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
@@ -70,8 +77,19 @@ export function Board({ user }: BoardProps) {
   const [panY, setPanY] = useState<number>(0);
   const [zoom, setZoom] = useState<number>(1);
   const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [panStartPos, setPanStartPos] = useState<{ x: number; y: number } | null>(null);
-  const [initialPan, setInitialPan] = useState<{ x: number; y: number } | null>(null);
+  const [panStartPos, setPanStartPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [initialPan, setInitialPan] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  
+  // ズーム慣性用の状態
+  const [zoomVelocity, setZoomVelocity] = useState<number>(0);
+  const [lastWheelTime, setLastWheelTime] = useState<number>(0);
+  const zoomAnimationRef = useRef<number | null>(null);
+  const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number } | null>(null);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -148,15 +166,26 @@ export function Board({ user }: BoardProps) {
     return () => unsubscribeProject();
   }, [projectId, user.uid, boardId, navigate]);
 
-  const addNote = () => {
-    // ビューポートの中央付近にランダムに配置
-    const viewportCenterX = -panX / zoom + (window.innerWidth / 2) / zoom;
-    const viewportCenterY = -panY / zoom + (window.innerHeight / 2) / zoom;
-    
+  const addNote = (x?: number, y?: number): string => {
+    let noteX: number;
+    let noteY: number;
+
+    if (x !== undefined && y !== undefined) {
+      // 指定された座標を使用
+      noteX = x;
+      noteY = y;
+    } else {
+      // ビューポートの中央付近にランダムに配置
+      const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
+      const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+      noteX = viewportCenterX + (Math.random() - 0.5) * 300; // 中央から±150px
+      noteY = viewportCenterY + (Math.random() - 0.5) * 300;
+    }
+
     const newNote: Omit<Note, "id"> = {
       content: "",
-      x: viewportCenterX + (Math.random() - 0.5) * 300, // 中央から±150px
-      y: viewportCenterY + (Math.random() - 0.5) * 300,
+      x: noteX,
+      y: noteY,
       color: "#ffeb3b",
       userId: user.uid,
       createdAt: Date.now(),
@@ -171,9 +200,9 @@ export function Board({ user }: BoardProps) {
     // Add to history only if it's user's own action (not undo/redo)
     if (!isUndoRedoOperation) {
       addToHistory({
-        type: "CREATE_NOTE",
+        type: "CREATE_NOTES",
         noteId: noteId,
-        note: { ...newNote, id: noteId },
+        notes: [{ ...newNote, id: noteId }],
         userId: user.uid,
       });
     }
@@ -181,6 +210,8 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
+    
+    return noteId;
   };
 
   const updateNote = (noteId: string, updates: Partial<Note>) => {
@@ -260,7 +291,6 @@ export function Board({ user }: BoardProps) {
         newSelectedIds.add(noteId);
       }
       setSelectedNoteIds(newSelectedIds);
-
     } else {
       // 通常の単一選択
       setSelectedNoteIds(new Set([noteId]));
@@ -283,6 +313,38 @@ export function Board({ user }: BoardProps) {
     setSelectedNoteIds(new Set());
   };
 
+  const handleBoardDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 付箋やボタン上でのダブルクリックは無視
+    const target = e.target as HTMLElement;
+    if (target.closest(".sticky-note") || target.closest("button")) {
+      return;
+    }
+
+    // マウスの座標をボード座標に変換
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clickX = (e.clientX - rect.left - panX) / zoom;
+    const clickY = (e.clientY - rect.top - panY) / zoom;
+
+    // 付箋のサイズ（幅160px、高さ41.5px）
+    const noteWidth = 160;
+    const noteHeight = 41.5;
+
+    // クリック位置が付箋の中心になるように座標を調整
+    const boardX = clickX - noteWidth / 2;
+    const boardY = clickY - noteHeight / 2;
+
+    // 指定された座標に付箋を作成
+    const newNoteId = addNote(boardX, boardY);
+    
+    // 作成した付箋にフォーカスを設定
+    setNoteToFocus(newNoteId);
+    
+    // 作成した付箋を選択状態にする
+    setSelectedNoteIds(new Set([newNoteId]));
+  };
+
   // パンまたは範囲選択の開始
   const handleBoardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 付箋やボタンをクリックした場合は何もしない
@@ -294,7 +356,10 @@ export function Board({ user }: BoardProps) {
     // Shiftキーで範囲選択、それ以外でパン
     if (e.shiftKey) {
       // 範囲選択の開始
-      const rect = boardRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+      const rect = boardRef.current?.getBoundingClientRect() || {
+        left: 0,
+        top: 0,
+      };
       // transform を考慮した座標計算
       const x = (e.clientX - rect.left - panX) / zoom;
       const y = (e.clientY - rect.top - panY) / zoom;
@@ -318,7 +383,10 @@ export function Board({ user }: BoardProps) {
     (e: MouseEvent) => {
       if (!isSelecting || !selectionStart) return;
 
-      const rect = boardRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+      const rect = boardRef.current?.getBoundingClientRect() || {
+        left: 0,
+        top: 0,
+      };
       // transform を考慮した座標計算
       const x = (e.clientX - rect.left - panX) / zoom;
       const y = (e.clientY - rect.top - panY) / zoom;
@@ -358,7 +426,17 @@ export function Board({ user }: BoardProps) {
 
       setSelectedNoteIds(newSelectedIds);
     },
-    [isSelecting, selectionStart, notes, isMultiSelectMode, selectedNoteIds, boardRef, panX, panY, zoom]
+    [
+      isSelecting,
+      selectionStart,
+      notes,
+      isMultiSelectMode,
+      selectedNoteIds,
+      boardRef,
+      panX,
+      panY,
+      zoom,
+    ]
   );
 
   // 範囲選択の終了
@@ -454,29 +532,33 @@ export function Board({ user }: BoardProps) {
         oldPosition: { x: number; y: number };
         newPosition: { x: number; y: number };
       }> = [];
-      
+
       selectedNoteIds.forEach((noteId) => {
-        const note = notes.find(n => n.id === noteId);
+        const note = notes.find((n) => n.id === noteId);
         const initialPos = initialSelectedPositions[noteId];
-        if (note && initialPos && (note.x !== initialPos.x || note.y !== initialPos.y)) {
+        if (
+          note &&
+          initialPos &&
+          (note.x !== initialPos.x || note.y !== initialPos.y)
+        ) {
           moves.push({
             noteId,
             oldPosition: initialPos,
-            newPosition: { x: note.x, y: note.y }
+            newPosition: { x: note.x, y: note.y },
           });
         }
       });
-      
+
       // 移動をhistoryに追加
       if (moves.length > 0 && !isUndoRedoOperation) {
         addToHistory({
           type: "MOVE_NOTES",
           noteId: moves[0].noteId, // 代表としてひとつ目のIDを使用
           userId: user.uid,
-          moves: moves
+          moves: moves,
         });
       }
-      
+
       // 最終位置を確定
       selectedNoteIds.forEach((noteId) => {
         updateNote(noteId, {
@@ -499,7 +581,17 @@ export function Board({ user }: BoardProps) {
         setJustFinishedBulkDrag(false);
       }, 300);
     }
-  }, [isDraggingMultiple, selectedNoteIds, updateNote, dragStartPos, notes, initialSelectedPositions, isUndoRedoOperation, addToHistory, user.uid]);
+  }, [
+    isDraggingMultiple,
+    selectedNoteIds,
+    updateNote,
+    dragStartPos,
+    notes,
+    initialSelectedPositions,
+    isUndoRedoOperation,
+    addToHistory,
+    user.uid,
+  ]);
 
   // パン操作の開始
   const handlePanStart = (e: React.MouseEvent) => {
@@ -512,15 +604,18 @@ export function Board({ user }: BoardProps) {
   };
 
   // パン操作の処理
-  const handlePanMove = useCallback((e: MouseEvent) => {
-    if (!isPanning || !panStartPos || !initialPan) return;
+  const handlePanMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isPanning || !panStartPos || !initialPan) return;
 
-    const deltaX = e.clientX - panStartPos.x;
-    const deltaY = e.clientY - panStartPos.y;
+      const deltaX = e.clientX - panStartPos.x;
+      const deltaY = e.clientY - panStartPos.y;
 
-    setPanX(initialPan.x + deltaX);
-    setPanY(initialPan.y + deltaY);
-  }, [isPanning, panStartPos, initialPan]);
+      setPanX(initialPan.x + deltaX);
+      setPanY(initialPan.y + deltaY);
+    },
+    [isPanning, panStartPos, initialPan]
+  );
 
   // パン操作の終了
   const handlePanEnd = useCallback(() => {
@@ -529,37 +624,113 @@ export function Board({ user }: BoardProps) {
     setInitialPan(null);
   }, []);
 
-  // ズーム操作（指数関数的な感度）
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    
-    if (!boardRef.current) return;
-    
-    // 指数関数的なズーム感度
-    // ズームレベルが高い（拡大している）ほど、感度を低くする
-    const sensitivity = Math.pow(zoom, 0.3); // ズームレベルの0.3乗で感度を調整
-    const baseDelta = e.deltaY > 0 ? -0.05 : 0.05; // より細かい基準感度
-    const adjustedDelta = baseDelta * sensitivity;
-    
-    const newZoom = Math.max(0.1, Math.min(3, zoom + adjustedDelta));
-    
-    // マウス位置を取得
-    const rect = boardRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    // ズーム前のマウス位置（ワールド座標）
-    const worldMouseX = (mouseX - panX) / zoom;
-    const worldMouseY = (mouseY - panY) / zoom;
-    
-    // ズーム後にマウス位置が同じ場所を指すようにパンを調整
-    const newPanX = mouseX - worldMouseX * newZoom;
-    const newPanY = mouseY - worldMouseY * newZoom;
-    
-    setZoom(newZoom);
-    setPanX(newPanX);
-    setPanY(newPanY);
-  }, [zoom, panX, panY]);
+  // ズーム操作（高感度・慣性付き）
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+
+      if (!boardRef.current) return;
+
+      const currentTime = Date.now();
+      const timeDelta = currentTime - lastWheelTime;
+      
+      // 中間的な感度設定
+      const baseSensitivity = 0.001; // 基本感度を中間に
+      const zoomFactor = Math.pow(1.2, -e.deltaY * baseSensitivity);
+      
+      // 速度の計算（連続したホイール操作で適度に加速）
+      let velocity = e.deltaY * baseSensitivity;
+      if (timeDelta < 50) { // 50ms以内の連続操作
+        velocity *= 1.3; // 適度な加速
+      }
+      
+      setLastWheelTime(currentTime);
+      setZoomVelocity(velocity);
+
+      // マウス位置を取得
+      const rect = boardRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // ズームターゲットを設定（最初のホイール操作時のみ）
+      if (!zoomTarget || timeDelta > 200) { // 200ms以上経過したら新しいターゲット
+        setZoomTarget({ x: mouseX, y: mouseY });
+      }
+
+      // 使用するターゲット位置
+      const targetX = zoomTarget?.x || mouseX;
+      const targetY = zoomTarget?.y || mouseY;
+
+      // ズーム前のターゲット位置（ワールド座標）
+      const worldTargetX = (targetX - panX) / zoom;
+      const worldTargetY = (targetY - panY) / zoom;
+
+      // 新しいズーム値を計算
+      const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+
+      // ズーム後にターゲット位置が同じ場所を指すようにパンを調整
+      const newPanX = targetX - worldTargetX * newZoom;
+      const newPanY = targetY - worldTargetY * newZoom;
+
+      setZoom(newZoom);
+      setPanX(newPanX);
+      setPanY(newPanY);
+    },
+    [zoom, panX, panY, lastWheelTime, zoomTarget]
+  );
+
+  // ズーム慣性アニメーション
+  useEffect(() => {
+    if (Math.abs(zoomVelocity) > 0.001) {
+      const animate = () => {
+        setZoomVelocity((prevVelocity) => {
+          const newVelocity = prevVelocity * 0.95; // 減衰率を上げてゆっくりに
+          
+          if (Math.abs(newVelocity) < 0.001) {
+            // ズーム終了時にターゲットをクリア
+            setZoomTarget(null);
+            return 0;
+          }
+          
+          // ズームターゲットが設定されていればそれを使用、なければビューポート中心
+          const targetX = zoomTarget?.x || window.innerWidth / 2;
+          const targetY = zoomTarget?.y || window.innerHeight / 2;
+          
+          setZoom((prevZoom) => {
+            const zoomFactor = Math.pow(1.2, -newVelocity);
+            const newZoom = Math.max(0.1, Math.min(5, prevZoom * zoomFactor));
+            
+            // パンも調整
+            if (boardRef.current) {
+              setPanX((prevPanX) => {
+                const worldTargetX = (targetX - prevPanX) / prevZoom;
+                return targetX - worldTargetX * newZoom;
+              });
+              
+              setPanY((prevPanY) => {
+                const worldTargetY = (targetY - prevPanY) / prevZoom;
+                return targetY - worldTargetY * newZoom;
+              });
+            }
+            
+            return newZoom;
+          });
+          
+          return newVelocity;
+        });
+        
+        zoomAnimationRef.current = requestAnimationFrame(animate);
+      };
+      
+      zoomAnimationRef.current = requestAnimationFrame(animate);
+      
+      return () => {
+        if (zoomAnimationRef.current) {
+          cancelAnimationFrame(zoomAnimationRef.current);
+        }
+      };
+    }
+  }, [zoomVelocity, zoomTarget]);
 
   // マウスイベントのリスナー設定
   useEffect(() => {
@@ -596,6 +767,24 @@ export function Board({ user }: BoardProps) {
     }
   }, [isPanning, handlePanMove, handlePanEnd]);
 
+  // ボード要素でのスクロール防止
+  useEffect(() => {
+    const boardElement = boardRef.current;
+    if (!boardElement) return;
+
+    const preventScroll = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // パッシブではないイベントリスナーを追加
+    boardElement.addEventListener("wheel", preventScroll, { passive: false });
+    
+    return () => {
+      boardElement.removeEventListener("wheel", preventScroll);
+    };
+  }, []);
+
   // サムネイル生成とローカル保存
   const generateAndSaveThumbnail = useCallback(async () => {
     if (!boardRef.current || !boardId) return;
@@ -627,9 +816,9 @@ export function Board({ user }: BoardProps) {
       generateAndSaveThumbnail();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       // コンポーネント破棄時にもサムネイル生成
       generateAndSaveThumbnail();
     };
@@ -663,7 +852,7 @@ export function Board({ user }: BoardProps) {
       return;
     }
 
-    const selectedNotes = notes.filter(note => selectedNoteIds.has(note.id));
+    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
     setCopiedNotes(selectedNotes);
     // 複数選択の場合は単一コピーをクリア
     setCopiedNote(null);
@@ -677,10 +866,10 @@ export function Board({ user }: BoardProps) {
 
     // 画像としてコピー
     await copyNotesAsImage();
-    
+
     // データとしても内部状態にコピー
     copyNotesAsData();
-    
+
     // 単一選択の場合はcopiedNoteも設定（後方互換性のため）
     if (selectedNoteIds.size === 1) {
       const noteId = Array.from(selectedNoteIds)[0];
@@ -693,7 +882,6 @@ export function Board({ user }: BoardProps) {
       setCopiedNote(null);
     }
   };
-
 
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
@@ -770,7 +958,7 @@ export function Board({ user }: BoardProps) {
     setNextZIndex(currentZIndex);
 
     // 新しく作成された付箋を選択状態にする
-    const newNoteIds = new Set(createdNotes.map(note => note.id));
+    const newNoteIds = new Set(createdNotes.map((note) => note.id));
     setSelectedNoteIds(newNoteIds);
   };
 
@@ -826,7 +1014,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_NOTES":
           if (action.notes) {
             action.notes.forEach((note) => {
-              const createNoteRef = ref(rtdb, `boardNotes/${boardId}/${note.id}`);
+              const createNoteRef = ref(
+                rtdb,
+                `boardNotes/${boardId}/${note.id}`
+              );
               remove(createNoteRef);
             });
           }
@@ -835,7 +1026,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_NOTES":
           if (action.notes) {
             action.notes.forEach((note) => {
-              const deleteNoteRef = ref(rtdb, `boardNotes/${boardId}/${note.id}`);
+              const deleteNoteRef = ref(
+                rtdb,
+                `boardNotes/${boardId}/${note.id}`
+              );
               set(deleteNoteRef, note);
             });
           }
@@ -882,7 +1076,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_NOTES":
           if (action.notes) {
             action.notes.forEach((note) => {
-              const createNoteRef = ref(rtdb, `boardNotes/${boardId}/${note.id}`);
+              const createNoteRef = ref(
+                rtdb,
+                `boardNotes/${boardId}/${note.id}`
+              );
               set(createNoteRef, note);
             });
           }
@@ -891,7 +1088,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_NOTES":
           if (action.notes) {
             action.notes.forEach((note) => {
-              const deleteNoteRef = ref(rtdb, `boardNotes/${boardId}/${note.id}`);
+              const deleteNoteRef = ref(
+                rtdb,
+                `boardNotes/${boardId}/${note.id}`
+              );
               remove(deleteNoteRef);
             });
           }
@@ -942,14 +1142,14 @@ export function Board({ user }: BoardProps) {
           // Only copy if no textarea is focused
           if (!isTextareaFocused && selectedNoteIds.size > 0) {
             e.preventDefault();
-            
+
             if (e.shiftKey) {
               // Shift+Cmd+C: Copy as image and data
               await copyNotesComplete();
             } else {
               // Cmd+C: Copy data only (lightweight)
               copyNotesAsData();
-              
+
               // 単一選択の場合はcopiedNoteも設定
               if (selectedNoteIds.size === 1) {
                 const noteId = Array.from(selectedNoteIds)[0];
@@ -992,6 +1192,17 @@ export function Board({ user }: BoardProps) {
             const allNoteIds = new Set(notes.map((note) => note.id));
             setSelectedNoteIds(allNoteIds);
           }
+        } else if (e.key === "n") {
+          // Check if a textarea (note editor) is focused
+          const activeElement = document.activeElement;
+          const isTextareaFocused =
+            activeElement && activeElement.tagName === "TEXTAREA";
+
+          // Only create new note if no textarea is focused
+          if (!isTextareaFocused) {
+            e.preventDefault();
+            addNote();
+          }
         }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
@@ -1027,20 +1238,32 @@ export function Board({ user }: BoardProps) {
   ]);
 
   // 単一の付箋の移動完了時のコールバック
-  const handleNoteDragEnd = useCallback((noteId: string, oldPosition: { x: number; y: number }, newPosition: { x: number; y: number }) => {
-    if (!isUndoRedoOperation && (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)) {
-      addToHistory({
-        type: "MOVE_NOTES",
-        noteId: noteId,
-        userId: user.uid,
-        moves: [{
-          noteId,
-          oldPosition,
-          newPosition
-        }]
-      });
-    }
-  }, [isUndoRedoOperation, addToHistory, user.uid]);
+  const handleNoteDragEnd = useCallback(
+    (
+      noteId: string,
+      oldPosition: { x: number; y: number },
+      newPosition: { x: number; y: number }
+    ) => {
+      if (
+        !isUndoRedoOperation &&
+        (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)
+      ) {
+        addToHistory({
+          type: "MOVE_NOTES",
+          noteId: noteId,
+          userId: user.uid,
+          moves: [
+            {
+              noteId,
+              oldPosition,
+              newPosition,
+            },
+          ],
+        });
+      }
+    },
+    [isUndoRedoOperation, addToHistory, user.uid]
+  );
 
   // Show loading state while checking access
   if (isCheckingAccess) {
@@ -1081,18 +1304,18 @@ export function Board({ user }: BoardProps) {
         className="board"
         onClick={handleBoardClick}
         onMouseDown={handleBoardMouseDown}
+        onDoubleClick={handleBoardDoubleClick}
         onWheel={handleWheel}
         style={{
-          cursor: isPanning ? 'grabbing' : 'grab',
-          overflow: 'hidden'
+          overflow: "hidden",
         }}
       >
-        <div 
+        <div
           ref={notesContainerRef}
           className="notes-container"
           style={{
             transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-            transformOrigin: '0 0',
+            transformOrigin: "0 0",
           }}
         >
           {notes.map((note) => (
@@ -1101,7 +1324,9 @@ export function Board({ user }: BoardProps) {
               note={note}
               onUpdate={updateNote}
               onDelete={deleteNote}
-              isActive={selectedNoteIds.has(note.id) && selectedNoteIds.size === 1}
+              isActive={
+                selectedNoteIds.has(note.id) && selectedNoteIds.size === 1
+              }
               isSelected={selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
               onStartBulkDrag={startBulkDrag}
@@ -1111,6 +1336,8 @@ export function Board({ user }: BoardProps) {
               zoom={zoom}
               onDragEnd={handleNoteDragEnd}
               hasMultipleSelected={selectedNoteIds.size > 1}
+              shouldFocus={noteToFocus === note.id}
+              onFocused={() => setNoteToFocus(null)}
             />
           ))}
 

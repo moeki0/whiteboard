@@ -55,7 +55,7 @@ export function Home({ user }: HomeProps) {
     const inviteRef = ref(rtdb, `invites/${inviteCode}`);
     await set(inviteRef, { projectId: projectId, createdAt: Date.now() });
 
-    updateCurrentProject(projectId);
+    updateCurrentProject(projectId, project.name);
   };
 
   useEffect(() => {

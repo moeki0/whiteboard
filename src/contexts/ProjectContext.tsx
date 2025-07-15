@@ -2,7 +2,8 @@ import { createContext, useContext, useState, ReactNode } from "react";
 
 interface ProjectContextValue {
   currentProjectId: string | null;
-  updateCurrentProject: (projectId: string | null) => void;
+  currentProjectName: string | null;
+  updateCurrentProject: (projectId: string | null, projectName?: string | null) => void;
   clearCurrentProject: () => void;
 }
 
@@ -26,22 +27,38 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     return sessionStorage.getItem("currentProjectId") || null;
   });
 
-  const updateCurrentProject = (projectId: string | null) => {
+  const [currentProjectName, setCurrentProjectName] = useState<string | null>(() => {
+    // Get from sessionStorage on initialization
+    return sessionStorage.getItem("currentProjectName") || null;
+  });
+
+  const updateCurrentProject = (projectId: string | null, projectName?: string | null) => {
     setCurrentProjectId(projectId);
+    setCurrentProjectName(projectName || null);
+    
     if (projectId) {
       sessionStorage.setItem("currentProjectId", projectId);
     } else {
       sessionStorage.removeItem("currentProjectId");
     }
+    
+    if (projectName) {
+      sessionStorage.setItem("currentProjectName", projectName);
+    } else {
+      sessionStorage.removeItem("currentProjectName");
+    }
   };
 
   const clearCurrentProject = () => {
     setCurrentProjectId(null);
+    setCurrentProjectName(null);
     sessionStorage.removeItem("currentProjectId");
+    sessionStorage.removeItem("currentProjectName");
   };
 
   const value: ProjectContextValue = {
     currentProjectId,
+    currentProjectName,
     updateCurrentProject,
     clearCurrentProject
   };

@@ -8,7 +8,7 @@ describe('useHistory', () => {
     const { result } = renderHook(() => useHistory());
     
     const action: HistoryAction = {
-      type: 'CREATE_NOTE',
+      type: 'CREATE_NOTES',
       noteId: '1',
       userId: 'user1',
     };
@@ -25,7 +25,7 @@ describe('useHistory', () => {
     const { result } = renderHook(() => useHistory());
     
     const action: HistoryAction = {
-      type: 'CREATE_NOTE',
+      type: 'CREATE_NOTES',
       noteId: '1',
       userId: 'user1',
     };

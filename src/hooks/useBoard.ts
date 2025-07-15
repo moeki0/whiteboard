@@ -85,7 +85,15 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
         
         // Update current project in context
         if (boardData.projectId) {
-          updateCurrentProject(boardData.projectId);
+          // Get project name and update context
+          const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
+          const projectSnapshot = await get(projectRef);
+          if (projectSnapshot.exists()) {
+            const projectName = projectSnapshot.val().name;
+            updateCurrentProject(boardData.projectId, projectName);
+          } else {
+            updateCurrentProject(boardData.projectId);
+          }
         }
 
         // Check initial access permissions
@@ -110,7 +118,15 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
         
         // Update current project in context
         if (boardData.projectId) {
-          updateCurrentProject(boardData.projectId);
+          // Get project name and update context
+          const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
+          const projectSnapshot = await get(projectRef);
+          if (projectSnapshot.exists()) {
+            const projectName = projectSnapshot.val().name;
+            updateCurrentProject(boardData.projectId, projectName);
+          } else {
+            updateCurrentProject(boardData.projectId);
+          }
         }
 
         // Check access permissions in real-time

@@ -31,6 +31,8 @@ interface StickyNoteProps {
   zoom?: number;
   onDragEnd?: (noteId: string, oldPosition: { x: number; y: number }, newPosition: { x: number; y: number }) => void;
   hasMultipleSelected?: boolean;
+  shouldFocus?: boolean;
+  onFocused?: () => void;
 }
 
 export function StickyNote({
@@ -47,6 +49,8 @@ export function StickyNote({
   zoom = 1,
   onDragEnd,
   hasMultipleSelected = false,
+  shouldFocus = false,
+  onFocused,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -388,6 +392,17 @@ export function StickyNote({
       };
     }
   }, [isActive, note.id, onDelete, hasMultipleSelected]);
+
+  // shouldFocusがtrueの場合、編集モードにしてフォーカスを設定
+  useEffect(() => {
+    if (shouldFocus && !isEditing) {
+      setIsEditing(true);
+      // フォーカス完了を通知
+      if (onFocused) {
+        onFocused();
+      }
+    }
+  }, [shouldFocus, isEditing, onFocused]);
 
   // Get border color if someone else is interacting with this note
   const getInteractionBorderColor = () => {
