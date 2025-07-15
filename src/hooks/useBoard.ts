@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
-import { User, Note, Cursor } from "../types";
+import { User, Note, Cursor, Board, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { checkBoardAccess } from "../utils/permissions";
 
 interface UseBoardReturn {
   boardId: string | undefined;
@@ -32,21 +33,27 @@ export function useBoard(user: User, navigate: any, sessionId: string): UseBoard
 
   // Check access permissions function
   const checkAccess = async (boardData: any) => {
-    if (!boardData.isPublic && boardData.projectId) {
+    const board: Board = {
+      id: boardId || '',
+      ...boardData,
+    };
+
+    let project: Project | null = null;
+    if (boardData.projectId) {
       const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
       const projectSnapshot = await get(projectRef);
-
       if (projectSnapshot.exists()) {
-        const projectData = projectSnapshot.val();
-        const isMember = projectData.members?.[user.uid];
-
-        if (!isMember) {
-          alert("This board is private. Only project members can access it.");
-          navigate("/");
-          return false;
-        }
+        project = { id: boardData.projectId, ...projectSnapshot.val() };
       }
     }
+
+    const accessResult = checkBoardAccess(board, project, user.uid);
+    if (!accessResult.hasAccess) {
+      alert(`Access denied: ${accessResult.reason || 'You do not have permission to access this board.'}`);
+      navigate("/");
+      return false;
+    }
+
     return true;
   };
 

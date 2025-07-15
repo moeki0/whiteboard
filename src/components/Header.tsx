@@ -43,7 +43,7 @@ export const Header = memo(function Header({
   const { currentProjectName } = useProject();
 
   // sessionStorageから直接読み取って即座に表示、フォールバックでContextを使用
-  const savedProjectName = sessionStorage.getItem("currentProjectName");
+  const savedProjectName = typeof window !== 'undefined' ? sessionStorage.getItem("currentProjectName") : null;
   const displayTitle = savedProjectName || currentProjectName || title || "Maplap";
 
   return (

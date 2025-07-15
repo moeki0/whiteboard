@@ -121,13 +121,26 @@ export async function saveBoardThumbnail(
     console.log('💾 Starting thumbnail save for board:', boardId);
     console.log('Data URL length:', thumbnailDataUrl.length);
 
-    // Firebase Storageに画像を保存
+    // Firebase Storageの参照を作成
     const thumbnailRef = storageRef(storage, `thumbnails/${boardId}.png`);
     console.log('📁 Storage ref created:', `thumbnails/${boardId}.png`);
     
+    // 古いファイルを削除を試行（存在しない場合はエラーを無視）
+    try {
+      console.log('🗑️ Attempting to delete old thumbnail...');
+      await deleteObject(thumbnailRef);
+      console.log('✅ Old thumbnail deleted successfully');
+    } catch (deleteError: any) {
+      if (deleteError.code !== 'storage/object-not-found') {
+        console.warn('⚠️ Warning: Could not delete old thumbnail:', deleteError);
+      } else {
+        console.log('ℹ️ No old thumbnail to delete');
+      }
+    }
+    
     // Data URLからbase64部分を抽出
     const base64Data = thumbnailDataUrl.split(',')[1];
-    console.log('🔄 Uploading to Firebase Storage...');
+    console.log('🔄 Uploading new thumbnail to Firebase Storage...');
     
     await uploadString(thumbnailRef, base64Data, 'base64', {
       contentType: 'image/png'

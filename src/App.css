@@ -43,7 +43,6 @@ button {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  padding-top: 40px;
 }
 
 /* Loading */

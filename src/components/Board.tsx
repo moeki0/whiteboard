@@ -1134,13 +1134,13 @@ export function Board({ user }: BoardProps) {
           e.preventDefault();
           performRedo();
         } else if (e.key === "c") {
-          // Check if a textarea (note editor) is focused
+          // Check if a textarea or input is focused
           const activeElement = document.activeElement;
-          const isTextareaFocused =
-            activeElement && activeElement.tagName === "TEXTAREA";
+          const isInputFocused =
+            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
 
-          // Only copy if no textarea is focused
-          if (!isTextareaFocused && selectedNoteIds.size > 0) {
+          // Only copy if no input is focused
+          if (!isInputFocused && selectedNoteIds.size > 0) {
             e.preventDefault();
 
             if (e.shiftKey) {
@@ -1164,13 +1164,13 @@ export function Board({ user }: BoardProps) {
           }
           // If textarea is focused, let the default copy behavior happen
         } else if (e.key === "v") {
-          // Check if a textarea (note editor) is focused
+          // Check if a textarea or input is focused
           const activeElement = document.activeElement;
-          const isTextareaFocused =
-            activeElement && activeElement.tagName === "TEXTAREA";
+          const isInputFocused =
+            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
 
-          // Only paste note if no textarea is focused
-          if (!isTextareaFocused) {
+          // Only paste note if no input is focused
+          if (!isInputFocused) {
             e.preventDefault();
             // Try to paste copied notes first, fallback to single copiedNote
             if (copiedNotes.length > 0) {
@@ -1179,27 +1179,27 @@ export function Board({ user }: BoardProps) {
               pasteNote();
             }
           }
-          // If textarea is focused, let the default paste behavior happen
+          // If input is focused, let the default paste behavior happen
         } else if (e.key === "a") {
-          // テキストエリアにフォーカスがある場合は通常のテキスト選択を許可
+          // テキストエリアやインプットにフォーカスがある場合は通常のテキスト選択を許可
           const activeElement = document.activeElement;
-          const isTextareaFocused =
-            activeElement && activeElement.tagName === "TEXTAREA";
+          const isInputFocused =
+            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
 
-          if (!isTextareaFocused) {
+          if (!isInputFocused) {
             e.preventDefault();
             // Select all notes
             const allNoteIds = new Set(notes.map((note) => note.id));
             setSelectedNoteIds(allNoteIds);
           }
         } else if (e.key === "n") {
-          // Check if a textarea (note editor) is focused
+          // Check if a textarea or input is focused
           const activeElement = document.activeElement;
-          const isTextareaFocused =
-            activeElement && activeElement.tagName === "TEXTAREA";
+          const isInputFocused =
+            activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
 
-          // Only create new note if no textarea is focused
-          if (!isTextareaFocused) {
+          // Only create new note if no input is focused
+          if (!isInputFocused) {
             e.preventDefault();
             addNote();
           }
@@ -1208,12 +1208,12 @@ export function Board({ user }: BoardProps) {
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedNoteIds.size > 0
       ) {
-        // Delete selected notes if no textarea is focused
+        // Delete selected notes if no input is focused
         const activeElement = document.activeElement;
-        const isTextareaFocused =
-          activeElement && activeElement.tagName === "TEXTAREA";
+        const isInputFocused =
+          activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
 
-        if (!isTextareaFocused) {
+        if (!isInputFocused) {
           e.preventDefault();
           deleteSelectedNotes();
         }

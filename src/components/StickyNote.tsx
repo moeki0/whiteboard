@@ -24,12 +24,19 @@ interface StickyNoteProps {
   isActive: boolean;
   isSelected: boolean;
   onActivate: (noteId: string, isMultiSelect?: boolean) => void;
-  onStartBulkDrag: (noteId: string, e: React.MouseEvent<HTMLDivElement>) => void;
+  onStartBulkDrag: (
+    noteId: string,
+    e: React.MouseEvent<HTMLDivElement>
+  ) => void;
   currentUserId: string;
   getUserColor: (userId: string) => string;
   isDraggingMultiple?: boolean;
   zoom?: number;
-  onDragEnd?: (noteId: string, oldPosition: { x: number; y: number }, newPosition: { x: number; y: number }) => void;
+  onDragEnd?: (
+    noteId: string,
+    oldPosition: { x: number; y: number },
+    newPosition: { x: number; y: number }
+  ) => void;
   hasMultipleSelected?: boolean;
   shouldFocus?: boolean;
   onFocused?: () => void;
@@ -128,7 +135,7 @@ export function StickyNote({
         const deltaY = (e.clientY - dragOffset.current.y) / zoom;
         const newX = dragOffset.current.startX + deltaX;
         const newY = dragOffset.current.startY + deltaY;
-        
+
         setPosition({ x: newX, y: newY });
 
         // Lodash throttleを使用したFirebase更新
@@ -146,14 +153,18 @@ export function StickyNote({
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      
+
       // ドラッグ完了時に移動履歴を記録
       const startX = dragOffset.current.startX;
       const startY = dragOffset.current.startY;
       if (onDragEnd && (startX !== position.x || startY !== position.y)) {
-        onDragEnd(note.id, { x: startX, y: startY }, { x: position.x, y: position.y });
+        onDragEnd(
+          note.id,
+          { x: startX, y: startY },
+          { x: position.x, y: position.y }
+        );
       }
-      
+
       // 最終位置を即座に更新（throttleをバイパス）
       onUpdate(note.id, {
         x: position.x,
@@ -218,37 +229,39 @@ export function StickyNote({
 
   // GyazoのURLかどうかをチェック
   const isGyazoUrl = (text: string) => {
-    return /https:\/\/gyazo\.com\/[a-zA-Z0-9]+(\/(max_size|raw)\/\d+)?/.test(text.trim());
+    return /https:\/\/gyazo\.com\/[a-zA-Z0-9]+(\/(max_size|raw)\/\d+)?/.test(
+      text.trim()
+    );
   };
 
   // GyazoのURLから画像URLを取得
   const getGyazoImageUrl = (url: string): string | null => {
     const match = url.match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
     if (!match) return null;
-    
+
     const id = match[1];
-    
+
     // max_sizeパラメータがある場合はそれを使用
     const maxSizeMatch = url.match(/\/max_size\/(\d+)/);
     if (maxSizeMatch) {
       const maxSize = maxSizeMatch[1];
       return `https://gyazo.com/${id}/max_size/${maxSize}`;
     }
-    
+
     // rawパラメータがある場合はそれを使用
     const rawMatch = url.match(/\/raw\/(\d+)/);
     if (rawMatch) {
       const rawSize = rawMatch[1];
       return `https://gyazo.com/${id}/raw/${rawSize}`;
     }
-    
+
     // 通常の場合はmax_size/1000を使用（JPG、PNG、GIF全対応）
     return `https://gyazo.com/${id}/max_size/1000`;
   };
 
   // アスタリスクの数から画像サイズを計算
   const getImageSize = (asteriskCount: number) => {
-    const baseSize = 100;
+    const baseSize = 50;
     const sizeMultiplier = Math.max(1, asteriskCount);
 
     return Math.min(2000, baseSize * 2 * sizeMultiplier);
@@ -256,45 +269,51 @@ export function StickyNote({
 
   // 付箋全体がGyazoのURLのみかどうかをチェック
   const isContentOnlyGyazoUrl = (content: string) => {
-    const lines = content.split('\n').filter(line => line.trim() !== '');
+    const lines = content.split("\n").filter((line) => line.trim() !== "");
     if (lines.length !== 1) return false;
-    
-    const line = lines[0].trim();
-    const withoutAsterisks = line.replace(/^\*+/, '');
-    return isGyazoUrl(withoutAsterisks) && withoutAsterisks.trim() === withoutAsterisks;
-  };
 
+    const line = lines[0].trim();
+    const withoutAsterisks = line.replace(/^\*+/, "");
+    return (
+      isGyazoUrl(withoutAsterisks) &&
+      withoutAsterisks.trim() === withoutAsterisks
+    );
+  };
 
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
     // 付箋全体がGyazoのURLのみの場合は画像として処理
     if (isContentOnlyGyazoUrl(text)) {
-      const lines = text.split('\n').filter(line => line.trim() !== '');
+      const lines = text.split("\n").filter((line) => line.trim() !== "");
       const line = lines[0].trim();
       const asteriskMatch = line.match(/^(\*+)(.*)/);
-      
+
       if (asteriskMatch) {
         const asteriskCount = asteriskMatch[1].length;
         const contentAfterAsterisks = asteriskMatch[2];
         const imageUrl = getGyazoImageUrl(contentAfterAsterisks);
-        
+
         if (imageUrl) {
-          return [{
-            type: "image",
-            url: imageUrl,
-            size: getImageSize(asteriskCount),
-            originalUrl: contentAfterAsterisks,
-          }];
+          return [
+            {
+              type: "image",
+              url: imageUrl,
+              size: getImageSize(asteriskCount),
+              originalUrl: contentAfterAsterisks,
+            },
+          ];
         }
       } else {
         const imageUrl = getGyazoImageUrl(line);
         if (imageUrl) {
-          return [{
-            type: "image",
-            url: imageUrl,
-            size: getImageSize(1),
-            originalUrl: line,
-          }];
+          return [
+            {
+              type: "image",
+              url: imageUrl,
+              size: getImageSize(1),
+              originalUrl: line,
+            },
+          ];
         }
       }
     }
@@ -356,7 +375,7 @@ export function StickyNote({
       e.stopPropagation();
       return;
     }
-    
+
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
     onActivate(note.id, isMultiSelect);
@@ -423,9 +442,9 @@ export function StickyNote({
     <div
       ref={noteRef}
       data-note-id={note.id}
-      className={`sticky-note ${isActive ? "active" : ""} ${isSelected ? "selected" : ""} ${
-        interactionBorderColor ? "being-used" : ""
-      }`}
+      className={`sticky-note ${isActive ? "active" : ""} ${
+        isSelected ? "selected" : ""
+      } ${interactionBorderColor ? "being-used" : ""}`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
