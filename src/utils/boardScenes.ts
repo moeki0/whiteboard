@@ -1,6 +1,6 @@
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get, push } from "firebase/database";
-import { BoardScene, Note } from "../types";
+import { BoardScene } from "../types";
 
 // シーン一覧を取得
 export const getBoardScenes = (

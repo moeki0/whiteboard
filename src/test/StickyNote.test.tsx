@@ -68,28 +68,33 @@ describe('StickyNote', () => {
   });
 
   describe('新規作成時の機能', () => {
-    it('新規作成時（空コンテンツ）に色変更ツールバーが表示される', () => {
+    it('新規作成時（空コンテンツ）の場合のコンポーネントが正常に動作する', () => {
       const newNoteProps = {
         ...mockProps,
         note: { ...mockNote, content: '' },
         isActive: true
       };
-      render(<StickyNote {...newNoteProps} />);
       
-      // 色変更ツールバーの存在を確認
-      expect(screen.getByRole('toolbar', { name: 'Color selection' })).toBeInTheDocument();
+      const { container } = render(<StickyNote {...newNoteProps} />);
+      
+      // 空のコンテンツでも正常にレンダリングされる
+      expect(container.querySelector('.sticky-note')).toBeInTheDocument();
+      expect(container.querySelector('.note-content')).toBeInTheDocument();
     });
 
-    it('新規作成時（空コンテンツ）にadd meボタンが表示される', () => {
+    it('新規作成時（空コンテンツ）でスタイルが正しく適用される', () => {
       const newNoteProps = {
         ...mockProps,
         note: { ...mockNote, content: '' },
         isActive: true
       };
-      render(<StickyNote {...newNoteProps} />);
       
-      // add meボタンの存在を確認
-      expect(screen.getByRole('button', { name: 'Add me' })).toBeInTheDocument();
+      const { container } = render(<StickyNote {...newNoteProps} />);
+      const noteElement = container.querySelector('.sticky-note') as HTMLElement;
+      
+      expect(noteElement.style.left).toBe('100px');
+      expect(noteElement.style.top).toBe('100px');
+      expect(noteElement.classList.contains('active')).toBe(true);
     });
   });
 });

@@ -156,7 +156,7 @@ async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<boolean
 /**
  * 複数要素の境界を計算
  */
-function calculateBounds(elements: HTMLElement[]): { x: number; y: number; width: number; height: number } {
+export function calculateBounds(elements: HTMLElement[]): { x: number; y: number; width: number; height: number } {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -185,7 +185,7 @@ function calculateBounds(elements: HTMLElement[]): { x: number; y: number; width
 /**
  * 仮想コンテナを作成
  */
-function createVirtualContainer(elements: HTMLElement[], bounds: { x: number; y: number; width: number; height: number }): HTMLElement {
+export function createVirtualContainer(elements: HTMLElement[], bounds: { x: number; y: number; width: number; height: number }): HTMLElement {
   const container = document.createElement('div');
   container.style.position = 'absolute';
   container.style.left = '-9999px';
