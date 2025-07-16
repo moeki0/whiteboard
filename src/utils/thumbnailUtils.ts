@@ -1,7 +1,12 @@
-import html2canvas from 'html2canvas';
-import { storage, rtdb } from '../config/firebase';
-import { ref as storageRef, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { ref as dbRef, set, get } from 'firebase/database';
+import html2canvas from "html2canvas";
+import { storage, rtdb } from "../config/firebase";
+import {
+  ref as storageRef,
+  uploadString,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import { ref as dbRef, set, get } from "firebase/database";
 
 export interface ThumbnailOptions {
   width?: number;
@@ -18,26 +23,17 @@ export async function generateBoardThumbnail(
   options: ThumbnailOptions = {}
 ): Promise<string | null> {
   try {
-    console.log('🎯 Starting thumbnail generation for board element:', boardElement);
     if (!boardElement) {
-      console.error('❌ Board element is null');
+      console.error("❌ Board element is null");
       return null;
     }
 
     const thumbnailWidth = options.width || 1000;
     const thumbnailHeight = options.height || 750;
 
-    console.log('📷 Capturing board with html2canvas...');
-    console.log('Board dimensions:', {
-      scrollWidth: boardElement.scrollWidth,
-      scrollHeight: boardElement.scrollHeight,
-      clientWidth: boardElement.clientWidth,
-      clientHeight: boardElement.clientHeight
-    });
-
     // ボードの左上1000pxをキャプチャ
     const canvas = await html2canvas(boardElement, {
-      backgroundColor: options.backgroundColor || '#f5f5f5',
+      backgroundColor: options.backgroundColor || "#f5f5f5",
       scale: options.scale || 1,
       useCORS: true,
       allowTaint: true,
@@ -48,33 +44,28 @@ export async function generateBoardThumbnail(
       y: 0,
       onclone: (clonedDoc: Document) => {
         // クローンされたDOM内で付箋のスタイルを変更
-        const clonedNotes = clonedDoc.querySelectorAll('.sticky-note');
+        const clonedNotes = clonedDoc.querySelectorAll(".sticky-note");
         clonedNotes.forEach((note) => {
           const htmlNote = note as HTMLElement;
           // アクティブ・選択状態のスタイルを削除
-          htmlNote.classList.remove('active', 'selected');
+          htmlNote.classList.remove("active", "selected");
           // 通常のボーダーを適用
-          htmlNote.style.border = '1px solid #cccccc';
-          htmlNote.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
+          htmlNote.style.border = "1px solid #cccccc";
+          htmlNote.style.boxShadow = "0 0 10px rgba(0, 0, 0, 0.05)";
         });
-      }
+      },
     } as any);
 
-    console.log('✅ Canvas generated:', {
-      width: canvas.width,
-      height: canvas.height
-    });
-
     // サムネイルサイズにリサイズ
-    const thumbnailCanvas = document.createElement('canvas');
+    const thumbnailCanvas = document.createElement("canvas");
     thumbnailCanvas.width = thumbnailWidth;
     thumbnailCanvas.height = thumbnailHeight;
-    
-    const ctx = thumbnailCanvas.getContext('2d');
+
+    const ctx = thumbnailCanvas.getContext("2d");
     if (!ctx) return null;
 
     // 背景色を設定
-    ctx.fillStyle = options.backgroundColor || '#f5f5f5';
+    ctx.fillStyle = options.backgroundColor || "#f5f5f5";
     ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
 
     // アスペクト比を保持してリサイズ
@@ -99,11 +90,7 @@ export async function generateBoardThumbnail(
 
     ctx.drawImage(canvas, drawX, drawY, drawWidth, drawHeight);
 
-    const dataUrl = thumbnailCanvas.toDataURL('image/png');
-    console.log('🖼️ Thumbnail generated:', {
-      dataUrlLength: dataUrl.length,
-      thumbnailSize: `${thumbnailWidth}x${thumbnailHeight}`
-    });
+    const dataUrl = thumbnailCanvas.toDataURL("image/png");
 
     return dataUrl;
   } catch (error) {
@@ -119,52 +106,28 @@ export async function saveBoardThumbnail(
   thumbnailDataUrl: string
 ): Promise<boolean> {
   try {
-    console.log('💾 Starting thumbnail save for board:', boardId);
-    console.log('Data URL length:', thumbnailDataUrl.length);
-
-    // Firebase Storageの参照を作成
     const thumbnailRef = storageRef(storage, `thumbnails/${boardId}.png`);
-    console.log('📁 Storage ref created:', `thumbnails/${boardId}.png`);
-    
-    // 古いファイルを削除を試行（存在しない場合はエラーを無視）
-    try {
-      console.log('🗑️ Attempting to delete old thumbnail...');
-      await deleteObject(thumbnailRef);
-      console.log('✅ Old thumbnail deleted successfully');
-    } catch (deleteError: any) {
-      if (deleteError.code !== 'storage/object-not-found') {
-        console.warn('⚠️ Warning: Could not delete old thumbnail:', deleteError);
-      } else {
-        console.log('ℹ️ No old thumbnail to delete');
-      }
-    }
-    
+
+    await deleteObject(thumbnailRef);
+
     // Data URLからbase64部分を抽出
-    const base64Data = thumbnailDataUrl.split(',')[1];
-    console.log('🔄 Uploading new thumbnail to Firebase Storage...');
-    
-    await uploadString(thumbnailRef, base64Data, 'base64', {
-      contentType: 'image/png'
+    const base64Data = thumbnailDataUrl.split(",")[1];
+
+    await uploadString(thumbnailRef, base64Data, "base64", {
+      contentType: "image/png",
     });
-    console.log('✅ Upload to Storage completed');
 
-    // ダウンロードURLを取得
-    console.log('🔗 Getting download URL...');
     const downloadURL = await getDownloadURL(thumbnailRef);
-    console.log('✅ Download URL obtained:', downloadURL);
 
-    // Realtime DatabaseにURLを保存
-    console.log('💽 Saving URL to Realtime Database...');
     const boardThumbnailRef = dbRef(rtdb, `boardThumbnails/${boardId}`);
     await set(boardThumbnailRef, {
       url: downloadURL,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     });
-    console.log('✅ Thumbnail saved successfully');
 
     return true;
   } catch (error) {
-    console.error('❌ Error saving board thumbnail:', error);
+    console.error("❌ Error saving board thumbnail:", error);
     return false;
   }
 }
@@ -172,22 +135,21 @@ export async function saveBoardThumbnail(
 /**
  * ボードサムネイルURLを取得
  */
-export async function getBoardThumbnail(boardId: string): Promise<string | null> {
+export async function getBoardThumbnail(
+  boardId: string
+): Promise<string | null> {
   try {
-    console.log('🔍 Getting thumbnail for board:', boardId);
     const boardThumbnailRef = dbRef(rtdb, `boardThumbnails/${boardId}`);
     const snapshot = await get(boardThumbnailRef);
-    
+
     if (snapshot.exists()) {
       const data = snapshot.val();
-      console.log('✅ Thumbnail found:', data.url);
       return data.url;
     }
-    
-    console.log('❌ No thumbnail found for board:', boardId);
+
     return null;
   } catch (error) {
-    console.error('❌ Error getting thumbnail:', error);
+    console.error("❌ Error getting thumbnail:", error);
     return null;
   }
 }

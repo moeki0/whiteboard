@@ -43,13 +43,7 @@ export function InitialProfileSetup({
     // 重複チェック（初回登録時なのでexcludeUidは不要）
     setIsCheckingUsername(true);
     try {
-      console.log(
-        "InitialProfileSetup: Checking username",
-        value,
-        "without excludeUid"
-      );
       const isAvailable = await checkUsernameAvailability(value, undefined);
-      console.log("InitialProfileSetup: Username available:", isAvailable);
       setIsCheckingUsername(false);
 
       if (!isAvailable) {

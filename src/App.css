@@ -162,7 +162,7 @@ button {
 }
 
 .sticky-note.selected {
-  border: 1px solid #5b97ff;
+  border: 1px solid #5b97ff !important;
 }
 
 .sticky-note.being-used {

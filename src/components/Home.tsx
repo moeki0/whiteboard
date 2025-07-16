@@ -63,7 +63,6 @@ export function Home({ user }: HomeProps) {
     const userProjectsRef = ref(rtdb, `userProjects/${user.uid}`);
     const unsubscribe = onValue(userProjectsRef, async (snapshot) => {
       const userProjectData = snapshot.val();
-      console.log("User projects data:", userProjectData);
 
       if (userProjectData) {
         const projectIds = Object.keys(userProjectData);
@@ -85,15 +84,12 @@ export function Home({ user }: HomeProps) {
 
         const projectResults = await Promise.all(projectPromises);
         const validProjects = projectResults.filter((p) => p !== null);
-        console.log("Valid projects:", validProjects);
-        console.log("Current project ID:", currentProjectId);
 
         setProjects(validProjects as (Project & { id: string })[]);
 
         // If user has no current project but has projects, set the first one
         if (!currentProjectId && validProjects.length > 0) {
           const firstProject = validProjects[0] as Project & { id: string };
-          console.log("Setting first project as current:", firstProject.id);
           updateCurrentProject(firstProject.id);
         }
         // If current project doesn't exist, clear it
@@ -101,11 +97,9 @@ export function Home({ user }: HomeProps) {
           currentProjectId &&
           !validProjects.find((p) => (p as any).id === currentProjectId)
         ) {
-          console.log("Current project not found, clearing");
           updateCurrentProject(null);
         }
       } else {
-        console.log("No user projects found");
         setProjects([]);
         updateCurrentProject(null);
       }
@@ -114,18 +108,13 @@ export function Home({ user }: HomeProps) {
 
     return () => unsubscribe();
   }, [user.uid, updateCurrentProject, currentProjectId]);
-
-  console.log("🏠 Home component state:", { loading, projects: projects.length, currentProjectId });
-  console.log("🏠 Projects found:", projects.map(p => ({ id: p.id, name: p.name })));
   
   if (loading) {
-    console.log("🏠 Still loading...");
     return <div className="loading"></div>;
   }
 
   // If user has no projects, show welcome screen
   if (projects.length === 0) {
-    console.log("🏠 No projects found, showing welcome screen");
     return (
       <div className="welcome-screen">
         <div className="welcome-content">
@@ -149,7 +138,6 @@ export function Home({ user }: HomeProps) {
 
   // If user has a current project, redirect to project page
   if (currentProjectId) {
-    console.log("🏠 Redirecting to project page:", currentProjectId);
     navigate(`/project/${currentProjectId}`, { replace: true });
     return <div className="loading">Redirecting...</div>;
   }
@@ -157,13 +145,11 @@ export function Home({ user }: HomeProps) {
   // If user has projects but no current project, redirect to first project
   if (projects.length > 0) {
     const firstProject = projects[0];
-    console.log("🏠 Redirecting to first project:", firstProject.id);
     updateCurrentProject(firstProject.id);
     navigate(`/project/${firstProject.id}`);
     return <div className="loading">Redirecting...</div>;
   }
 
   // Fallback - should not happen
-  console.log("🏠 Fallback case - this should not happen");
   return <div className="loading"></div>;
 }
