@@ -139,6 +139,7 @@ export function StickyNote({
     textSize,
   ]);
 
+
   // 固定幅なので自動リサイズは不要
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -504,6 +505,8 @@ export function StickyNote({
   useEffect(() => {
     if (shouldFocus && !isEditing && canEditNote) {
       setIsEditing(true);
+      setShowToolbar(true);
+      setShowSignButton(true);
       // フォーカス完了を通知
       if (onFocused) {
         onFocused();
@@ -731,7 +734,7 @@ export function StickyNote({
         </div>
       )}
       {/* ツールバー */}
-      {((showToolbar && isEditing && canEditNote) || (note.content === '' && (isActive || isEditing) && canEditNote)) ? (
+      {showToolbar && isEditing && canEditNote ? (
         <div className="note-toolbar" role="toolbar" aria-label="Color selection">
           {/* 色選択ボタン */}
           <div className="toolbar-section">
@@ -849,7 +852,7 @@ export function StickyNote({
               </button>
             )}
           </div>
-        ) : showSignButton || (note.content === '' && (isActive || isEditing) && canEditNote) ? (
+        ) : showSignButton ? (
           <div
             style={{
               marginBottom: "4px",
@@ -883,6 +886,12 @@ export function StickyNote({
             value={content}
             onChange={handleContentChange}
             onBlur={handleBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                handleBlur();
+              }
+            }}
             autoFocus
             minRows={1}
             maxRows={20}
