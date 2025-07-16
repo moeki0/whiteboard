@@ -661,8 +661,8 @@ export function StickyNote({
         top: `${position.y}px`,
         backgroundColor: getColorStyle(noteColor),
         boxShadow:
-          noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.05)",
-        border: noteColor === "transparent" ? "none" : "1px solid #cccccc",
+          noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.04)",
+        border: noteColor === "transparent" ? "none" : "1px solid #dedede",
         zIndex: note.zIndex || 1,
         opacity: canEditNote ? 1 : 0.8,
         fontSize: `${getTextSizeStyle(textSize)}px`,
@@ -688,15 +688,16 @@ export function StickyNote({
         <div
           style={{
             position: "absolute",
-            top: "-20px",
+            top: "-22px",
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",
             gap: "4px",
-            background: "rgba(255, 255, 255, 0.95)",
-            borderRadius: "4px",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.15)",
+            background: "#444",
+            borderRadius: "4px 4px 0 0",
             zIndex: 1000,
+            border: "1px solid #ccc",
+            borderBottom: "none",
           }}
         >
           {extractLinks(content)
@@ -711,14 +712,14 @@ export function StickyNote({
                 style={{
                   background: "none",
                   border: "none",
-                  fontSize: "13px",
+                  fontSize: "11px",
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   maxWidth: "150px",
                   padding: "4px 8px",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  color: "#0066cc",
+                  color: "#eee",
                 }}
                 title={link}
               >
