@@ -3,6 +3,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
 import { Note, Board, Project } from "../types";
 import { checkBoardEditPermission } from "../utils/permissions";
+import { calculateBorderColor } from "../utils/borderColors";
 import { LuPlus } from "react-icons/lu";
 
 interface ImageContent {
@@ -654,6 +655,10 @@ export function StickyNote({
     return [...new Set(links)];
   };
 
+  // 付箋の背景色に基づいてボーダー色を計算
+  const backgroundColor = getColorStyle(noteColor);
+  const borderColor = calculateBorderColor(backgroundColor);
+
   return (
     <div
       ref={noteRef}
@@ -664,10 +669,10 @@ export function StickyNote({
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        backgroundColor: getColorStyle(noteColor),
+        backgroundColor: backgroundColor,
         boxShadow:
           noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.04)",
-        border: noteColor === "transparent" ? "none" : "1px solid #dedede",
+        border: noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: note.zIndex || 1,
         opacity: canEditNote ? 1 : 0.8,
         fontSize: `${getTextSizeStyle(textSize)}px`,

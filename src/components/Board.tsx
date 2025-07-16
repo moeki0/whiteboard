@@ -1134,6 +1134,9 @@ export function Board({ user }: BoardProps) {
       const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
       set(noteRef, newNote);
       setNextZIndex((prev) => prev + 1);
+      
+      // 作成された付箋を選択状態にする
+      setSelectedNoteIds(new Set([noteId]));
     }
   };
 
@@ -1522,6 +1525,10 @@ export function Board({ user }: BoardProps) {
       }
 
       setNextZIndex((prev) => prev + lines.length);
+
+      // 作成された付箋を選択状態にする
+      const newNoteIds = new Set(createdNotes.map((note) => note.id));
+      setSelectedNoteIds(newNoteIds);
     },
     [
       panX,
@@ -1533,6 +1540,7 @@ export function Board({ user }: BoardProps) {
       nextZIndex,
       isUndoRedoOperation,
       addToHistory,
+      currentSceneId,
     ]
   );
 

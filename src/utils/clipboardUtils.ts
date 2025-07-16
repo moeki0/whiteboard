@@ -1,4 +1,5 @@
 import html2canvas from 'html2canvas';
+import { calculateBorderColor } from './borderColors';
 
 export interface CopyToClipboardOptions {
   backgroundColor?: string;
@@ -32,8 +33,11 @@ export async function copyStickyNoteToClipboard(
         if (clonedElement) {
           // アクティブ・選択状態のスタイルを削除
           clonedElement.classList.remove('active', 'selected');
-          // 通常のボーダーを適用
-          clonedElement.style.border = '1px solid #cccccc';
+          // 背景色を取得してボーダー色を計算
+          const backgroundColor = clonedElement.style.backgroundColor || '#ffffff';
+          const borderColor = calculateBorderColor(backgroundColor);
+          // 適切なボーダーを適用
+          clonedElement.style.border = `1px solid ${borderColor}`;
           clonedElement.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
         }
       }
@@ -87,8 +91,11 @@ export async function copyMultipleStickyNotesToClipboard(
             const htmlNote = note as HTMLElement;
             // アクティブ・選択状態のスタイルを削除
             htmlNote.classList.remove('active', 'selected');
-            // 通常のボーダーを適用
-            htmlNote.style.border = '1px solid #cccccc';
+            // 背景色を取得してボーダー色を計算
+            const backgroundColor = htmlNote.style.backgroundColor || '#ffffff';
+            const borderColor = calculateBorderColor(backgroundColor);
+            // 適切なボーダーを適用
+            htmlNote.style.border = `1px solid ${borderColor}`;
             htmlNote.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
           });
         }
