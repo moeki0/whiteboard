@@ -21,7 +21,14 @@ import {
   saveBoardThumbnail,
 } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
-import { User, Note } from "../types";
+import { User, Note, BoardScene } from "../types";
+import { 
+  getBoardScenes, 
+  createBoardScene, 
+  updateSceneName,
+  createMainScene 
+} from "../utils/boardScenes";
+import { SceneBar } from "./SceneBar";
 
 interface BoardProps {
   user: User | null;
@@ -94,6 +101,11 @@ export function Board({ user }: BoardProps) {
     null
   );
 
+  // シーン関連の状態
+  const [scenes, setScenes] = useState<BoardScene[]>([]);
+  const [currentSceneId, setCurrentSceneId] = useState<string>("main");
+  const [sceneNotes, setSceneNotes] = useState<Note[]>([]);
+
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -102,7 +114,7 @@ export function Board({ user }: BoardProps) {
     21
   );
 
-  const { addToHistory, undo, redo } = useHistory();
+  const { addToHistory, undo, redo, historyLength, currentIndex } = useHistory();
   const {
     boardId,
     notes,
@@ -146,13 +158,54 @@ export function Board({ user }: BoardProps) {
     }
   }, []);
 
-  // Update maxZIndex when notes change
+  // Update maxZIndex when scene notes change
   useEffect(() => {
-    if (notes.length > 0) {
-      const maxZ = Math.max(...notes.map((n) => n.zIndex || 0), 99);
+    if (sceneNotes.length > 0) {
+      const maxZ = Math.max(...sceneNotes.map((n) => n.zIndex || 0), 99);
       setNextZIndex(maxZ + 1);
     }
-  }, [notes]);
+  }, [sceneNotes]);
+
+  // シーンの初期化と監視
+  useEffect(() => {
+    if (!boardId || !user) return;
+
+    const unsubscribe = getBoardScenes(boardId, (scenes) => {
+      setScenes(scenes);
+      
+      // シーンが空の場合、メインシーンを作成
+      if (scenes.length === 0) {
+        createMainScene(boardId, user.uid).then((mainSceneId) => {
+          if (mainSceneId) {
+            setCurrentSceneId(mainSceneId);
+          }
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [boardId, user]);
+
+  // 現在のシーンのnotesを監視
+  useEffect(() => {
+    if (!boardId || !currentSceneId) return;
+
+    const notesRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes`);
+    const unsubscribe = onValue(notesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const notesArray = Object.entries(data).map(([id, note]) => ({
+          id,
+          ...(note as Omit<Note, 'id'>),
+        }));
+        setSceneNotes(notesArray);
+      } else {
+        setSceneNotes([]);
+      }
+    });
+
+    return unsubscribe;
+  }, [boardId, currentSceneId]);
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
@@ -232,7 +285,7 @@ export function Board({ user }: BoardProps) {
       });
     }
 
-    const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+    const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
 
@@ -243,8 +296,8 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは付箋を更新できない
     if (!user?.uid) return;
 
-    const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
-    const note = notes.find((n) => n.id === noteId);
+    const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
+    const note = sceneNotes.find((n) => n.id === noteId);
     if (note) {
       const updatedNote = { ...note, ...updates };
 
@@ -280,7 +333,7 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
 
-    const note = notes.find((n) => n.id === noteId);
+    const note = sceneNotes.find((n) => n.id === noteId);
 
     // Add to history only if it's user's own note and not undo/redo operation
     if (!isUndoRedoOperation && note && note.userId === user.uid) {
@@ -292,7 +345,7 @@ export function Board({ user }: BoardProps) {
       });
     }
 
-    const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+    const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
     remove(noteRef);
     // 選択状態も削除
     if (selectedNoteIds.has(noteId)) {
@@ -328,7 +381,7 @@ export function Board({ user }: BoardProps) {
     }
 
     // Bring to front by updating zIndex
-    const note = notes.find((n) => n.id === noteId);
+    const note = sceneNotes.find((n) => n.id === noteId);
     if (note) {
       updateNote(noteId, { zIndex: nextZIndex });
       setNextZIndex((prev) => prev + 1);
@@ -430,7 +483,7 @@ export function Board({ user }: BoardProps) {
       const minY = Math.min(selectionStart.y, y);
       const maxY = Math.max(selectionStart.y, y);
 
-      const notesInSelection = notes.filter((note) => {
+      const notesInSelection = sceneNotes.filter((note) => {
         const noteX = note.x;
         const noteY = note.y;
         const noteWidth = note.width || 250;
@@ -501,10 +554,13 @@ export function Board({ user }: BoardProps) {
     noteId: string,
     e: React.MouseEvent<HTMLDivElement>
   ) => {
+    console.log('Debug: startBulkDrag called with noteId=', noteId, 'selectedNoteIds=', Array.from(selectedNoteIds));
     if (!selectedNoteIds.has(noteId)) {
+      console.log('Debug: noteId not in selectedNoteIds, returning');
       return;
     }
 
+    console.log('Debug: Setting isDraggingMultiple=true, dragStartPos=', { x: e.clientX, y: e.clientY });
     setIsDraggingMultiple(true);
     setDragStartPos({ x: e.clientX, y: e.clientY });
     setJustFinishedBulkDrag(false); // 新しいドラッグ開始時にフラグをクリア
@@ -512,17 +568,20 @@ export function Board({ user }: BoardProps) {
     // 選択された付箋の初期位置を記録
     const positions: Record<string, { x: number; y: number }> = {};
     selectedNoteIds.forEach((id) => {
-      const note = notes.find((n) => n.id === id);
+      const note = sceneNotes.find((n) => n.id === id);
+      console.log('Debug: Looking for note id=', id, 'found note=', note);
       if (note) {
         positions[id] = { x: note.x, y: note.y };
       }
     });
+    console.log('Debug: Initial positions=', positions);
     setInitialSelectedPositions(positions);
   };
 
   // 一括移動の処理
   const handleBulkDragMove = useCallback(
     (e: MouseEvent) => {
+      console.log('Debug: handleBulkDragMove called, isDraggingMultiple=', isDraggingMultiple, 'dragStartPos=', dragStartPos);
       if (!isDraggingMultiple || !dragStartPos) return;
 
       // ズームを考慮した移動距離計算
@@ -565,7 +624,7 @@ export function Board({ user }: BoardProps) {
       }> = [];
 
       selectedNoteIds.forEach((noteId) => {
-        const note = notes.find((n) => n.id === noteId);
+        const note = sceneNotes.find((n) => n.id === noteId);
         const initialPos = initialSelectedPositions[noteId];
         if (
           note &&
@@ -623,6 +682,39 @@ export function Board({ user }: BoardProps) {
     addToHistory,
     user?.uid,
   ]);
+
+  // シーン操作のハンドラー
+  const handleSceneSelect = useCallback((sceneId: string) => {
+    setCurrentSceneId(sceneId);
+  }, []);
+
+  const handleCreateScene = useCallback(async (sceneName: string) => {
+    if (!boardId || !user?.uid) return;
+    
+    const newSceneId = await createBoardScene(
+      boardId,
+      sceneName,
+      user.uid,
+      currentSceneId // 現在のシーンをベースにコピー
+    );
+    
+    if (newSceneId) {
+      setCurrentSceneId(newSceneId);
+    }
+  }, [boardId, user?.uid, currentSceneId]);
+
+
+  const handleRenameScene = useCallback(async (sceneId: string, newName: string) => {
+    if (!boardId) return;
+    
+    await updateSceneName(boardId, sceneId, newName);
+  }, [boardId]);
+
+  const handleViewAllScenes = useCallback(() => {
+    if (!boardId) return;
+    
+    navigate(`/board/${boardId}/scenes`);
+  }, [boardId, navigate]);
 
   // パン操作の開始
   const handlePanStart = (e: React.MouseEvent) => {
@@ -834,7 +926,7 @@ export function Board({ user }: BoardProps) {
 
   // ページ離脱時やnotes変更時、ボード名変更時にサムネイルを生成
   useEffect(() => {
-    if (notes.length === 0 && !boardName) return;
+    if (sceneNotes.length === 0 && !boardName) return;
 
     const timeoutId = setTimeout(() => {
       generateAndSaveThumbnail();
@@ -885,7 +977,7 @@ export function Board({ user }: BoardProps) {
       return;
     }
 
-    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
+    const selectedNotes = sceneNotes.filter((note) => selectedNoteIds.has(note.id));
     setCopiedNotes(selectedNotes);
     // 複数選択の場合は単一コピーをクリア
     setCopiedNote(null);
@@ -906,7 +998,7 @@ export function Board({ user }: BoardProps) {
     // 単一選択の場合はcopiedNoteも設定（後方互換性のため）
     if (selectedNoteIds.size === 1) {
       const noteId = Array.from(selectedNoteIds)[0];
-      const note = notes.find((n) => n.id === noteId);
+      const note = sceneNotes.find((n) => n.id === noteId);
       if (note) {
         setCopiedNote(note);
       }
@@ -918,17 +1010,20 @@ export function Board({ user }: BoardProps) {
 
   // 複数選択された付箋を削除
   const deleteSelectedNotes = () => {
+    console.log('Debug: deleteSelectedNotes called, user.uid=', user?.uid, 'selectedNoteIds=', Array.from(selectedNoteIds));
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
 
     const notesToDelete: Note[] = [];
     selectedNoteIds.forEach((noteId) => {
-      const note = notes.find((n) => n.id === noteId);
+      const note = sceneNotes.find((n) => n.id === noteId);
+      console.log('Debug: Checking note', noteId, 'found=', note, 'note.userId=', note?.userId, 'user.uid=', user.uid);
       if (note && note.userId === user.uid) {
         notesToDelete.push(note);
       }
     });
 
+    console.log('Debug: notesToDelete=', notesToDelete.length, 'isUndoRedoOperation=', isUndoRedoOperation);
     if (notesToDelete.length > 0 && !isUndoRedoOperation) {
       addToHistory({
         type: "DELETE_NOTES",
@@ -940,10 +1035,12 @@ export function Board({ user }: BoardProps) {
 
     // 実際の削除処理
     notesToDelete.forEach((note) => {
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${note.id}`);
+      console.log('Debug: Deleting note from Firebase:', note.id);
+      const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`);
       remove(noteRef);
     });
 
+    console.log('Debug: Clearing selected notes');
     setSelectedNoteIds(new Set());
   };
 
@@ -978,7 +1075,7 @@ export function Board({ user }: BoardProps) {
         editedBy: null,
       };
 
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+      const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
       set(noteRef, newNote);
       createdNotes.push(newNote);
       currentZIndex++;
@@ -1034,26 +1131,37 @@ export function Board({ user }: BoardProps) {
         });
       }
 
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+      const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
       set(noteRef, newNote);
       setNextZIndex((prev) => prev + 1);
     }
   };
 
   // Undo/Redo functions
-  const performUndo = useCallback(() => {
+  const performUndo = useCallback(async () => {
+    console.log('Debug: performUndo called, user.uid=', user?.uid);
+    console.log('Debug: Current history length and index:', historyLength, currentIndex);
     // 未ログインユーザーはundo/redoできない
     if (!user?.uid) return;
 
     const action = undo();
-    if (!action || action.userId !== user.uid) return;
+    console.log('Debug: undo() returned action=', action);
+    if (!action) {
+      console.log('Debug: No action returned');
+      return;
+    }
+    if (action.userId !== user.uid) {
+      console.log('Debug: userId mismatch. action.userId=', action.userId, 'user.uid=', user.uid, 'types:', typeof action.userId, typeof user.uid);
+      return;
+    }
 
+    console.log('Debug: Starting undo operation for action type:', action.type);
     setIsUndoRedoOperation(true);
     setCurrentUndoRedoNoteId(action.noteId);
 
     try {
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const note = notes.find((n) => n.id === action.noteId);
+      const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${action.noteId}`);
+      const note = sceneNotes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1061,7 +1169,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const createNoteRef = ref(
                 rtdb,
-                `boardNotes/${boardId}/${note.id}`
+                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
               );
               remove(createNoteRef);
             });
@@ -1073,7 +1181,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const deleteNoteRef = ref(
                 rtdb,
-                `boardNotes/${boardId}/${note.id}`
+                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
               );
               set(deleteNoteRef, note);
             });
@@ -1081,20 +1189,32 @@ export function Board({ user }: BoardProps) {
           break;
 
         case "MOVE_NOTES":
+          console.log('Debug: MOVE_NOTES undo, action.moves=', action.moves);
           if (action.moves) {
-            action.moves.forEach(({ noteId, oldPosition }) => {
-              const moveNoteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
-              const moveNote = notes.find((n) => n.id === noteId);
+            for (const { noteId, oldPosition } of action.moves) {
+              console.log('Debug: Moving note', noteId, 'to old position', oldPosition);
+              const moveNoteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
+              const moveNote = sceneNotes.find((n) => n.id === noteId);
+              console.log('Debug: Found note for move:', moveNote);
               if (moveNote) {
-                set(moveNoteRef, { ...moveNote, ...oldPosition });
+                try {
+                  const updatedNote = { ...moveNote, ...oldPosition };
+                  console.log('Debug: Setting note to Firebase:', updatedNote);
+                  await set(moveNoteRef, updatedNote);
+                  console.log('Debug: Firebase set completed');
+                } catch (error) {
+                  console.error('Debug: Error setting note to Firebase:', error);
+                }
+              } else {
+                console.log('Debug: Note not found for move undo');
               }
-            });
+            }
           }
           break;
 
         case "EDIT_NOTE":
           if (note) {
-            set(noteRef, { ...note, content: action.oldContent });
+            await set(noteRef, { ...note, content: action.oldContent });
           }
           break;
       }
@@ -1117,8 +1237,8 @@ export function Board({ user }: BoardProps) {
     setCurrentUndoRedoNoteId(action.noteId);
 
     try {
-      const noteRef = ref(rtdb, `boardNotes/${boardId}/${action.noteId}`);
-      const note = notes.find((n) => n.id === action.noteId);
+      const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${action.noteId}`);
+      const note = sceneNotes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1126,7 +1246,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const createNoteRef = ref(
                 rtdb,
-                `boardNotes/${boardId}/${note.id}`
+                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
               );
               set(createNoteRef, note);
             });
@@ -1138,7 +1258,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const deleteNoteRef = ref(
                 rtdb,
-                `boardNotes/${boardId}/${note.id}`
+                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
               );
               remove(deleteNoteRef);
             });
@@ -1148,8 +1268,8 @@ export function Board({ user }: BoardProps) {
         case "MOVE_NOTES":
           if (action.moves) {
             action.moves.forEach(({ noteId, newPosition }) => {
-              const moveNoteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
-              const moveNote = notes.find((n) => n.id === noteId);
+              const moveNoteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
+              const moveNote = sceneNotes.find((n) => n.id === noteId);
               if (moveNote) {
                 set(moveNoteRef, { ...moveNote, ...newPosition });
               }
@@ -1203,7 +1323,7 @@ export function Board({ user }: BoardProps) {
               // 単一選択の場合はcopiedNoteも設定
               if (selectedNoteIds.size === 1) {
                 const noteId = Array.from(selectedNoteIds)[0];
-                const note = notes.find((n) => n.id === noteId);
+                const note = sceneNotes.find((n) => n.id === noteId);
                 if (note) {
                   setCopiedNote(note);
                 }
@@ -1387,7 +1507,7 @@ export function Board({ user }: BoardProps) {
         createdNotes.push(newNote);
 
         // Firebaseに保存
-        const noteRef = ref(rtdb, `boardNotes/${boardId}/${noteId}`);
+        const noteRef = ref(rtdb, `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`);
         set(noteRef, newNote);
       });
 
@@ -1484,7 +1604,7 @@ export function Board({ user }: BoardProps) {
             transformOrigin: "0 0",
           }}
         >
-          {notes.map((note) => (
+          {sceneNotes.map((note) => (
             <StickyNote
               key={note.id}
               note={note}
@@ -1520,6 +1640,17 @@ export function Board({ user }: BoardProps) {
             <LuPlus />
           </button>
         )}
+      {scenes.length > 0 && (
+        <SceneBar
+          scenes={scenes}
+          currentSceneId={currentSceneId}
+          onSceneSelect={handleSceneSelect}
+          onCreateScene={handleCreateScene}
+          onRenameScene={handleRenameScene}
+          onViewAllScenes={handleViewAllScenes}
+          canEdit={board ? checkBoardEditPermission(board, project, user?.uid || null).canEdit : false}
+        />
+      )}
     </div>
   );
 }

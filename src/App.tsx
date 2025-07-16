@@ -17,6 +17,7 @@ import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
 import { BoardSettings } from "./components/BoardSettings";
 import { InitialProfileSetup } from "./components/InitialProfileSetup";
+import { SceneList } from "./components/SceneList";
 import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
 import { ProjectProvider } from "./contexts/ProjectContext";
@@ -151,6 +152,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BoardSettings user={user!} />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/board/:boardId/scenes"
+              element={
+                <ProtectedRoute>
+                  <SceneList user={user!} />
                 </ProtectedRoute>
               }
             />

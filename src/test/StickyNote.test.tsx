@@ -66,4 +66,30 @@ describe('StickyNote', () => {
     expect(noteElement.style.left).toBe('100px');
     expect(noteElement.style.top).toBe('100px');
   });
+
+  describe('新規作成時の機能', () => {
+    it('新規作成時（空コンテンツ）に色変更ツールバーが表示される', () => {
+      const newNoteProps = {
+        ...mockProps,
+        note: { ...mockNote, content: '' },
+        isActive: true
+      };
+      render(<StickyNote {...newNoteProps} />);
+      
+      // 色変更ツールバーの存在を確認
+      expect(screen.getByRole('toolbar', { name: 'Color selection' })).toBeInTheDocument();
+    });
+
+    it('新規作成時（空コンテンツ）にadd meボタンが表示される', () => {
+      const newNoteProps = {
+        ...mockProps,
+        note: { ...mockNote, content: '' },
+        isActive: true
+      };
+      render(<StickyNote {...newNoteProps} />);
+      
+      // add meボタンの存在を確認
+      expect(screen.getByRole('button', { name: 'Add me' })).toBeInTheDocument();
+    });
+  });
 });

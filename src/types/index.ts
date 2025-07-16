@@ -46,6 +46,18 @@ export interface Board {
   updatedAt?: number;
 }
 
+export interface BoardScene {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: number;
+  createdBy: string;
+  isMain: boolean;
+  lastModified: number;
+  thumbnail?: string;
+  color?: string;
+}
+
 export interface Project {
   id: string;
   name: string;

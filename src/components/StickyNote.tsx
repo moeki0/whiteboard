@@ -153,9 +153,11 @@ export function StickyNote({
     }
 
     // 複数選択されている場合は一括移動を開始
-    if (isSelected) {
-      e.preventDefault(); // デフォルトの動作を防ぐ
-      e.stopPropagation(); // イベント伝播を防ぐ
+    console.log('Debug: isSelected=', isSelected, 'hasMultipleSelected=', hasMultipleSelected, 'noteId=', note.id);
+    if (isSelected && hasMultipleSelected) {
+      console.log('Debug: Starting bulk drag for noteId=', note.id);
+      e.preventDefault();
+      e.stopPropagation();
       onStartBulkDrag(note.id, e);
       return;
     }
@@ -729,8 +731,8 @@ export function StickyNote({
         </div>
       )}
       {/* ツールバー */}
-      {showToolbar && isEditing && canEditNote && (
-        <div className="note-toolbar">
+      {((showToolbar && isEditing && canEditNote) || (note.content === '' && (isActive || isEditing) && canEditNote)) ? (
+        <div className="note-toolbar" role="toolbar" aria-label="Color selection">
           {/* 色選択ボタン */}
           <div className="toolbar-section">
             <button
@@ -777,7 +779,7 @@ export function StickyNote({
             />
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="note-content" style={{ position: "relative" }}>
         {/* 作成者情報の表示またはAdd meボタン */}
@@ -847,7 +849,7 @@ export function StickyNote({
               </button>
             )}
           </div>
-        ) : showSignButton ? (
+        ) : showSignButton || (note.content === '' && (isActive || isEditing) && canEditNote) ? (
           <div
             style={{
               marginBottom: "4px",
@@ -856,6 +858,7 @@ export function StickyNote({
             <button
               onClick={handleAddMe}
               onMouseDown={(e) => e.preventDefault()}
+              aria-label="Add me"
               style={{
                 border: "none",
                 display: "flex",
