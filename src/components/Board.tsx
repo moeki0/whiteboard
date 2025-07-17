@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get, update } from "firebase/database";
@@ -26,6 +27,7 @@ interface BoardProps {
 
 export function Board({ user }: BoardProps) {
   const navigate = useNavigate();
+  const slugContext = useSlugContext();
   // activeNoteIdを削除 - selectedNoteIdsで管理
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
@@ -1580,9 +1582,22 @@ export function Board({ user }: BoardProps) {
     ]
   );
 
+  // Show loading state while resolving slug
+  if (slugContext?.loading) {
+    return (
+      <div style={{ paddingTop: "60px" }}>
+        <div className="loading"></div>
+      </div>
+    );
+  }
+
   // Show loading state while checking access
   if (isCheckingAccess) {
-    return <div className="loading"></div>;
+    return (
+      <div style={{ paddingTop: "60px" }}>
+        <div className="loading"></div>
+      </div>
+    );
   }
 
   // ズームレベルに応じたドットの間隔を計算

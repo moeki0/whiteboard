@@ -105,7 +105,11 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
   }, [projectSlug, boardName, type, navigate]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <SlugProvider projectId={resolved.projectId} boardId={resolved.boardId} loading={true}>
+        {children}
+      </SlugProvider>
+    );
   }
 
   if (!resolved.projectId) {
@@ -118,7 +122,7 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
 
   // Pass resolved IDs to children through Context
   return (
-    <SlugProvider projectId={resolved.projectId} boardId={resolved.boardId}>
+    <SlugProvider projectId={resolved.projectId} boardId={resolved.boardId} loading={false}>
       {children}
     </SlugProvider>
   );
