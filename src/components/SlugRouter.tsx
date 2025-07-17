@@ -8,6 +8,9 @@ import {
   getLatestBoardName 
 } from '../utils/historyManager';
 import { SlugProvider } from '../contexts/SlugContext';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { createBoardFromTitle } from '../utils/boardCreator';
 
 interface SlugRouterProps {
   type: 'project' | 'board';
@@ -17,11 +20,22 @@ interface SlugRouterProps {
 export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
   const { projectSlug, boardName } = useParams<{ projectSlug: string; boardName?: string }>();
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [resolved, setResolved] = useState<{
     projectId: string | null;
     boardId: string | null;
   }>({ projectId: null, boardId: null });
+
+  // 認証状態の監視
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const resolveAndRedirect = async () => {
@@ -83,11 +97,37 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
           }
 
           if (!boardId) {
-            // Board not found, redirect to project
-            const currentProjectSlug = await getLatestProjectSlug(projectId);
-            if (currentProjectSlug) {
-              navigate(`/${currentProjectSlug}`, { replace: true });
-              return;
+            // Board not found, try to create it if user is authenticated
+            if (user && boardName) {
+              try {
+                boardId = await createBoardFromTitle(projectId, boardName, user.uid);
+                
+                // ボード作成後、作成されたボードの実際の名前を取得
+                const actualBoardName = await getLatestBoardName(boardId);
+                if (actualBoardName && actualBoardName !== boardName) {
+                  // 作成されたボードの実際の名前が異なる場合、正しいURLにリダイレクト
+                  const currentProjectSlug = await getLatestProjectSlug(projectId);
+                  if (currentProjectSlug) {
+                    navigate(`/${currentProjectSlug}/${encodeURIComponent(actualBoardName)}`, { replace: true });
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error('Error creating board:', error);
+                // If board creation fails, redirect to project
+                const currentProjectSlug = await getLatestProjectSlug(projectId);
+                if (currentProjectSlug) {
+                  navigate(`/${currentProjectSlug}`, { replace: true });
+                  return;
+                }
+              }
+            } else {
+              // User not authenticated or no boardName, redirect to project
+              const currentProjectSlug = await getLatestProjectSlug(projectId);
+              if (currentProjectSlug) {
+                navigate(`/${currentProjectSlug}`, { replace: true });
+                return;
+              }
             }
           }
         }
@@ -101,8 +141,13 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
       }
     };
 
+    // 認証状態が初期化されるまで待つ
+    if (authLoading) {
+      return;
+    }
+    
     resolveAndRedirect();
-  }, [projectSlug, boardName, type, navigate]);
+  }, [projectSlug, boardName, type, navigate, user, authLoading]);
 
   if (loading) {
     return (

@@ -1538,13 +1538,12 @@ export function StickyNote({
               .slice(0, 3)
               .map((boardLink, index) => {
                 return (
-                  <button
+                  <a
                     key={`board-${index}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.location.href = `/${boardLink.boardId}`;
-                    }}
+                    href={project?.slug ? `/${project.slug}/${boardLink.name}` : `/${boardLink.boardId}`}
+                    onClick={(e) => e.stopPropagation()}
                     style={{
+                      display: "inline-block",
                       background: "none",
                       border: "none",
                       fontSize: "11px",
@@ -1555,11 +1554,12 @@ export function StickyNote({
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       color: "#eee",
+                      textDecoration: "none",
                     }}
                     title={`Board: ${boardLink.name}`}
                   >
                     {boardLink.name}
-                  </button>
+                  </a>
                 );
               })}
           </div>
