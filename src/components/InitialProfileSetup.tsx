@@ -20,7 +20,6 @@ export function InitialProfileSetup({
 }: InitialProfileSetupProps) {
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [username, setUsername] = useState("");
-  const [photoURL, setPhotoURL] = useState(user.photoURL || "");
   const [isUpdating, setIsUpdating] = useState(false);
   const [usernameError, setUsernameError] = useState<string>("");
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -84,7 +83,7 @@ export function InitialProfileSetup({
       // Firebase Authのプロフィールを更新
       await updateProfile(currentUser, {
         displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null,
+        photoURL: null,
       });
 
       // Firestoreにユーザープロフィールを保存
@@ -92,7 +91,7 @@ export function InitialProfileSetup({
         uid: user.uid,
         username: username.toLowerCase(),
         displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null,
+        photoURL: null,
         email: user.email || "",
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -121,22 +120,11 @@ export function InitialProfileSetup({
         
         <div className="user-profile">
           <div className="user-avatar">
-            {photoURL ? (
-              <img
-                src={photoURL}
-                alt="Profile"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="avatar-placeholder">
-                {(displayName || user.email || "U")
-                  .charAt(0)
-                  .toUpperCase()}
-              </div>
-            )}
+            <div className="avatar-placeholder">
+              {(displayName || user.email || "U")
+                .charAt(0)
+                .toUpperCase()}
+            </div>
           </div>
           
           <div className="user-details">
@@ -178,16 +166,6 @@ export function InitialProfileSetup({
                   Username is available
                 </div>
               )}
-            </div>
-            <div className="setting-item">
-              <label>Avatar URL (optional)</label>
-              <input
-                type="url"
-                value={photoURL}
-                onChange={(e) => setPhotoURL(e.target.value)}
-                placeholder="Enter avatar image URL"
-                disabled={isUpdating}
-              />
             </div>
           </div>
         </div>

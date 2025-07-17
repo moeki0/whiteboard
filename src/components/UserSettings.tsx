@@ -20,7 +20,6 @@ export function UserSettings({ user }: UserSettingsProps) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [username, setUsername] = useState("");
-  const [photoURL, setPhotoURL] = useState(user.photoURL || "");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [usernameError, setUsernameError] = useState<string>("");
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -145,7 +144,7 @@ export function UserSettings({ user }: UserSettingsProps) {
       // Firebase Authのプロフィールを更新
       await updateProfile(currentUser, {
         displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null,
+        photoURL: null,
       });
 
       // Firestoreにユーザープロフィールを保存
@@ -153,7 +152,7 @@ export function UserSettings({ user }: UserSettingsProps) {
         uid: user.uid,
         username: username.toLowerCase(),
         displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null,
+        photoURL: null,
         email: user.email || "",
         createdAt: userProfile?.createdAt || Date.now(),
         updatedAt: Date.now(),
@@ -183,22 +182,11 @@ export function UserSettings({ user }: UserSettingsProps) {
           <h2>Profile</h2>
           <div className="user-profile">
             <div className="user-avatar">
-              {photoURL ? (
-                <img
-                  src={photoURL}
-                  alt="Profile"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              ) : (
-                <div className="avatar-placeholder">
-                  {(displayName || user.displayName || user.email || "U")
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
-              )}
+              <div className="avatar-placeholder">
+                {(displayName || user.displayName || user.email || "U")
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
             </div>
             <div className="user-details">
               <div className="setting-item">
@@ -259,16 +247,6 @@ export function UserSettings({ user }: UserSettingsProps) {
                       Username is available
                     </div>
                   )}
-              </div>
-              <div className="setting-item">
-                <label>Avatar URL</label>
-                <input
-                  type="url"
-                  value={photoURL}
-                  onChange={(e) => setPhotoURL(e.target.value)}
-                  placeholder="Enter avatar image URL"
-                  disabled={isUpdatingProfile || isLoadingProfile}
-                />
               </div>
               <div className="setting-item">
                 <label>Email</label>

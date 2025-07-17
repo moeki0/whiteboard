@@ -150,18 +150,9 @@ export const UnifiedMenu = memo(function UnifiedMenu({
         onClick={toggleMenu}
         title={user.displayName || user.email || undefined}
       >
-        {user.photoURL ? (
-          <img
-            src={user.photoURL}
-            alt="Profile"
-            referrerPolicy="no-referrer"
-            className="user-avatar"
-          />
-        ) : (
-          <div className="user-avatar">
-            {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
-          </div>
-        )}
+        <div className="user-avatar">
+          {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+        </div>
       </button>
 
       {isOpen && (
