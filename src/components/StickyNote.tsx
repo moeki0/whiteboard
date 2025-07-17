@@ -1481,17 +1481,12 @@ export function StickyNote({
         border:
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: note.zIndex || 1,
-        opacity: canEditNote ? 1 : 0.8,
+        opacity: 1,
         fontSize: `${getTextSizeStyle(textSize)}px`,
         ...(interactionBorderColor && {
           borderColor: interactionBorderColor,
           borderWidth: "1px",
           borderStyle: "solid",
-        }),
-        ...(!canEditNote && {
-          borderColor: "#ccc",
-          borderWidth: "1px",
-          borderStyle: "dashed",
         }),
       }}
       onMouseDown={handleMouseDown}
@@ -1658,28 +1653,10 @@ export function StickyNote({
           <div
             onClick={() => {}}
             style={{
-              opacity:
-                note.isEditing && note.editedBy !== currentUserId ? 0.6 : 1,
+              opacity: 1,
               position: "relative",
             }}
           >
-            {!canEditNote && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  right: 0,
-                  fontSize: "10px",
-                  color: "#999",
-                  background: "rgba(255, 255, 255, 0.8)",
-                  padding: "1px 3px",
-                  borderRadius: "2px",
-                  zIndex: 1,
-                }}
-              >
-                {currentUserId ? "読み取り専用" : "ログインで編集可能"}
-              </div>
-            )}
             <div
               style={{
                 lineHeight: 1.3,

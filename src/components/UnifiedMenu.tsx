@@ -4,6 +4,7 @@ import { auth, rtdb } from "../config/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { User, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { useSlug } from "../contexts/SlugContext";
 import "./UnifiedMenu.css";
 import { signOut } from "firebase/auth";
 
@@ -16,6 +17,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
 }: UnifiedMenuProps) {
   const location = useLocation();
   const { currentProjectId } = useProject();
+  const { resolvedBoardId } = useSlug();
   const [isOpen, setIsOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [canEditBoard, setCanEditBoard] = useState(false);
@@ -23,17 +25,14 @@ export const UnifiedMenu = memo(function UnifiedMenu({
 
   // Check if we're on a board page - memoized to avoid recalculation
   const { currentBoardId, isOnBoardPage } = useMemo(() => {
-    const boardId = location.pathname.match(/^\/([^/]+)$/)?.[1];
-    const onBoardPage =
-      boardId &&
-      !location.pathname.includes("/project/") &&
-      !location.pathname.includes("/user/") &&
-      !location.pathname.includes("/create-") &&
-      !location.pathname.includes("/invite/") &&
-      !location.pathname.includes("/board/");
+    // New URL pattern: /:projectSlug/:boardName
+    const newFormatMatch = location.pathname.match(/^\/([^/]+)\/([^/]+)$/);
+    
+    const boardId = newFormatMatch && resolvedBoardId ? resolvedBoardId : null;
+    const onBoardPage = !!(newFormatMatch && resolvedBoardId);
 
     return { currentBoardId: boardId, isOnBoardPage: onBoardPage };
-  }, [location.pathname]);
+  }, [location.pathname, resolvedBoardId]);
 
   useEffect(() => {
     // Listen to user's projects
