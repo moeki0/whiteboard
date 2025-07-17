@@ -25,6 +25,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectSlug, setNewProjectSlug] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -39,6 +40,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           const projectData = { id: projectId, ...projectSnapshot.val() };
           setProject(projectData);
           setNewProjectName(projectData.name);
+          setNewProjectSlug(projectData.slug || "");
 
           // Check user role
           const userMember = projectData.members?.[user.uid];
@@ -95,6 +97,35 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     } catch (error) {
       console.error("Error updating project name:", error);
       alert("Failed to update project name");
+    }
+  };
+
+  const updateProjectSlug = async () => {
+    if (!isOwner) {
+      alert("Only project owners can modify project settings");
+      return;
+    }
+
+    if (!newProjectSlug.trim() || newProjectSlug === project?.slug) {
+      setNewProjectSlug(project?.slug || "");
+      return;
+    }
+
+    // Validate slug format
+    const slugPattern = /^[a-z0-9-]+$/;
+    if (!slugPattern.test(newProjectSlug)) {
+      alert("Slug can only contain lowercase letters, numbers, and hyphens");
+      return;
+    }
+
+    try {
+      const projectRef = ref(rtdb, `projects/${projectId}/slug`);
+      await set(projectRef, newProjectSlug);
+
+      setProject((prev) => (prev ? { ...prev, slug: newProjectSlug } : null));
+    } catch (error) {
+      console.error("Error updating project slug:", error);
+      alert("Failed to update project slug");
     }
   };
 
@@ -319,6 +350,27 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
             </div>
             <div>
               <button onClick={updateProjectName} className="save-btn">
+                Save
+              </button>
+            </div>
+          </div>
+          
+          <div className="setting-item">
+            <label htmlFor="project-slug">Project Slug</label>
+            <div className="edit-name-container">
+              <input
+                id="project-slug"
+                type="text"
+                value={newProjectSlug}
+                onChange={(e) => setNewProjectSlug(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && updateProjectSlug()}
+                placeholder="project-slug"
+                pattern="[a-z0-9-]+"
+                disabled={!isOwner}
+              />
+            </div>
+            <div>
+              <button onClick={updateProjectSlug} className="save-btn" disabled={!isOwner}>
                 Save
               </button>
             </div>

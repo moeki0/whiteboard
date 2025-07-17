@@ -89,8 +89,15 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
 
     setIsCreating(true);
     try {
-      // Generate unique slug if needed
-      const finalSlug = await generateUniqueSlug(projectName.trim());
+      // Use the user-entered slug, ensuring it's unique if needed
+      let finalSlug = projectSlug.trim();
+      
+      // Double-check availability one more time before creating
+      const slugCheck = await checkSlugAvailability(finalSlug);
+      if (!slugCheck.isAvailable) {
+        // If somehow the slug became unavailable, generate a unique one
+        finalSlug = await generateUniqueSlug(projectName.trim());
+      }
       
       const projectId = nanoid();
       const inviteCode = customAlphabet(
