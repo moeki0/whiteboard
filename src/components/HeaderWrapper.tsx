@@ -219,6 +219,10 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             await recordBoardNameChange(boardId, boardTitle, finalName);
           }
 
+          // Update board metadata title
+          const { updateBoardTitle } = await import("../utils/boardMetadata");
+          await updateBoardTitle(boardId, finalName);
+
           setBoardTitle(finalName);
           setEditingBoardTitle(finalName);
         } else {
@@ -236,6 +240,10 @@ export const HeaderWrapper = memo(function HeaderWrapper({
               editingBoardTitle.trim()
             );
           }
+
+          // Update board metadata title
+          const { updateBoardTitle } = await import("../utils/boardMetadata");
+          await updateBoardTitle(boardId, editingBoardTitle.trim());
 
           setBoardTitle(editingBoardTitle.trim());
         }

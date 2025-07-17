@@ -100,3 +100,27 @@ export async function updateBoardMetadata(
     console.error("Error updating board metadata:", error);
   }
 }
+
+/**
+ * ボード名変更時にタイトルのみを更新する（軽量版）
+ */
+export async function updateBoardTitle(
+  boardId: string,
+  newTitle: string
+): Promise<void> {
+  try {
+    const boardRef = ref(rtdb, `boards/${boardId}/metadata`);
+    await update(boardRef, {
+      title: newTitle,
+      lastUpdated: Date.now(),
+    });
+    
+    // updatedAtも更新
+    const boardRootRef = ref(rtdb, `boards/${boardId}`);
+    await update(boardRootRef, {
+      updatedAt: Date.now(),
+    });
+  } catch (error) {
+    console.error("Error updating board title:", error);
+  }
+}
