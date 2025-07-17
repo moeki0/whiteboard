@@ -44,6 +44,7 @@ export interface Board {
   createdAt: number;
   projectId: string;
   updatedAt?: number;
+  isPinned?: boolean;
 }
 
 export interface BoardScene {

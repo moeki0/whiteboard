@@ -40,15 +40,21 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
 
         // 同じプロジェクト内のボードを検索
         const projectBoards = Object.entries(allBoards)
-          .filter(([, board]: [string, unknown]) => (board as Record<string, unknown>).projectId === projectId)
-          .map(([id, board]: [string, unknown]) => ({ ...(board as Record<string, unknown>), id }));
+          .filter(
+            ([, board]: [string, unknown]) =>
+              (board as Record<string, unknown>).projectId === projectId
+          )
+          .map(([id, board]: [string, unknown]) => ({
+            ...(board as Record<string, unknown>),
+            id,
+          }));
 
         // ボード名が一致するボードを探す
         let targetBoard = null;
         for (const board of projectBoards) {
           const boardInfo = await getBoardInfo(board.id);
           const boardTitle = boardInfo.title || board.name || "";
-          
+
           if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
             targetBoard = board;
             break;
@@ -61,10 +67,10 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
 
         // サムネイルを取得
         let thumbnail = null;
-        
+
         // 手動保存されたサムネイルを最初にチェック
         thumbnail = await getBoardThumbnail(targetBoard.id);
-        
+
         if (!thumbnail) {
           // 手動保存サムネイルがない場合は、ボード情報からサムネイルを取得
           const boardInfo = await getBoardInfo(targetBoard.id);
@@ -78,7 +84,9 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
         setThumbnailUrl(thumbnail);
       } catch (err) {
         console.error("サムネイル取得エラー:", err);
-        setError(err instanceof Error ? err.message : "サムネイル取得に失敗しました");
+        setError(
+          err instanceof Error ? err.message : "サムネイル取得に失敗しました"
+        );
       } finally {
         setLoading(false);
       }
@@ -131,7 +139,12 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
       src={thumbnailUrl}
       alt={alt || `${boardName}のサムネイル`}
       className={`inline-block rounded shadow-sm ${className}`}
-      style={{ maxWidth: "200px", maxHeight: "150px", ...style }}
+      style={{
+        maxWidth: "200px",
+        maxHeight: "150px",
+        ...style,
+        pointerEvents: "none",
+      }}
       onError={() => setError("画像の読み込みに失敗しました")}
     />
   );

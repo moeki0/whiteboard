@@ -76,12 +76,18 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
           const boardResults = await Promise.all(boardPromises);
           const validBoards = boardResults.filter((board) => board !== null);
-          setBoards(
-            validBoards.sort(
-              (a, b) =>
-                (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt)
-            )
-          );
+          
+          // Sort boards: pinned boards first, then by updatedAt/createdAt
+          const sortedBoards = validBoards.sort((a, b) => {
+            // First, sort by pinned status (pinned boards come first)
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            
+            // If both have same pin status, sort by date (newest first)
+            return (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt);
+          });
+          
+          setBoards(sortedBoards);
 
           // Get board metadata from precomputed data
           const thumbnailMap: Record<string, string> = {};

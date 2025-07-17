@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, get, remove } from "firebase/database";
+import { ref, get, remove, set } from "firebase/database";
 import { User, Board } from "../types";
 import "./SettingsCommon.css";
 
@@ -15,6 +15,7 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   const [board, setBoard] = useState<Board | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPinning, setIsPinning] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
@@ -110,6 +111,33 @@ export function BoardSettings({ user }: BoardSettingsProps) {
     }
   };
 
+  const togglePin = async () => {
+    if (!board || !hasAccess) return;
+
+    setIsPinning(true);
+    try {
+      const newPinnedState = !board.isPinned;
+      
+      // Update board in Firebase
+      const boardRef = ref(rtdb, `boards/${boardId}`);
+      await set(boardRef, { ...board, isPinned: newPinnedState });
+
+      // Also update in projectBoards for consistency
+      if (board.projectId) {
+        const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
+        await set(projectBoardRef, { ...board, isPinned: newPinnedState });
+      }
+
+      // Update local state
+      setBoard(prev => prev ? { ...prev, isPinned: newPinnedState } : null);
+    } catch (error) {
+      console.error("Error toggling pin:", error);
+      alert("Failed to update pin status");
+    } finally {
+      setIsPinning(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="loading"></div>;
   }
@@ -143,6 +171,33 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   return (
     <div className="board-settings">
       <div className="settings-container">
+        {/* Board Actions */}
+        <div className="settings-section">
+          <h2>Board Actions</h2>
+          <div className="setting-item">
+            <label>Pin to Board List</label>
+            <p>
+              {board.isPinned 
+                ? "Remove this board from the top of the board list"
+                : "Pin this board to the top of the board list"
+              }
+            </p>
+            <div>
+              <button
+                onClick={togglePin}
+                disabled={isPinning}
+                className={board.isPinned ? "cancel-btn" : "save-btn"}
+              >
+                {isPinning 
+                  ? (board.isPinned ? "Unpinning..." : "Pinning...")
+                  : (board.isPinned ? "Unpin Board" : "Pin Board to Top")
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Delete Board */}
         <div className="settings-section danger-zone">
           <h2>Delete Board</h2>
           <div className="setting-item">
