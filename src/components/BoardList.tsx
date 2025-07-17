@@ -5,7 +5,6 @@ import { ref, onValue, set, get } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
-import { getBoardInfo } from "../utils/boardInfo";
 import { User, Board, Cursor, Project } from "../types";
 import { LuPlus } from "react-icons/lu";
 import { generateNewBoardName } from "../utils/boardNaming";
@@ -84,56 +83,33 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
             )
           );
 
-          // Get board info (titles, descriptions, thumbnails)
-          const boardInfoPromises = validBoards.map(async (board) => {
-            const boardInfo = await getBoardInfo(board.id);
-            return { boardId: board.id, ...boardInfo };
-          });
-
-          const boardInfoResults = await Promise.all(boardInfoPromises);
+          // Get board metadata from precomputed data
           const thumbnailMap: Record<string, string> = {};
           const titleMap: Record<string, string> = {};
           const descriptionMap: Record<string, string> = {};
 
-          boardInfoResults.forEach(
-            ({ boardId, thumbnailUrl, title, description }) => {
-              if (thumbnailUrl) {
-                thumbnailMap[boardId] = thumbnailUrl;
+          validBoards.forEach((board) => {
+            // Use precomputed metadata if available, fallback to board.name
+            const metadata = board.metadata;
+            if (metadata) {
+              if (metadata.title) {
+                titleMap[board.id] = metadata.title;
               }
-              if (title) {
-                titleMap[boardId] = title;
+              if (metadata.description) {
+                descriptionMap[board.id] = metadata.description;
               }
-              if (description) {
-                descriptionMap[boardId] = description;
+              if (metadata.thumbnailUrl) {
+                thumbnailMap[board.id] = metadata.thumbnailUrl;
               }
+            } else {
+              // Fallback to board name if no metadata
+              titleMap[board.id] = board.name || "";
             }
-          );
+          });
 
           setBoardThumbnails(thumbnailMap);
           setBoardTitles(titleMap);
           setBoardDescriptions(descriptionMap);
-
-          // Get saved thumbnails from Firebase
-          const savedThumbnailPromises = validBoards.map(async (board) => {
-            const thumbnailRef = ref(rtdb, `boardThumbnails/${board.id}`);
-            const thumbnailSnapshot = await get(thumbnailRef);
-            if (thumbnailSnapshot.exists()) {
-              return { boardId: board.id, url: thumbnailSnapshot.val().url };
-            }
-            return null;
-          });
-
-          const savedThumbnailResults = await Promise.all(
-            savedThumbnailPromises
-          );
-          const savedThumbnailMap: Record<string, string> = {};
-          savedThumbnailResults.forEach((result) => {
-            if (result) {
-              savedThumbnailMap[result.boardId] = result.url;
-            }
-          });
-
-          setBoardThumbnails((prev) => ({ ...prev, ...savedThumbnailMap }));
         } else {
           setBoards([]);
           setBoardThumbnails({});

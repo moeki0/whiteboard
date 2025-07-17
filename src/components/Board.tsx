@@ -115,16 +115,14 @@ export function Board({ user }: BoardProps) {
     project,
   } = useBoard(user, navigate, sessionId);
 
-  // ボードの更新時刻を更新する関数
-  const updateBoardTimestamp = () => {
-    if (!boardId || !user?.uid) return;
+  // ボードの情報とタイムスタンプを更新する関数
+  const updateBoardMetadata = async () => {
+    if (!boardId || !user?.uid || !notes) return;
     try {
-      const boardRef = ref(rtdb, `boards/${boardId}`);
-      const updateData = { updatedAt: Date.now() };
-      // setではなくupdateを使用して、既存のデータを上書きしないように
-      update(boardRef, updateData);
+      const { updateBoardMetadata: updateMetadata } = await import("../utils/boardMetadata");
+      await updateMetadata(boardId, notes);
     } catch (error) {
-      console.error("Error updating board timestamp:", error);
+      console.error("Error updating board metadata:", error);
     }
   };
 
@@ -248,7 +246,7 @@ export function Board({ user }: BoardProps) {
     // ボードの更新時刻を更新（非同期で実行、エラーがあってもメイン処理に影響しない）
     setTimeout(() => {
       try {
-        updateBoardTimestamp();
+        updateBoardMetadata();
       } catch (error) {
         console.error(
           "Error updating board timestamp after adding note:",
@@ -299,7 +297,7 @@ export function Board({ user }: BoardProps) {
       if (updates.content !== undefined && updates.content !== note.content) {
         setTimeout(() => {
           try {
-            updateBoardTimestamp();
+            updateBoardMetadata();
           } catch (error) {
             console.error(
               "Error updating board timestamp after updating note:",
@@ -333,7 +331,7 @@ export function Board({ user }: BoardProps) {
     // ボードの更新時刻を更新
     setTimeout(() => {
       try {
-        updateBoardTimestamp();
+        updateBoardMetadata();
       } catch (error) {
         console.error(
           "Error updating board timestamp after deleting note:",
