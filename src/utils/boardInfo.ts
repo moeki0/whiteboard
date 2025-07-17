@@ -27,30 +27,21 @@ export async function getBoardInfo(
   }
   _visitedBoards.add(boardId);
 
-  // キャッシュをチェック
-  if (boardInfoCache.has(boardId)) {
-    return boardInfoCache.get(boardId)!;
-  }
+  // キャッシュをクリア（常に最新データを取得）
+  boardInfoCache.delete(boardId);
 
   // Promiseを作成してキャッシュに保存
   const promise = (async () => {
-    // ボードのシーン一覧を取得
-    const boardRef = ref(rtdb, `boards/${boardId}/scenes`);
-    const boardSnapshot = await get(boardRef);
-    const scenesData = boardSnapshot.val() || {};
+    // ボードのノートを直接取得
+    const notesRef = ref(rtdb, `boards/${boardId}/notes`);
+    const notesSnapshot = await get(notesRef);
+    const notesData = notesSnapshot.val() || {};
 
-    // 全シーンのノートを収集
-    const allBoardNotes: Note[] = [];
-
-    for (const [sceneId, sceneData] of Object.entries(scenesData)) {
-      const sceneNotes = (sceneData as any)?.notes || {};
-      const notesArray = Object.entries(sceneNotes).map(([id, note]) => ({
-        ...(note as any),
-        id,
-      })) as Note[];
-
-      allBoardNotes.push(...notesArray);
-    }
+    // ノートを配列に変換
+    const allBoardNotes: Note[] = Object.entries(notesData).map(([id, note]) => ({
+      ...(note as any),
+      id,
+    })) as Note[];
 
     const boardNotes = allBoardNotes
       .filter((note: any) => note && note.content) // contentがあるノートのみ

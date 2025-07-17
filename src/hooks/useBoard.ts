@@ -168,7 +168,7 @@ export function useBoard(
       }
     });
 
-    const notesRef = ref(rtdb, `boardNotes/${boardId}`);
+    const notesRef = ref(rtdb, `boards/${boardId}/notes`);
     const cursorsRef = ref(rtdb, `boardCursors/${boardId}`);
 
     // Listen to notes changes

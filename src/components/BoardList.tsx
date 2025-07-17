@@ -37,96 +37,110 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   useEffect(() => {
     if (!projectId) return;
 
-    // Get project name and update context
-    const getProjectName = async () => {
-      const projectRef = ref(rtdb, `projects/${projectId}`);
-      const projectSnapshot = await get(projectRef);
-      if (projectSnapshot.exists()) {
-        const name = projectSnapshot.val().name;
-        updateCurrentProject(projectId, name);
-      } else {
-        // Update current project with ID only if no name found
-        updateCurrentProject(projectId);
+    const loadBoards = async () => {
+      try {
+        // Get project name and update context
+        const projectRef = ref(rtdb, `projects/${projectId}`);
+        const projectSnapshot = await get(projectRef);
+        if (projectSnapshot.exists()) {
+          const name = projectSnapshot.val().name;
+          updateCurrentProject(projectId, name);
+        } else {
+          updateCurrentProject(projectId);
+        }
+
+        // Get board IDs from projectBoards
+        const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
+        const projectBoardsSnapshot = await get(projectBoardsRef);
+        const projectBoardsData = projectBoardsSnapshot.val();
+
+        if (projectBoardsData) {
+          const boardIds = Object.keys(projectBoardsData);
+
+          // Fetch actual board data from boards collection
+          const boardPromises = boardIds.map(async (boardId) => {
+            const boardRef = ref(rtdb, `boards/${boardId}`);
+            const boardSnapshot = await get(boardRef);
+            if (boardSnapshot.exists()) {
+              return {
+                id: boardId,
+                ...boardSnapshot.val(),
+              };
+            }
+            return null;
+          });
+
+          const boardResults = await Promise.all(boardPromises);
+          const validBoards = boardResults.filter((board) => board !== null);
+          setBoards(
+            validBoards.sort(
+              (a, b) =>
+                (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt)
+            )
+          );
+
+          // Get board info (titles, descriptions, thumbnails)
+          const boardInfoPromises = validBoards.map(async (board) => {
+            const boardInfo = await getBoardInfo(board.id);
+            return { boardId: board.id, ...boardInfo };
+          });
+
+          const boardInfoResults = await Promise.all(boardInfoPromises);
+          const thumbnailMap: Record<string, string> = {};
+          const titleMap: Record<string, string> = {};
+          const descriptionMap: Record<string, string> = {};
+
+          boardInfoResults.forEach(
+            ({ boardId, thumbnailUrl, title, description }) => {
+              if (thumbnailUrl) {
+                thumbnailMap[boardId] = thumbnailUrl;
+              }
+              if (title) {
+                titleMap[boardId] = title;
+              }
+              if (description) {
+                descriptionMap[boardId] = description;
+              }
+            }
+          );
+
+          setBoardThumbnails(thumbnailMap);
+          setBoardTitles(titleMap);
+          setBoardDescriptions(descriptionMap);
+
+          // Get saved thumbnails from Firebase
+          const savedThumbnailPromises = validBoards.map(async (board) => {
+            const thumbnailRef = ref(rtdb, `boardThumbnails/${board.id}`);
+            const thumbnailSnapshot = await get(thumbnailRef);
+            if (thumbnailSnapshot.exists()) {
+              return { boardId: board.id, url: thumbnailSnapshot.val().url };
+            }
+            return null;
+          });
+
+          const savedThumbnailResults = await Promise.all(
+            savedThumbnailPromises
+          );
+          const savedThumbnailMap: Record<string, string> = {};
+          savedThumbnailResults.forEach((result) => {
+            if (result) {
+              savedThumbnailMap[result.boardId] = result.url;
+            }
+          });
+
+          setBoardThumbnails((prev) => ({ ...prev, ...savedThumbnailMap }));
+        } else {
+          setBoards([]);
+          setBoardThumbnails({});
+          setBoardTitles({});
+          setBoardDescriptions({});
+        }
+      } catch (error) {
+        console.error("Error loading boards:", error);
       }
     };
 
-    getProjectName();
-
-    // Listen to project's boards - get board IDs from projectBoards, then get actual data from boards
-    const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
-    const unsubscribe = onValue(projectBoardsRef, async (snapshot) => {
-      const projectBoardsData = snapshot.val();
-      if (projectBoardsData) {
-        const boardIds = Object.keys(projectBoardsData);
-
-        // Fetch actual board data from boards collection
-        const boardPromises = boardIds.map(async (boardId) => {
-          const boardRef = ref(rtdb, `boards/${boardId}`);
-          const boardSnapshot = await get(boardRef);
-          if (boardSnapshot.exists()) {
-            return {
-              id: boardId,
-              ...boardSnapshot.val(),
-            };
-          }
-          return null;
-        });
-
-        const boardResults = await Promise.all(boardPromises);
-        const validBoards = boardResults.filter((board) => board !== null);
-        setBoards(validBoards.sort((a, b) => b.createdAt - a.createdAt));
-
-        // ボードの情報を読み込み
-        const boardInfoPromises = validBoards.map(async (board) => {
-          const boardInfo = await getBoardInfo(board.id);
-          return { boardId: board.id, ...boardInfo };
-        });
-
-        const boardInfoResults = await Promise.all(boardInfoPromises);
-        const thumbnailMap: Record<string, string> = {};
-        const titleMap: Record<string, string> = {};
-        const descriptionMap: Record<string, string> = {};
-
-        boardInfoResults.forEach(
-          ({ boardId, thumbnailUrl, title, description }) => {
-            if (thumbnailUrl) {
-              thumbnailMap[boardId] = thumbnailUrl;
-            }
-            if (title) {
-              titleMap[boardId] = title;
-            }
-            if (description) {
-              descriptionMap[boardId] = description;
-            }
-          }
-        );
-
-        setBoardThumbnails(thumbnailMap);
-        setBoardTitles(titleMap);
-        setBoardDescriptions(descriptionMap);
-
-        // サムネイルの更新をリアルタイムで監視
-        validBoards.forEach((board) => {
-          const thumbnailRef = ref(rtdb, `boardThumbnails/${board.id}`);
-          onValue(thumbnailRef, (snapshot) => {
-            if (snapshot.exists()) {
-              const data = snapshot.val();
-              setBoardThumbnails((prev) => ({
-                ...prev,
-                [board.id]: data.url,
-              }));
-            }
-          });
-        });
-      } else {
-        setBoards([]);
-        setBoardThumbnails({});
-        setBoardTitles({});
-        setBoardDescriptions({});
-      }
-    });
-
-    return () => unsubscribe();
+    loadBoards();
   }, [projectId, updateCurrentProject]);
 
   // Listen to cursors for all boards
@@ -177,9 +191,11 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
   const createBoard = async () => {
     const boardId = nanoid();
+    const now = Date.now();
     const board = {
       createdBy: user!.uid,
-      createdAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
       projectId: projectId,
     };
 
@@ -250,9 +266,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
             <Link to={`/${board.id}`} className="board-card">
-              <p className="board-name">
-                {boardTitles[board.id] || "Untitled"}
-              </p>
+              <p className="board-name">{boardTitles[board.id] || ""}</p>
               {boardThumbnails[board.id] ? (
                 <div className="board-thumbnail">
                   {boardThumbnails[board.id] ? (

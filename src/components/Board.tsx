@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set, remove, get } from "firebase/database";
+import { ref, onValue, set, remove, get, update } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
+import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
 import { CursorDisplay } from "./CursorDisplay";
 import { useHistory } from "../hooks/useHistory";
@@ -17,7 +18,6 @@ import {
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note } from "../types";
-import { getBoardScenes, createMainScene } from "../utils/boardScenes";
 
 interface BoardProps {
   user: User | null;
@@ -90,9 +90,9 @@ export function Board({ user }: BoardProps) {
     null
   );
 
-  // シーン関連の状態
-  const [currentSceneId, setCurrentSceneId] = useState<string>("main");
-  const [sceneNotes, setSceneNotes] = useState<Note[]>([]);
+
+  // 新しいボード作成の状態
+  const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +112,19 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // ボードの更新時刻を更新する関数
+  const updateBoardTimestamp = () => {
+    if (!boardId || !user?.uid) return;
+    try {
+      const boardRef = ref(rtdb, `boards/${boardId}`);
+      const updateData = { updatedAt: Date.now() };
+      // setではなくupdateを使用して、既存のデータを上書きしないように
+      update(boardRef, updateData);
+    } catch (error) {
+      console.error('Error updating board timestamp:', error);
+    }
+  };
 
   const cursorColor = getUserColor(user?.uid || "anonymous");
 
@@ -140,55 +153,14 @@ export function Board({ user }: BoardProps) {
     }
   }, []);
 
-  // Update maxZIndex when scene notes change
+  // Update maxZIndex when notes change
   useEffect(() => {
-    if (sceneNotes.length > 0) {
-      const maxZ = Math.max(...sceneNotes.map((n) => n.zIndex || 0), 99);
+    if (notes.length > 0) {
+      const maxZ = Math.max(...notes.map((n) => n.zIndex || 0), 99);
       setNextZIndex(maxZ + 1);
     }
-  }, [sceneNotes]);
+  }, [notes]);
 
-  // シーンの初期化と監視
-  useEffect(() => {
-    if (!boardId || !user) return;
-
-    const unsubscribe = getBoardScenes(boardId, (scenes) => {
-      // シーンが空の場合、メインシーンを作成
-      if (scenes.length === 0) {
-        createMainScene(boardId, user.uid).then((mainSceneId) => {
-          if (mainSceneId) {
-            setCurrentSceneId(mainSceneId);
-          }
-        });
-      }
-    });
-
-    return unsubscribe;
-  }, [boardId, user]);
-
-  // 現在のシーンのnotesを監視
-  useEffect(() => {
-    if (!boardId || !currentSceneId) return;
-
-    const notesRef = ref(
-      rtdb,
-      `boards/${boardId}/scenes/${currentSceneId}/notes`
-    );
-    const unsubscribe = onValue(notesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const notesArray = Object.entries(data).map(([id, note]) => ({
-          id,
-          ...(note as Omit<Note, "id">),
-        }));
-        setSceneNotes(notesArray);
-      } else {
-        setSceneNotes([]);
-      }
-    });
-
-    return unsubscribe;
-  }, [boardId, currentSceneId]);
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
@@ -268,12 +240,18 @@ export function Board({ user }: BoardProps) {
       });
     }
 
-    const noteRef = ref(
-      rtdb,
-      `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
-    );
+    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
+
+    // ボードの更新時刻を更新（非同期で実行、エラーがあってもメイン処理に影響しない）
+    setTimeout(() => {
+      try {
+        updateBoardTimestamp();
+      } catch (error) {
+        console.error('Error updating board timestamp after adding note:', error);
+      }
+    }, 100);
 
     return noteId;
   };
@@ -282,11 +260,8 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは付箋を更新できない
     if (!user?.uid) return;
 
-    const noteRef = ref(
-      rtdb,
-      `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
-    );
-    const note = sceneNotes.find((n) => n.id === noteId);
+    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+    const note = notes.find((n) => n.id === noteId);
     if (note) {
       const updatedNote = { ...note, ...updates };
 
@@ -315,6 +290,17 @@ export function Board({ user }: BoardProps) {
       }
 
       set(noteRef, updatedNote);
+      
+      // ボードの更新時刻を更新（内容が変更された場合のみ）
+      if (updates.content !== undefined && updates.content !== note.content) {
+        setTimeout(() => {
+          try {
+            updateBoardTimestamp();
+          } catch (error) {
+            console.error('Error updating board timestamp after updating note:', error);
+          }
+        }, 100);
+      }
     }
   };
 
@@ -322,7 +308,7 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
 
-    const note = sceneNotes.find((n) => n.id === noteId);
+    const note = notes.find((n) => n.id === noteId);
 
     // Add to history only if it's user's own note and not undo/redo operation
     if (!isUndoRedoOperation && note && note.userId === user.uid) {
@@ -336,9 +322,19 @@ export function Board({ user }: BoardProps) {
 
     const noteRef = ref(
       rtdb,
-      `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+      `boards/${boardId}/notes/${noteId}`
     );
     remove(noteRef);
+    
+    // ボードの更新時刻を更新
+    setTimeout(() => {
+      try {
+        updateBoardTimestamp();
+      } catch (error) {
+        console.error('Error updating board timestamp after deleting note:', error);
+      }
+    }, 100);
+    
     // 選択状態も削除
     if (selectedNoteIds.has(noteId)) {
       setSelectedNoteIds((prev) => {
@@ -373,7 +369,7 @@ export function Board({ user }: BoardProps) {
     }
 
     // Bring to front by updating zIndex
-    const note = sceneNotes.find((n) => n.id === noteId);
+    const note = notes.find((n) => n.id === noteId);
     if (note) {
       updateNote(noteId, { zIndex: nextZIndex });
       setNextZIndex((prev) => prev + 1);
@@ -387,6 +383,100 @@ export function Board({ user }: BoardProps) {
     }
 
     setSelectedNoteIds(new Set());
+  };
+
+  // 選択された付箋から新しいボードを作成
+  const createBoardFromSelection = async () => {
+    if (!user || !boardId || !project || isCreatingBoard) return;
+    
+    // 選択された付箋を取得
+    const selectedNotes = notes.filter((note) =>
+      selectedNoteIds.has(note.id)
+    );
+    
+    if (selectedNotes.length === 0) return;
+
+    // 確認ダイアログ
+    const confirmed = window.confirm(
+      `Create a new board with ${selectedNotes.length} selected notes?`
+    );
+    if (!confirmed) return;
+
+    setIsCreatingBoard(true);
+    
+    // 新しいボードを作成
+    const newBoardId = nanoid();
+    const now = Date.now();
+    const newBoard = {
+      createdBy: user.uid,
+      createdAt: now,
+      updatedAt: now,
+      projectId: project.id,
+      name: `Board from ${selectedNotes.length} notes`,
+    };
+    
+    try {
+      // ボードを作成
+      const boardRef = ref(rtdb, `boards/${newBoardId}`);
+      await set(boardRef, newBoard);
+      
+      // プロジェクトボードの参照も作成（正しいパス）
+      const projectBoardRef = ref(
+        rtdb,
+        `projectBoards/${project.id}/${newBoardId}`
+      );
+      await set(projectBoardRef, newBoard);
+      
+      // 選択された付箋を新しいボードにコピー
+      // 付箋の最小位置を求めて、新しいボードの中央付近に配置
+      const minX = Math.min(...selectedNotes.map(note => note.x));
+      const minY = Math.min(...selectedNotes.map(note => note.y));
+      const centerX = 0; // 新しいボードの中央
+      const centerY = 0;
+      const offsetX = centerX - minX;
+      const offsetY = centerY - minY;
+      
+      const notePromises = selectedNotes.map((note) => {
+        const newNoteId = nanoid();
+        const newNote: any = {
+          content: note.content || "",
+          x: note.x + offsetX,
+          y: note.y + offsetY,
+          width: note.width || 250,
+          zIndex: note.zIndex || 100,
+          createdAt: Date.now(),
+          userId: user.uid,
+          isDragging: false,
+          draggedBy: null,
+          isEditing: false,
+          editedBy: null,
+        };
+        
+        // オプションフィールドは値が存在する場合のみ追加
+        if (note.color) {
+          newNote.color = note.color;
+        }
+        if (note.textSize) {
+          newNote.textSize = note.textSize;
+        }
+        if (note.signedBy) {
+          newNote.signedBy = note.signedBy;
+        }
+        
+        const noteRef = ref(rtdb, `boards/${newBoardId}/notes/${newNoteId}`);
+        return set(noteRef, newNote);
+      });
+      
+      await Promise.all(notePromises);
+      
+      // 新しいボードにナビゲート
+      navigate(`/${newBoardId}`);
+    } catch (error) {
+      console.error("Error creating board from selection:", error);
+      alert("Failed to create new board. Please try again.");
+    } finally {
+      setIsCreatingBoard(false);
+    }
   };
 
   const handleBoardDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -475,7 +565,7 @@ export function Board({ user }: BoardProps) {
       const minY = Math.min(selectionStart.y, y);
       const maxY = Math.max(selectionStart.y, y);
 
-      const notesInSelection = sceneNotes.filter((note) => {
+      const notesInSelection = notes.filter((note) => {
         const noteX = note.x;
         const noteY = note.y;
         const noteWidth = note.width || 250;
@@ -556,7 +646,7 @@ export function Board({ user }: BoardProps) {
     // 選択された付箋の初期位置を記録
     const positions: Record<string, { x: number; y: number }> = {};
     selectedNoteIds.forEach((id) => {
-      const note = sceneNotes.find((n) => n.id === id);
+      const note = notes.find((n) => n.id === id);
       if (note) {
         positions[id] = { x: note.x, y: note.y };
       }
@@ -609,7 +699,7 @@ export function Board({ user }: BoardProps) {
       }> = [];
 
       selectedNoteIds.forEach((noteId) => {
-        const note = sceneNotes.find((n) => n.id === noteId);
+        const note = notes.find((n) => n.id === noteId);
         const initialPos = initialSelectedPositions[noteId];
         if (
           note &&
@@ -867,7 +957,7 @@ export function Board({ user }: BoardProps) {
     if (!boardId) return;
 
     // #で始まる付箋を探す
-    const hashNote = sceneNotes.find(
+    const hashNote = notes.find(
       (note) => note.content && note.content.trim().startsWith("#")
     );
     if (!hashNote) return;
@@ -895,18 +985,18 @@ export function Board({ user }: BoardProps) {
     if (thumbnailUrl) {
       await saveBoardThumbnail(boardId, thumbnailUrl);
     }
-  }, [boardId, sceneNotes]);
+  }, [boardId, notes]);
 
-  // シーンのノートが変更された時にサムネイルを更新
+  // ノートが変更された時にサムネイルを更新
   useEffect(() => {
-    if (sceneNotes.length === 0) return;
+    if (notes.length === 0) return;
 
     const timeoutId = setTimeout(() => {
       generateAndSaveThumbnail();
     }, 2000); // 2秒後に生成（ユーザーの操作が落ち着いてから）
 
     return () => clearTimeout(timeoutId);
-  }, [sceneNotes, generateAndSaveThumbnail]);
+  }, [notes, generateAndSaveThumbnail]);
 
   // copyNote関数を削除 - copyNotesCompleteで統一
 
@@ -930,7 +1020,7 @@ export function Board({ user }: BoardProps) {
       return;
     }
 
-    const selectedNotes = sceneNotes.filter((note) =>
+    const selectedNotes = notes.filter((note) =>
       selectedNoteIds.has(note.id)
     );
     setCopiedNotes(selectedNotes);
@@ -953,7 +1043,7 @@ export function Board({ user }: BoardProps) {
     // 単一選択の場合はcopiedNoteも設定（後方互換性のため）
     if (selectedNoteIds.size === 1) {
       const noteId = Array.from(selectedNoteIds)[0];
-      const note = sceneNotes.find((n) => n.id === noteId);
+      const note = notes.find((n) => n.id === noteId);
       if (note) {
         setCopiedNote(note);
       }
@@ -970,7 +1060,7 @@ export function Board({ user }: BoardProps) {
 
     const notesToDelete: Note[] = [];
     selectedNoteIds.forEach((noteId) => {
-      const note = sceneNotes.find((n) => n.id === noteId);
+      const note = notes.find((n) => n.id === noteId);
       if (note && note.userId === user.uid) {
         notesToDelete.push(note);
       }
@@ -989,7 +1079,7 @@ export function Board({ user }: BoardProps) {
     notesToDelete.forEach((note) => {
       const noteRef = ref(
         rtdb,
-        `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
+        `boards/${boardId}/notes/${note.id}`
       );
       remove(noteRef);
     });
@@ -1030,7 +1120,7 @@ export function Board({ user }: BoardProps) {
 
       const noteRef = ref(
         rtdb,
-        `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+        `boards/${boardId}/notes/${noteId}`
       );
       set(noteRef, newNote);
       createdNotes.push(newNote);
@@ -1090,7 +1180,7 @@ export function Board({ user }: BoardProps) {
 
       const noteRef = ref(
         rtdb,
-        `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+        `boards/${boardId}/notes/${noteId}`
       );
       set(noteRef, newNote);
       setNextZIndex((prev) => prev + 1);
@@ -1119,9 +1209,9 @@ export function Board({ user }: BoardProps) {
     try {
       const noteRef = ref(
         rtdb,
-        `boards/${boardId}/scenes/${currentSceneId}/notes/${action.noteId}`
+        `boards/${boardId}/notes/${action.noteId}`
       );
-      const note = sceneNotes.find((n) => n.id === action.noteId);
+      const note = notes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1129,7 +1219,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const createNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
+                `boards/${boardId}/notes/${note.id}`
               );
               remove(createNoteRef);
             });
@@ -1141,7 +1231,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const deleteNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
+                `boards/${boardId}/notes/${note.id}`
               );
               set(deleteNoteRef, note);
             });
@@ -1153,9 +1243,9 @@ export function Board({ user }: BoardProps) {
             for (const { noteId, oldPosition } of action.moves) {
               const moveNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+                `boards/${boardId}/notes/${noteId}`
               );
-              const moveNote = sceneNotes.find((n) => n.id === noteId);
+              const moveNote = notes.find((n) => n.id === noteId);
               try {
                 const updatedNote = { ...moveNote, ...oldPosition };
                 await set(moveNoteRef, updatedNote);
@@ -1193,9 +1283,9 @@ export function Board({ user }: BoardProps) {
     try {
       const noteRef = ref(
         rtdb,
-        `boards/${boardId}/scenes/${currentSceneId}/notes/${action.noteId}`
+        `boards/${boardId}/notes/${action.noteId}`
       );
-      const note = sceneNotes.find((n) => n.id === action.noteId);
+      const note = notes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1203,7 +1293,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const createNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
+                `boards/${boardId}/notes/${note.id}`
               );
               set(createNoteRef, note);
             });
@@ -1215,7 +1305,7 @@ export function Board({ user }: BoardProps) {
             action.notes.forEach((note) => {
               const deleteNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${note.id}`
+                `boards/${boardId}/notes/${note.id}`
               );
               remove(deleteNoteRef);
             });
@@ -1227,9 +1317,9 @@ export function Board({ user }: BoardProps) {
             action.moves.forEach(({ noteId, newPosition }) => {
               const moveNoteRef = ref(
                 rtdb,
-                `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+                `boards/${boardId}/notes/${noteId}`
               );
-              const moveNote = sceneNotes.find((n) => n.id === noteId);
+              const moveNote = notes.find((n) => n.id === noteId);
               if (moveNote) {
                 set(moveNoteRef, { ...moveNote, ...newPosition });
               }
@@ -1283,7 +1373,7 @@ export function Board({ user }: BoardProps) {
               // 単一選択の場合はcopiedNoteも設定
               if (selectedNoteIds.size === 1) {
                 const noteId = Array.from(selectedNoteIds)[0];
-                const note = sceneNotes.find((n) => n.id === noteId);
+                const note = notes.find((n) => n.id === noteId);
                 if (note) {
                   setCopiedNote(note);
                 }
@@ -1331,7 +1421,7 @@ export function Board({ user }: BoardProps) {
           if (!isInputFocused) {
             e.preventDefault();
             // Select all notes in current scene
-            const allNoteIds = new Set(sceneNotes.map((note) => note.id));
+            const allNoteIds = new Set(notes.map((note) => note.id));
             setSelectedNoteIds(allNoteIds);
           }
         } else if (e.key === "n") {
@@ -1469,7 +1559,7 @@ export function Board({ user }: BoardProps) {
         // Firebaseに保存
         const noteRef = ref(
           rtdb,
-          `boards/${boardId}/scenes/${currentSceneId}/notes/${noteId}`
+          `boards/${boardId}/notes/${noteId}`
         );
         set(noteRef, newNote);
       });
@@ -1500,7 +1590,6 @@ export function Board({ user }: BoardProps) {
       nextZIndex,
       isUndoRedoOperation,
       addToHistory,
-      currentSceneId,
     ]
   );
 
@@ -1572,7 +1661,7 @@ export function Board({ user }: BoardProps) {
             transformOrigin: "0 0",
           }}
         >
-          {sceneNotes.map((note) => (
+          {notes.map((note) => (
             <StickyNote
               key={note.id}
               note={note}
@@ -1608,6 +1697,17 @@ export function Board({ user }: BoardProps) {
             <LuPlus />
           </button>
         )}
+      {selectedNoteIds.size > 1 && user && (
+        <button
+          onClick={createBoardFromSelection}
+          className="fab-create-board-btn"
+          title="Create new board from selected notes"
+          disabled={isCreatingBoard}
+        >
+          <MdContentCopy />
+          <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
+        </button>
+      )}
     </div>
   );
 }

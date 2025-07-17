@@ -246,6 +246,43 @@ button {
   background-color: #4ba44e;
 }
 
+/* FAB Create Board Button */
+.fab-create-board-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 100px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 28px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fab-create-board-btn:hover {
+  background-color: #1976d2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.fab-create-board-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.fab-create-board-btn svg {
+  font-size: 18px;
+}
+
 .notes-container {
   position: relative;
   width: 10000px;

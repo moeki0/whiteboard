@@ -97,4 +97,130 @@ describe('StickyNote', () => {
       expect(noteElement.classList.contains('active')).toBe(true);
     });
   });
+
+  describe('画像記法のパース処理', () => {
+    it('[name.icon*7]記法が正しくパースされて7個の画像要素を生成する', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[moeki.icon*7]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が7個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(7);
+      
+      // 各画像のalt属性が正しく設定されていることを確認
+      images.forEach(img => {
+        expect(img.getAttribute('alt')).toBe('moeki thumbnail');
+      });
+    });
+
+    it('[name.icon*3]記法が正しくパースされて3個の画像要素を生成する', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[test.icon*3]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が3個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(3);
+      
+      // 各画像のalt属性が正しく設定されていることを確認
+      images.forEach(img => {
+        expect(img.getAttribute('alt')).toBe('test thumbnail');
+      });
+    });
+
+    it('[name.icon]記法（*なし）が正しくパースされて1個の画像要素を生成する', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[moeki.icon]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が1個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(1);
+      
+      // 画像のalt属性が正しく設定されていることを確認
+      expect(images[0].getAttribute('alt')).toBe('moeki thumbnail');
+    });
+
+    it('複数の画像記法が混在している場合も正しくパースされる', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[moeki.icon*2] テキスト [test.icon*3] 他のテキスト [sample.icon]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が2+3+1=6個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(6);
+    });
+
+    it('画像記法とテキストが混在している場合も正しく表示される', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: 'テキスト前 [moeki.icon*2] テキスト後'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が2個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(2);
+      
+      // テキストも含まれていることを確認
+      expect(container.textContent).toContain('テキスト前');
+      expect(container.textContent).toContain('テキスト後');
+    });
+
+    it('画像要素のsrc属性が正しく設定されている', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[moeki.icon*2]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      // img要素が2個生成されることを確認
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(2);
+      
+      // 各画像のsrc属性が設定されていることを確認（#でないこと）
+      images.forEach(img => {
+        const src = img.getAttribute('src');
+        expect(src).not.toBe('#');
+        expect(src).not.toBe('');
+        expect(src).not.toBeNull();
+        // デフォルトのSVGプレースホルダーまたは実際のサムネイルURLが設定されている
+        expect(src).toMatch(/^(data:image\/svg\+xml|https?:\/\/)/);
+      });
+    });
+
+    it('デバッグ: 画像のsrc属性の値を確認する', () => {
+      const noteWithIcon = {
+        ...mockNote,
+        content: '[moeki.icon*1]'
+      };
+      
+      const { container } = render(<StickyNote {...mockProps} note={noteWithIcon} />);
+      
+      const images = container.querySelectorAll('img');
+      expect(images).toHaveLength(1);
+      
+      const src = images[0].getAttribute('src');
+      console.log('画像のsrc属性:', src);
+      
+      // src属性が有効な値であることを確認
+      expect(src).toBeTruthy();
+      expect(src).not.toBe('#');
+    });
+  });
 });

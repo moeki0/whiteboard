@@ -13,7 +13,7 @@ import { calculateBorderColor } from "../utils/borderColors";
 import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
 import { getBoardInfo } from "../utils/boardInfo";
 import { rtdb } from "../config/firebase";
-import { ref, get } from "firebase/database";
+import { ref, get, query, orderByChild, equalTo } from "firebase/database";
 
 interface ImageContent {
   type: "image";
@@ -223,8 +223,11 @@ export function StickyNote({
       for (const boardName of boardNames) {
         if (!isMounted) break; // マウント状態チェック
 
+
         // 既にキャッシュされている場合はスキップ
-        if (boardThumbnails.has(boardName)) continue;
+        if (boardThumbnails.has(boardName)) {
+          continue;
+        }
 
         try {
           // プロジェクト内の全ボードを取得
@@ -288,7 +291,7 @@ export function StickyNote({
                         prev.set(boardName, currentBoardInfo.thumbnailUrl)
                       )
                   );
-                } catch {
+                } catch (error) {
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) => new Map(prev.set(boardName, null))
@@ -296,11 +299,20 @@ export function StickyNote({
                   }
                 }
               } else {
-                if (isMounted) {
-                  setBoardThumbnails(
-                    (prev) =>
-                      new Map(prev.set(boardName, targetBoardInfo.thumbnailUrl))
-                  );
+                try {
+                  const otherBoardInfo = await getBoardInfo(targetBoard.id);
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) =>
+                        new Map(prev.set(boardName, otherBoardInfo.thumbnailUrl))
+                    );
+                  }
+                } catch (error) {
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) => new Map(prev.set(boardName, null))
+                    );
+                  }
                 }
               }
               foundMatch = true;
@@ -397,6 +409,145 @@ export function StickyNote({
       isMounted = false;
     };
   }, [content, board.id, board.projectId]);
+
+  // 初回マウント時にもサムネイル取得を実行
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadInitialThumbnails = async () => {
+      if (!content || !board.id || !isMounted) {
+        return;
+      }
+
+      // [name.icon]記法を検出
+      const iconMatches = content.matchAll(/\[([^\]]+)\.icon(\*\d+)?\]/g);
+      const boardNames = new Set<string>();
+
+      for (const match of iconMatches) {
+        boardNames.add(match[1]);
+      }
+
+      if (boardNames.size === 0) {
+        return;
+      }
+      
+
+      // 各ボード名のサムネイルを取得（キャッシュされていない場合のみ）
+      for (const boardName of boardNames) {
+        if (!isMounted) break;
+
+
+        // 既にキャッシュされている場合はスキップ
+        if (boardThumbnails.has(boardName)) {
+          console.log(`[StickyNote] 初回マウント時: ${boardName}はキャッシュ済み`);
+          continue;
+        }
+
+        try {
+          // 全ボードを取得してフィルタリング（インデックスエラー回避）
+          const boardsRef = ref(rtdb, `boards`);
+          const boardsSnapshot = await get(boardsRef);
+
+          if (!isMounted) break;
+
+          const allBoards = boardsSnapshot.val() || {};
+
+          // プロジェクト内のボードをフィルタリング
+          const boardsArray = Object.entries(allBoards)
+            .filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+              ([_, boardData]: [string, any]) =>
+                boardData.projectId === board.projectId
+            )
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
+
+
+          let foundMatch = false;
+          for (const targetBoard of boardsArray) {
+            if (!isMounted) break;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let targetBoardInfo: any;
+            let boardTitle;
+
+            if (targetBoard.id === board.id) {
+              boardTitle = targetBoard.name || "";
+            } else {
+              targetBoardInfo = await getBoardInfo(targetBoard.id);
+              if (!isMounted) break;
+              boardTitle = targetBoardInfo.title || targetBoard.name || "";
+            }
+
+            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
+              if (isMounted) {
+                setBoardLinks(
+                  (prev) => new Map(prev.set(boardName, targetBoard.id))
+                );
+              }
+
+              if (targetBoard.id === board.id) {
+                try {
+                  const currentBoardInfo = await getBoardInfo(board.id);
+                  if (!isMounted) break;
+                  setBoardThumbnails(
+                    (prev) =>
+                      new Map(
+                        prev.set(boardName, currentBoardInfo.thumbnailUrl)
+                      )
+                  );
+                } catch (error) {
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) => new Map(prev.set(boardName, null))
+                    );
+                  }
+                }
+              } else {
+                try {
+                  const otherBoardInfo = await getBoardInfo(targetBoard.id);
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) =>
+                        new Map(prev.set(boardName, otherBoardInfo.thumbnailUrl))
+                    );
+                  }
+                } catch (error) {
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) => new Map(prev.set(boardName, null))
+                    );
+                  }
+                }
+              }
+              foundMatch = true;
+              break;
+            }
+          }
+
+          if (!foundMatch && isMounted) {
+            setBoardThumbnails((prev) => new Map(prev.set(boardName, null)));
+          }
+        } catch (error) {
+          if (isMounted) {
+            console.error(
+              `Failed to get board thumbnail for: ${boardName}`,
+              error
+            );
+            setBoardThumbnails((prev) => new Map(prev.set(boardName, null)));
+          }
+        }
+      }
+    };
+
+    loadInitialThumbnails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
 
   // 固定幅なので自動リサイズは不要
 
@@ -1393,7 +1544,7 @@ export function StickyNote({
                   return (
                     <img
                       key={index}
-                      src={thumbnailUrl || "#"}
+                      src={thumbnailUrl || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+"}
                       alt={`${item.boardName} thumbnail`}
                       style={{
                         width: "1em",
@@ -1405,7 +1556,8 @@ export function StickyNote({
                       onError={(e) => {
                         // 画像が読み込めなかった場合のフォールバック
                         const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
+                        // プレースホルダーSVGに切り替え
+                        target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+";
                       }}
                     />
                   );
