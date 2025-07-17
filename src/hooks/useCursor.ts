@@ -14,7 +14,17 @@ interface UseCursorProps {
 }
 
 export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, zoom }: UseCursorProps) {
-  const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const throttleTimerRef = useRef<number | null>(null);
+  const panXRef = useRef(panX);
+  const panYRef = useRef(panY);
+  const zoomRef = useRef(zoom);
+
+  // Update refs when values change
+  useEffect(() => {
+    panXRef.current = panX;
+    panYRef.current = panY;
+    zoomRef.current = zoom;
+  }, [panX, panY, zoom]);
 
   useEffect(() => {
     if (!boardId) return;
@@ -22,10 +32,10 @@ export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, z
     const handleMouseMove = (e: MouseEvent) => {
       if (throttleTimerRef.current) return;
 
-      throttleTimerRef.current = setTimeout(() => {
-        // Convert screen coordinates to board coordinates
-        const boardX = (e.clientX - panX) / zoom;
-        const boardY = (e.clientY - panY) / zoom;
+      throttleTimerRef.current = window.setTimeout(() => {
+        // Convert screen coordinates to board coordinates using refs
+        const boardX = (e.clientX - panXRef.current) / zoomRef.current;
+        const boardY = (e.clientY - panYRef.current) / zoomRef.current;
 
         const cursorRef = ref(rtdb, `boardCursors/${boardId}/${user.uid}-${sessionId}`);
         const userName = user.displayName || user.email || "User";
@@ -79,10 +89,10 @@ export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, z
       window.removeEventListener("beforeunload", handleBeforeUnload);
       
       if (throttleTimerRef.current) {
-        clearTimeout(throttleTimerRef.current);
+        window.clearTimeout(throttleTimerRef.current);
       }
       
       cleanup();
     };
-  }, [boardId, user.uid, sessionId, cursorColor, user.displayName, user.email, panX, panY, zoom]);
+  }, [boardId, user.uid, sessionId, cursorColor, user.displayName, user.email]);
 }

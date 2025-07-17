@@ -1,6 +1,7 @@
 import { rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
 import { Note } from "../types";
+import { getBoardThumbnail } from "./thumbnailGenerator";
 
 export interface BoardInfo {
   title: string | null;
@@ -57,14 +58,20 @@ export async function getBoardInfo(
     let thumbnailUrl: string | null = null;
     let description: string | null = null;
 
+    // 手動保存されたサムネイルを最初にチェック
+    const savedThumbnail = await getBoardThumbnail(boardId);
+    if (savedThumbnail) {
+      thumbnailUrl = savedThumbnail;
+    }
+
     // 全ての付箋からサムネイルを探す
     for (const note of boardNotes) {
       // サムネイルがまだ見つかっていない場合、サムネイルを探す
       if (!thumbnailUrl) {
-        // [name.icon]記法を探す（ボードサムネイル用）
-        const iconMatch = note.content.match(/\[([^\]]+)\.icon\]/);
-        if (iconMatch) {
-          const iconName = iconMatch[1];
+        // [pageTitle.img]記法を探す（ボードサムネイル用）
+        const imgMatch = note.content.match(/\[([^\]]+)\.img\]/);
+        if (imgMatch) {
+          const pageName = imgMatch[1];
 
           // プロジェクト内の全ボードを取得
           const boardsRef = ref(rtdb, `boards`);
@@ -80,7 +87,7 @@ export async function getBoardInfo(
               )
               .map(([id, board]: [string, any]) => ({ ...board, id }));
 
-            // ボード名またはパースしたタイトルがiconNameと一致するボードを探す
+            // ボード名またはパースしたタイトルがpageNameと一致するボードを探す
             for (const targetBoard of projectBoards) {
               if (targetBoard.id === boardId) continue; // 自分自身はスキップ
 
@@ -91,7 +98,14 @@ export async function getBoardInfo(
               const boardTitle =
                 targetBoardInfo.title || targetBoard.name || "";
 
-              if (boardTitle.toLowerCase() === iconName.toLowerCase()) {
+              if (boardTitle.toLowerCase() === pageName.toLowerCase()) {
+                // 対象ボードの手動保存サムネイルを取得
+                const targetSavedThumbnail = await getBoardThumbnail(targetBoard.id);
+                if (targetSavedThumbnail) {
+                  thumbnailUrl = targetSavedThumbnail;
+                  break;
+                }
+                // 手動保存サムネイルがない場合は、対象ボードのサムネイルを使用
                 if (targetBoardInfo.thumbnailUrl) {
                   thumbnailUrl = targetBoardInfo.thumbnailUrl;
                   break;
@@ -100,20 +114,60 @@ export async function getBoardInfo(
             }
           }
         } else {
-          // Gyazo URLを探す
-          const gyazoMatch = note.content.match(
-            /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
-          );
-          if (gyazoMatch) {
-            const id = gyazoMatch[1];
-            thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+          // [name.icon]記法を探す（ボードサムネイル用）
+          const iconMatch = note.content.match(/\[([^\]]+)\.icon\]/);
+          if (iconMatch) {
+            const iconName = iconMatch[1];
+
+            // プロジェクト内の全ボードを取得
+            const boardsRef = ref(rtdb, `boards`);
+            const boardsSnapshot = await get(boardsRef);
+            const allBoards = boardsSnapshot.val() || {};
+
+            if (boardData?.projectId) {
+              // 同じプロジェクト内のボードを検索
+              const projectBoards = Object.entries(allBoards)
+                .filter(
+                  ([, board]: [string, any]) =>
+                    board.projectId === boardData.projectId
+                )
+                .map(([id, board]: [string, any]) => ({ ...board, id }));
+
+              // ボード名またはパースしたタイトルがiconNameと一致するボードを探す
+              for (const targetBoard of projectBoards) {
+                if (targetBoard.id === boardId) continue; // 自分自身はスキップ
+
+                const targetBoardInfo = await getBoardInfo(
+                  targetBoard.id,
+                  _visitedBoards
+                );
+                const boardTitle =
+                  targetBoardInfo.title || targetBoard.name || "";
+
+                if (boardTitle.toLowerCase() === iconName.toLowerCase()) {
+                  if (targetBoardInfo.thumbnailUrl) {
+                    thumbnailUrl = targetBoardInfo.thumbnailUrl;
+                    break;
+                  }
+                }
+              }
+            }
           } else {
-            // その他の画像URLを探す
-            const imageMatch = note.content.match(
-              /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i
+            // Gyazo URLを探す
+            const gyazoMatch = note.content.match(
+              /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
             );
-            if (imageMatch) {
-              thumbnailUrl = imageMatch[1];
+            if (gyazoMatch) {
+              const id = gyazoMatch[1];
+              thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+            } else {
+              // その他の画像URLを探す
+              const imageMatch = note.content.match(
+                /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i
+              );
+              if (imageMatch) {
+                thumbnailUrl = imageMatch[1];
+              }
             }
           }
         }

@@ -14,6 +14,7 @@ import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
 import { getBoardInfo } from "../utils/boardInfo";
 import { rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
+import { ThumbnailImage } from "./ThumbnailImage";
 import {
   handleBracketCompletion,
   analyzeBoardTitleSuggestion,
@@ -58,13 +59,20 @@ interface BoardLinkContent {
   boardId: string | null;
 }
 
+interface BoardThumbnailImageContent {
+  type: "boardthumbnailimage";
+  boardName: string;
+  thumbnailUrl: string | null;
+}
+
 type ParsedContent =
   | ImageContent
   | TextContent
   | UserIconContent
   | InlineImageContent
   | BoardThumbnailContent
-  | BoardLinkContent;
+  | BoardLinkContent
+  | BoardThumbnailImageContent;
 
 interface StickyNoteProps {
   note: Note;
@@ -1011,9 +1019,9 @@ export function StickyNote({
     const finalResult: ParsedContent[] = [];
     for (const item of result) {
       if (item.type === "text") {
-        // ボードアイコン、ボードリンク、任意の画像、Gyazo URLのパターンをマッチ
+        // ボードアイコン、ボードリンク、任意の画像、Gyazo URL、サムネイル画像のパターンをマッチ
         const combinedPattern =
-          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^\]]+)\](?!\.icon)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
+          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^\]]+)\.img\]|\[([^\]]+)\](?!\.icon)(?!\.img)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
         let lastIndex = 0;
         let match;
         const parts: ParsedContent[] = [];
@@ -1041,19 +1049,27 @@ export function StickyNote({
               });
             }
           } else if (match[3]) {
-            // [name]記法をボードリンクとして処理
+            // [name.img]記法をボードサムネイル画像として処理
             const name = match[3];
+            parts.push({
+              type: "boardthumbnailimage",
+              boardName: name,
+              thumbnailUrl: null, // レンダリング時に動的に取得
+            });
+          } else if (match[4]) {
+            // [name]記法をボードリンクとして処理
+            const name = match[4];
             parts.push({
               type: "boardlink",
               boardName: name,
               boardId: null, // レンダリング時に動的に取得
             });
-          } else if (match[4]) {
-            // インライン画像を追加
-            parts.push({ type: "inlineimage", url: match[4] });
           } else if (match[5]) {
+            // インライン画像を追加
+            parts.push({ type: "inlineimage", url: match[5] });
+          } else if (match[6]) {
             // Gyazo URLをインライン画像として追加
-            const gyazoUrl = match[5];
+            const gyazoUrl = match[6];
             const imageUrl = getGyazoImageUrl(gyazoUrl);
             if (imageUrl) {
               parts.push({ type: "inlineimage", url: imageUrl });
@@ -1425,7 +1441,7 @@ export function StickyNote({
       const boardName = match[1];
       const boardId = boardLinks.get(boardName);
       // 存在しないボードも含めて問答無用でリンクを表示
-      boardLinksArray.push({ name: boardName, boardId: boardId || '' });
+      boardLinksArray.push({ name: boardName, boardId: boardId || "" });
     }
 
     const boardIconMatches = text.matchAll(/\[([^\]]+)\.icon\]/g);
@@ -1433,7 +1449,7 @@ export function StickyNote({
       const boardName = match[1];
       const boardId = boardLinks.get(boardName);
       // 存在しないボードも含めて問答無用でリンクを表示
-      boardLinksArray.push({ name: boardName, boardId: boardId || '' });
+      boardLinksArray.push({ name: boardName, boardId: boardId || "" });
     }
 
     const uniqueLinks = boardLinksArray.filter(
@@ -1538,7 +1554,13 @@ export function StickyNote({
                 return (
                   <a
                     key={`board-${index}`}
-                    href={project?.slug ? `/${project.slug}/${boardLink.name}` : (boardLink.boardId ? `/${boardLink.boardId}` : `/${project?.slug || 'unknown'}/${boardLink.name}`)}
+                    href={
+                      project?.slug
+                        ? `/${project.slug}/${boardLink.name}`
+                        : boardLink.boardId
+                        ? `/${boardLink.boardId}`
+                        : `/${project?.slug || "unknown"}/${boardLink.name}`
+                    }
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-block",
@@ -1554,7 +1576,9 @@ export function StickyNote({
                       color: boardLink.boardId ? "#eee" : "#ccc",
                       textDecoration: "none",
                     }}
-                    title={`Board: ${boardLink.name}${boardLink.boardId ? '' : ' (will be created)'}`}
+                    title={`Board: ${boardLink.name}${
+                      boardLink.boardId ? "" : " (will be created)"
+                    }`}
                   >
                     {boardLink.name}
                   </a>
@@ -1661,7 +1685,9 @@ export function StickyNote({
                 lineHeight: 1.3,
                 overflowWrap: "break-word",
                 whiteSpace: "pre-wrap",
-                width: parsedContent.find((c) => c.type === "image")
+                width: parsedContent.find(
+                  (c) => c.type === "image" || c.type === "boardthumbnailimage"
+                )
                   ? "auto"
                   : `${dimensions.width}px`,
               }}
@@ -1728,6 +1754,22 @@ export function StickyNote({
                         // プレースホルダーSVGに切り替え
                         target.src =
                           "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+";
+                      }}
+                    />
+                  );
+                } else if (item.type === "boardthumbnailimage") {
+                  // [pageTitle.img]記法でボードサムネイル画像を表示
+                  return (
+                    <ThumbnailImage
+                      key={index}
+                      boardName={item.boardName}
+                      projectId={project?.id || ""}
+                      style={{
+                        display: "inline-block",
+                        verticalAlign: "middle",
+                        margin: "4px",
+                        maxWidth: "200px",
+                        maxHeight: "150px",
                       }}
                     />
                   );

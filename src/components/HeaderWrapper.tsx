@@ -6,8 +6,14 @@ import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { rtdb } from "../config/firebase";
 import { ref, get, set } from "firebase/database";
-import { checkBoardNameDuplicate, generateUniqueBoardName } from "../utils/boardNaming";
-import { getLatestProjectSlug, recordBoardNameChange } from "../utils/historyManager";
+import {
+  checkBoardNameDuplicate,
+  generateUniqueBoardName,
+} from "../utils/boardNaming";
+import {
+  getLatestProjectSlug,
+  recordBoardNameChange,
+} from "../utils/historyManager";
 
 interface HeaderWrapperProps {
   user: User;
@@ -26,10 +32,12 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   const [projectSlug, setProjectSlug] = useState<string>("");
   const [boardTitle, setBoardTitle] = useState<string>("");
   const [boardId, setBoardId] = useState<string>("");
-  const [isEditingBoardTitle, setIsEditingBoardTitle] = useState<boolean>(false);
+  const [isEditingBoardTitle, setIsEditingBoardTitle] =
+    useState<boolean>(false);
   const [editingBoardTitle, setEditingBoardTitle] = useState<string>("");
   const [isDuplicateName, setIsDuplicateName] = useState<boolean>(false);
-  const [duplicateCheckTimeout, setDuplicateCheckTimeout] = useState<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [duplicateCheckTimeout, setDuplicateCheckTimeout] = useState<any>(null);
 
   useEffect(() => {
     const getPageData = async () => {
@@ -46,7 +54,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       if (resolvedProjectId && resolvedBoardId) {
         foundProjectId = resolvedProjectId;
         setBoardId(resolvedBoardId);
-        
+
         try {
           const boardRef = ref(rtdb, `boards/${resolvedBoardId}`);
           const boardSnapshot = await get(boardRef);
@@ -68,14 +76,14 @@ export const HeaderWrapper = memo(function HeaderWrapper({
         ) {
           const currentBoardId = boardPageMatch[1];
           setBoardId(currentBoardId);
-          
+
           try {
             const boardRef = ref(rtdb, `boards/${currentBoardId}`);
             const boardSnapshot = await get(boardRef);
             if (boardSnapshot.exists()) {
               const boardData = boardSnapshot.val();
               foundProjectId = boardData.projectId;
-              
+
               // Get board title from board data
               setBoardTitle(boardData.name || "");
             }
@@ -112,7 +120,13 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     };
 
     getPageData();
-  }, [params.projectId, currentProjectId, path, resolvedProjectId, resolvedBoardId]);
+  }, [
+    params.projectId,
+    currentProjectId,
+    path,
+    resolvedProjectId,
+    resolvedBoardId,
+  ]);
 
   // リアルタイムで重複チェック
   const checkDuplicateRealtime = async (newTitle: string) => {
@@ -126,7 +140,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       newTitle.trim(),
       boardId
     );
-    
+
     setIsDuplicateName(isDuplicate);
   };
 
@@ -140,17 +154,17 @@ export const HeaderWrapper = memo(function HeaderWrapper({
 
   const handleBoardTitleChange = (value: string) => {
     setEditingBoardTitle(value);
-    
+
     // 既存のタイマーをクリア
     if (duplicateCheckTimeout) {
       clearTimeout(duplicateCheckTimeout);
     }
-    
+
     // 500ms後に重複チェック実行
     const timeout = setTimeout(() => {
       checkDuplicateRealtime(value);
     }, 500);
-    
+
     setDuplicateCheckTimeout(timeout);
   };
 
@@ -160,12 +174,12 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       clearTimeout(duplicateCheckTimeout);
       setDuplicateCheckTimeout(null);
     }
-    
+
     if (boardId && editingBoardTitle.trim()) {
       try {
         const boardRef = ref(rtdb, `boards/${boardId}`);
         const boardData = (await get(boardRef)).val() || {};
-        
+
         // 同じプロジェクト内で重複チェック
         if (boardData.projectId) {
           const isDuplicate = await checkBoardNameDuplicate(
@@ -173,9 +187,9 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             editingBoardTitle.trim(),
             boardId
           );
-          
+
           let finalName = editingBoardTitle.trim();
-          
+
           if (isDuplicate) {
             // 重複する場合、一意な名前を生成
             finalName = await generateUniqueBoardName(
@@ -184,24 +198,27 @@ export const HeaderWrapper = memo(function HeaderWrapper({
               boardId
             );
           }
-          
+
           await set(boardRef, {
             ...boardData,
             name: finalName,
           });
-          
+
           // プロジェクトボードの参照も更新
-          const projectBoardRef = ref(rtdb, `projectBoards/${boardData.projectId}/${boardId}`);
+          const projectBoardRef = ref(
+            rtdb,
+            `projectBoards/${boardData.projectId}/${boardId}`
+          );
           await set(projectBoardRef, {
             ...boardData,
             name: finalName,
           });
-          
+
           // Record the name change in history
           if (boardTitle !== finalName) {
             await recordBoardNameChange(boardId, boardTitle, finalName);
           }
-          
+
           setBoardTitle(finalName);
           setEditingBoardTitle(finalName);
         } else {
@@ -210,15 +227,19 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             ...boardData,
             name: editingBoardTitle.trim(),
           });
-          
+
           // Record the name change in history
           if (boardTitle !== editingBoardTitle.trim()) {
-            await recordBoardNameChange(boardId, boardTitle, editingBoardTitle.trim());
+            await recordBoardNameChange(
+              boardId,
+              boardTitle,
+              editingBoardTitle.trim()
+            );
           }
-          
+
           setBoardTitle(editingBoardTitle.trim());
         }
-        
+
         setIsEditingBoardTitle(false);
         setIsDuplicateName(false);
       } catch (error) {

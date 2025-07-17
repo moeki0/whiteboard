@@ -196,13 +196,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
   const createBoard = async () => {
     if (!projectId) return;
-    
+
     const boardId = nanoid();
     const now = Date.now();
-    
+
     // 重複しない一意なボード名を生成
     const uniqueName = await generateNewBoardName(projectId);
-    
+
     const board = {
       name: uniqueName,
       createdBy: user!.uid,
@@ -222,7 +222,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     try {
       const projectRef = ref(rtdb, `projects/${projectId}`);
       const projectSnapshot = await get(projectRef);
-      
+
       if (projectSnapshot.exists()) {
         const projectData = projectSnapshot.val();
         if (projectData.slug) {
@@ -236,7 +236,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         navigate(`/${boardId}`);
       }
     } catch (error) {
-      console.error('Error navigating to board:', error);
+      console.error("Error navigating to board:", error);
       // Fallback to legacy route
       navigate(`/${boardId}`);
     }
@@ -297,8 +297,12 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       <div className="boards-grid">
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
-            <Link 
-              to={project?.slug ? `/${project.slug}/${encodeURIComponent(board.name)}` : `/${board.id}`} 
+            <Link
+              to={
+                project?.slug
+                  ? `/${project.slug}/${encodeURIComponent(board.name)}`
+                  : `/${board.id}`
+              }
               className="board-card"
             >
               <p className="board-name">{boardTitles[board.id] || ""}</p>
@@ -321,9 +325,9 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
                       {boardDescriptions[board.id]}
                     </p>
                   )}
-                  <ActiveMembers boardId={board.id} />
                 </div>
               )}
+              <ActiveMembers boardId={board.id} />
             </Link>
           </div>
         ))}

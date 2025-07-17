@@ -478,8 +478,14 @@ export function Board({ user }: BoardProps) {
 
       await Promise.all(notePromises);
 
-      // 新しいボードにナビゲート
-      navigate(`/${newBoardId}`);
+      // プロジェクトのslugを取得してから新しいボードにナビゲート
+      if (project.slug) {
+        // プロジェクトslugがある場合は、slug形式でナビゲート
+        navigate(`/${project.slug}/${encodeURIComponent(uniqueName)}`);
+      } else {
+        // slugがない場合はレガシー形式でナビゲート（互換性のため）
+        navigate(`/${newBoardId}`);
+      }
     } catch (error) {
       console.error("Error creating board from selection:", error);
       alert("Failed to create new board. Please try again.");

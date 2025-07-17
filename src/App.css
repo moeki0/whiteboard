@@ -567,6 +567,7 @@ button {
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
+  z-index: 99999;
 }
 
 .member-avatar.more {
@@ -578,8 +579,12 @@ button {
 .active-members {
   display: flex;
   gap: 6px;
+  padding: 6px;
   align-items: center;
   margin-top: auto;
+  position: absolute;
+  bottom: 0;
+  left: 0;
 }
 
 .member-avatar.active {
