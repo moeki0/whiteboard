@@ -1424,23 +1424,21 @@ export function StickyNote({
     for (const match of boardLinkMatches) {
       const boardName = match[1];
       const boardId = boardLinks.get(boardName);
-      if (boardId) {
-        boardLinksArray.push({ name: boardName, boardId });
-      }
+      // 存在しないボードも含めて問答無用でリンクを表示
+      boardLinksArray.push({ name: boardName, boardId: boardId || '' });
     }
 
     const boardIconMatches = text.matchAll(/\[([^\]]+)\.icon\]/g);
     for (const match of boardIconMatches) {
       const boardName = match[1];
       const boardId = boardLinks.get(boardName);
-      if (boardId) {
-        boardLinksArray.push({ name: boardName, boardId });
-      }
+      // 存在しないボードも含めて問答無用でリンクを表示
+      boardLinksArray.push({ name: boardName, boardId: boardId || '' });
     }
 
     const uniqueLinks = boardLinksArray.filter(
       (link, index, self) =>
-        index === self.findIndex((l) => l.boardId === link.boardId)
+        index === self.findIndex((l) => l.name === link.name)
     );
 
     return uniqueLinks;
@@ -1494,7 +1492,7 @@ export function StickyNote({
           <div
             style={{
               position: "absolute",
-              top: "-22px",
+              top: "-25px",
               left: "50%",
               transform: "translateX(-50%)",
               display: "flex",
@@ -1540,7 +1538,7 @@ export function StickyNote({
                 return (
                   <a
                     key={`board-${index}`}
-                    href={project?.slug ? `/${project.slug}/${boardLink.name}` : `/${boardLink.boardId}`}
+                    href={project?.slug ? `/${project.slug}/${boardLink.name}` : (boardLink.boardId ? `/${boardLink.boardId}` : `/${project?.slug || 'unknown'}/${boardLink.name}`)}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-block",
@@ -1553,10 +1551,10 @@ export function StickyNote({
                       padding: "4px 8px",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      color: "#eee",
+                      color: boardLink.boardId ? "#eee" : "#ccc",
                       textDecoration: "none",
                     }}
-                    title={`Board: ${boardLink.name}`}
+                    title={`Board: ${boardLink.name}${boardLink.boardId ? '' : ' (will be created)'}`}
                   >
                     {boardLink.name}
                   </a>

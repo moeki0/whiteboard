@@ -173,8 +173,13 @@ function App() {
               element={
                 <SlugRouter type="board">
                   <Layout>
-                    {user ? (
-                      <HeaderWrapper user={user} />
+                    {loading ? (
+                      <div className="loading"></div>
+                    ) : user ? (
+                      <>
+                        <HeaderWrapper user={user} />
+                        <Board user={user} />
+                      </>
                     ) : (
                       <div
                         style={{
@@ -206,11 +211,6 @@ function App() {
                           ログイン
                         </button>
                       </div>
-                    )}
-                    {loading ? (
-                      <div className="loading"></div>
-                    ) : (
-                      <Board user={user} />
                     )}
                   </Layout>
                 </SlugRouter>
@@ -232,47 +232,47 @@ function App() {
             <Route
               path="/:boardId"
               element={
-                loading ? (
-                  <div className="loading"></div>
-                ) : (
-                  <Layout>
-                    {user ? (
+                <Layout>
+                  {loading ? (
+                    <div className="loading"></div>
+                  ) : user ? (
+                    <>
                       <HeaderWrapper user={user} />
-                    ) : (
-                      <div
+                      <Board user={user} />
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        background: "white",
+                        padding: "6px 20px",
+                        borderBottom: "1px solid #e0e0e0",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        position: "fixed",
+                        top: 0,
+                        width: "100%",
+                      }}
+                    >
+                      <h1 style={{ margin: 0, fontSize: "18px" }}>
+                        Whiteboard
+                      </h1>
+                      <button
+                        onClick={() => (window.location.href = "/")}
                         style={{
-                          background: "white",
-                          padding: "6px 20px",
-                          borderBottom: "1px solid #e0e0e0",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          position: "fixed",
-                          top: 0,
-                          width: "100%",
+                          padding: "4px 16px",
+                          background: "#007bff",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
                         }}
                       >
-                        <h1 style={{ margin: 0, fontSize: "18px" }}>
-                          Whiteboard
-                        </h1>
-                        <button
-                          onClick={() => (window.location.href = "/")}
-                          style={{
-                            padding: "4px 16px",
-                            background: "#007bff",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ログイン
-                        </button>
-                      </div>
-                    )}
-                    <Board user={user} />
-                  </Layout>
-                )
+                        ログイン
+                      </button>
+                    </div>
+                  )}
+                </Layout>
               }
             />
 
