@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useMemo, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { auth, rtdb } from "../config/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { User, Project } from "../types";
@@ -14,7 +14,6 @@ interface UnifiedMenuProps {
 export const UnifiedMenu = memo(function UnifiedMenu({
   user,
 }: UnifiedMenuProps) {
-  const navigate = useNavigate();
   const location = useLocation();
   const { currentProjectId } = useProject();
   const [isOpen, setIsOpen] = useState(false);
@@ -128,37 +127,9 @@ export const UnifiedMenu = memo(function UnifiedMenu({
     };
   }, []);
 
-  const handleProjectSelect = useCallback(
-    (projectId: string) => {
-      setIsOpen(false);
-      navigate(`/project/${projectId}`);
-    },
-    [navigate]
-  );
-
-  const handleProjectSettings = useCallback(() => {
+  const handleCloseMenu = useCallback(() => {
     setIsOpen(false);
-    if (currentProjectId) {
-      navigate(`/project/${currentProjectId}/settings`);
-    }
-  }, [navigate, currentProjectId]);
-
-  const handleCreateProject = useCallback(() => {
-    setIsOpen(false);
-    navigate("/create-project");
-  }, [navigate]);
-
-  const handleUserSettings = useCallback(() => {
-    setIsOpen(false);
-    navigate("/user/settings");
-  }, [navigate]);
-
-  const handleBoardSettings = useCallback(() => {
-    setIsOpen(false);
-    if (currentBoardId) {
-      navigate(`/board/${currentBoardId}/settings`);
-    }
-  }, [navigate, currentBoardId]);
+  }, []);
 
   const toggleMenu = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -196,44 +167,45 @@ export const UnifiedMenu = memo(function UnifiedMenu({
       {isOpen && (
         <div className="unified-dropdown">
           {/* User Section */}
-          <button className="menu-item" onClick={handleUserSettings}>
+          <Link to="/user/settings" className="menu-item" onClick={handleCloseMenu}>
             User Settings
-          </button>
+          </Link>
 
-          {isOnBoardPage && canEditBoard && (
+          {isOnBoardPage && canEditBoard && currentBoardId && (
             <>
-              <button className="menu-item" onClick={handleBoardSettings}>
+              <Link to={`/board/${currentBoardId}/settings`} className="menu-item" onClick={handleCloseMenu}>
                 Board Settings
-              </button>
+              </Link>
             </>
           )}
 
           {/* Project Section */}
           <div className="menu-section project-section">
             {currentProjectId && (
-              <button className="menu-item" onClick={handleProjectSettings}>
+              <Link to={`/project/${currentProjectId}/settings`} className="menu-item" onClick={handleCloseMenu}>
                 Project Settings
-              </button>
+              </Link>
             )}
 
             {projects.length > 0 && <div className="menu-divider" />}
 
             {projects.map((project) => (
-              <button
+              <Link
                 key={project.id}
+                to={project.slug ? `/${project.slug}` : `/project/${project.id}`}
                 className={`menu-item ${
                   project.id === currentProjectId ? "active" : ""
                 }`}
-                onClick={() => handleProjectSelect(project.id)}
+                onClick={handleCloseMenu}
               >
                 <span className="project-name">{project.name}</span>
-              </button>
+              </Link>
             ))}
 
-            <button className="menu-item" onClick={handleCreateProject}>
+            <Link to="/create-project" className="menu-item" onClick={handleCloseMenu}>
               Create New Project
               <span className="menu-icon">+</span>
-            </button>
+            </Link>
 
             {projects.length === 0 && (
               <div className="menu-item disabled">No projects found</div>

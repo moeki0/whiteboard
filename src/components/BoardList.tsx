@@ -4,8 +4,9 @@ import { rtdb } from "../config/firebase";
 import { ref, onValue, set, get } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
+import { useSlug } from "../contexts/SlugContext";
 import { getBoardInfo } from "../utils/boardInfo";
-import { User, Board, Cursor } from "../types";
+import { User, Board, Cursor, Project } from "../types";
 import { LuPlus } from "react-icons/lu";
 import { generateNewBoardName } from "../utils/boardNaming";
 
@@ -16,7 +17,8 @@ interface BoardListProps {
 
 export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const { projectId: paramProjectId } = useParams();
-  const projectId = propProjectId || paramProjectId;
+  const { resolvedProjectId } = useSlug();
+  const projectId = resolvedProjectId || propProjectId || paramProjectId;
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [boards, setBoards] = useState<Board[]>([]);
@@ -30,6 +32,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const [boardDescriptions, setBoardDescriptions] = useState<
     Record<string, string>
   >({});
+  const [project, setProject] = useState<Project | null>(null);
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
@@ -40,12 +43,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
     const loadBoards = async () => {
       try {
-        // Get project name and update context
+        // Get project data and update context
         const projectRef = ref(rtdb, `projects/${projectId}`);
         const projectSnapshot = await get(projectRef);
         if (projectSnapshot.exists()) {
-          const name = projectSnapshot.val().name;
-          updateCurrentProject(projectId, name);
+          const projectData = projectSnapshot.val();
+          setProject(projectData);
+          updateCurrentProject(projectId, projectData.name);
         } else {
           updateCurrentProject(projectId);
         }
@@ -214,8 +218,28 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
     await set(projectBoardRef, board);
 
-    // Navigate to the new board immediately
-    navigate(`/${boardId}`);
+    // Navigate to the new board using slug-based URL
+    try {
+      const projectRef = ref(rtdb, `projects/${projectId}`);
+      const projectSnapshot = await get(projectRef);
+      
+      if (projectSnapshot.exists()) {
+        const projectData = projectSnapshot.val();
+        if (projectData.slug) {
+          navigate(`/${projectData.slug}/${encodeURIComponent(uniqueName)}`);
+        } else {
+          // Fallback to legacy route
+          navigate(`/${boardId}`);
+        }
+      } else {
+        // Fallback to legacy route
+        navigate(`/${boardId}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to board:', error);
+      // Fallback to legacy route
+      navigate(`/${boardId}`);
+    }
   };
 
   // Component to render active members for a board
@@ -273,7 +297,10 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       <div className="boards-grid">
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
-            <Link to={`/${board.id}`} className="board-card">
+            <Link 
+              to={project?.slug ? `/${project.slug}/${encodeURIComponent(board.name)}` : `/${board.id}`} 
+              className="board-card"
+            >
               <p className="board-name">{boardTitles[board.id] || ""}</p>
               {boardThumbnails[board.id] ? (
                 <div className="board-thumbnail">

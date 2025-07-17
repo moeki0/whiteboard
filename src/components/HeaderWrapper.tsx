@@ -3,9 +3,11 @@ import { useLocation, useParams } from "react-router-dom";
 import { Header } from "./Header";
 import { User } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { useSlug } from "../contexts/SlugContext";
 import { rtdb } from "../config/firebase";
 import { ref, get, set } from "firebase/database";
 import { checkBoardNameDuplicate, generateUniqueBoardName } from "../utils/boardNaming";
+import { getLatestProjectSlug, recordBoardNameChange } from "../utils/historyManager";
 
 interface HeaderWrapperProps {
   user: User;
@@ -18,8 +20,10 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   const params = useParams();
   const path = location.pathname;
   const { currentProjectId } = useProject();
+  const { resolvedProjectId, resolvedBoardId } = useSlug();
   const [projectName, setProjectName] = useState<string>("");
   const [foundProjectId, setFoundProjectId] = useState<string>("");
+  const [projectSlug, setProjectSlug] = useState<string>("");
   const [boardTitle, setBoardTitle] = useState<string>("");
   const [boardId, setBoardId] = useState<string>("");
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState<boolean>(false);
@@ -34,52 +38,81 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       // Reset states
       setProjectName("");
       setFoundProjectId("");
+      setProjectSlug("");
       setBoardTitle("");
       setBoardId("");
 
-      // For board pages, get project data via board
-      const boardPageMatch = path.match(/^\/([^/]+)$/);
-      if (
-        boardPageMatch &&
-        !path.includes("/user/") &&
-        !path.includes("/create-") &&
-        !path.includes("/invite/")
-      ) {
-        const currentBoardId = boardPageMatch[1];
-        setBoardId(currentBoardId);
+      // Check if we have resolved IDs from SlugContext (for slug-based routes)
+      if (resolvedProjectId && resolvedBoardId) {
+        foundProjectId = resolvedProjectId;
+        setBoardId(resolvedBoardId);
         
         try {
-          const boardRef = ref(rtdb, `boards/${currentBoardId}`);
+          const boardRef = ref(rtdb, `boards/${resolvedBoardId}`);
           const boardSnapshot = await get(boardRef);
           if (boardSnapshot.exists()) {
             const boardData = boardSnapshot.val();
-            foundProjectId = boardData.projectId;
-            
-            // Get board title from board data
             setBoardTitle(boardData.name || "");
           }
         } catch (error) {
           console.error("Error fetching board data:", error);
         }
+      } else {
+        // For legacy board pages (/:boardId format)
+        const boardPageMatch = path.match(/^\/([^/]+)$/);
+        if (
+          boardPageMatch &&
+          !path.includes("/user/") &&
+          !path.includes("/create-") &&
+          !path.includes("/invite/")
+        ) {
+          const currentBoardId = boardPageMatch[1];
+          setBoardId(currentBoardId);
+          
+          try {
+            const boardRef = ref(rtdb, `boards/${currentBoardId}`);
+            const boardSnapshot = await get(boardRef);
+            if (boardSnapshot.exists()) {
+              const boardData = boardSnapshot.val();
+              foundProjectId = boardData.projectId;
+              
+              // Get board title from board data
+              setBoardTitle(boardData.name || "");
+            }
+          } catch (error) {
+            console.error("Error fetching board data:", error);
+          }
+        }
       }
 
-      // Get project name if we have a project ID
+      // Get project name and slug if we have a project ID
       if (foundProjectId) {
         try {
           const projectRef = ref(rtdb, `projects/${foundProjectId}`);
           const projectSnapshot = await get(projectRef);
           if (projectSnapshot.exists()) {
-            setProjectName(projectSnapshot.val().name);
+            const projectData = projectSnapshot.val();
+            setProjectName(projectData.name);
+            setProjectSlug(projectData.slug || "");
             setFoundProjectId(foundProjectId);
           }
         } catch (error) {
           console.error("Error fetching project data:", error);
+          // Try to get slug from historyManager as fallback
+          try {
+            const slug = await getLatestProjectSlug(foundProjectId);
+            if (slug) {
+              setProjectSlug(slug);
+            }
+          } catch (slugError) {
+            console.error("Error fetching project slug:", slugError);
+          }
         }
       }
     };
 
     getPageData();
-  }, [params.projectId, currentProjectId, path]);
+  }, [params.projectId, currentProjectId, path, resolvedProjectId, resolvedBoardId]);
 
   // リアルタイムで重複チェック
   const checkDuplicateRealtime = async (newTitle: string) => {
@@ -164,6 +197,11 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             name: finalName,
           });
           
+          // Record the name change in history
+          if (boardTitle !== finalName) {
+            await recordBoardNameChange(boardId, boardTitle, finalName);
+          }
+          
           setBoardTitle(finalName);
           setEditingBoardTitle(finalName);
         } else {
@@ -172,6 +210,12 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             ...boardData,
             name: editingBoardTitle.trim(),
           });
+          
+          // Record the name change in history
+          if (boardTitle !== editingBoardTitle.trim()) {
+            await recordBoardNameChange(boardId, boardTitle, editingBoardTitle.trim());
+          }
+          
           setBoardTitle(editingBoardTitle.trim());
         }
         
@@ -190,7 +234,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   const getHeaderConfig = () => {
     return {
       title: projectName,
-      titleLink: `/project/${foundProjectId}`,
+      titleLink: projectSlug ? `/${projectSlug}` : `/project/${foundProjectId}`,
       subtitle: boardTitle,
       onSubtitleClick: handleBoardTitleClick,
       isEditingSubtitle: isEditingBoardTitle,

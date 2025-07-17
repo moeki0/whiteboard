@@ -61,6 +61,7 @@ export interface BoardScene {
 export interface Project {
   id: string;
   name: string;
+  slug: string;
   createdBy: string;
   createdAt: number;
   inviteCode?: string;
@@ -96,4 +97,16 @@ export interface HistoryAction {
     oldPosition: { x: number; y: number };
     newPosition: { x: number; y: number };
   }>;
+}
+
+export interface SlugHistory {
+  oldSlug: string;
+  newSlug: string;
+  timestamp: number;
+}
+
+export interface NameHistory {
+  oldName: string;
+  newName: string;
+  timestamp: number;
 }

@@ -4,7 +4,9 @@ import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
 import { User, Note, Cursor, Board, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { useSlug } from "../contexts/SlugContext";
 import { checkBoardAccess } from "../utils/permissions";
+import { recordBoardNameChange } from "../utils/historyManager";
 
 interface UseBoardReturn {
   boardId: string | undefined;
@@ -24,10 +26,12 @@ interface UseBoardReturn {
 
 export function useBoard(
   user: User | null,
-  navigate: any,
+  navigate: (path: string) => void,
   sessionId: string
 ): UseBoardReturn {
-  const { boardId } = useParams<{ boardId: string }>();
+  const { boardId: urlBoardId } = useParams<{ boardId: string }>();
+  const { resolvedBoardId } = useSlug();
+  const boardId = resolvedBoardId || urlBoardId;
   const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
@@ -87,9 +91,17 @@ export function useBoard(
 
     if (editingBoardName.trim() !== boardName) {
       try {
+        const oldName = boardName;
+        const newName = editingBoardName.trim();
+        
         const boardRef = ref(rtdb, `boards/${boardId}/name`);
-        await set(boardRef, editingBoardName.trim());
-        setBoardName(editingBoardName.trim());
+        await set(boardRef, newName);
+        setBoardName(newName);
+        
+        // Record the name change in history
+        if (boardId) {
+          await recordBoardNameChange(boardId, oldName, newName);
+        }
       } catch (error) {
         console.error("Error updating board name:", error);
         setEditingBoardName(boardName);

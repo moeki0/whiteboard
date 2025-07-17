@@ -1,10 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, set } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { User } from "../types";
+import { 
+  generateSlugFromName, 
+  validateSlug, 
+  checkSlugAvailability,
+  generateUniqueSlug 
+} from "../utils/slugGenerator";
 import "./ProjectCreate.css";
 
 interface ProjectCreateProps {
@@ -15,6 +21,9 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [projectName, setProjectName] = useState("");
+  const [projectSlug, setProjectSlug] = useState("");
+  const [slugError, setSlugError] = useState("");
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const nanoid = customAlphabet(
@@ -22,14 +31,67 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
     21
   );
 
+  // Auto-generate slug from project name
+  useEffect(() => {
+    if (projectName.trim()) {
+      const generatedSlug = generateSlugFromName(projectName);
+      setProjectSlug(generatedSlug);
+    }
+  }, [projectName]);
+
+  // Validate slug when it changes
+  useEffect(() => {
+    if (!projectSlug) {
+      setSlugError("");
+      return;
+    }
+
+    const validateAndCheckSlug = async () => {
+      setIsCheckingSlug(true);
+      setSlugError("");
+
+      // First validate format
+      const validation = validateSlug(projectSlug);
+      if (!validation.isValid) {
+        setSlugError(validation.error || "Invalid slug format");
+        setIsCheckingSlug(false);
+        return;
+      }
+
+      // Then check availability
+      const availability = await checkSlugAvailability(projectSlug);
+      if (!availability.isAvailable) {
+        setSlugError(availability.error || "Slug is not available");
+      }
+
+      setIsCheckingSlug(false);
+    };
+
+    const timeoutId = setTimeout(validateAndCheckSlug, 500);
+    return () => clearTimeout(timeoutId);
+  }, [projectSlug]);
+
   const createProject = async () => {
     if (!projectName.trim()) {
       alert("Please enter a project name");
       return;
     }
 
+    if (!projectSlug.trim()) {
+      alert("Please enter a project slug");
+      return;
+    }
+
+    if (slugError) {
+      alert("Please fix the slug error before creating the project");
+      return;
+    }
+
     setIsCreating(true);
     try {
+      // Generate unique slug if needed
+      const finalSlug = await generateUniqueSlug(projectName.trim());
+      
       const projectId = nanoid();
       const inviteCode = customAlphabet(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -37,6 +99,7 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
       )();
       const project = {
         name: projectName.trim(),
+        slug: finalSlug,
         createdBy: user.uid,
         createdAt: Date.now(),
         inviteCode: inviteCode,
@@ -63,9 +126,9 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
       const inviteRef = ref(rtdb, `invites/${inviteCode}`);
       await set(inviteRef, { projectId: projectId, createdAt: Date.now() });
 
-      // Update current project and navigate
+      // Update current project and navigate to the new project
       updateCurrentProject(projectId);
-      navigate("/");
+      navigate(`/${finalSlug}`);
     } catch (error) {
       console.error("Error creating project:", error);
       alert("Failed to create project. Please try again.");
@@ -97,6 +160,32 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
                 autoFocus
                 disabled={isCreating}
               />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="projectSlug">
+                Project URL
+                <small>Your project will be accessible at: /{projectSlug || 'your-project-url'}</small>
+              </label>
+              <input
+                id="projectSlug"
+                type="text"
+                value={projectSlug}
+                onChange={(e) => setProjectSlug(e.target.value.toLowerCase())}
+                onKeyPress={handleKeyPress}
+                maxLength={50}
+                disabled={isCreating}
+                placeholder="your-project-url"
+              />
+              {isCheckingSlug && (
+                <small className="slug-status checking">Checking availability...</small>
+              )}
+              {slugError && (
+                <small className="slug-status error">{slugError}</small>
+              )}
+              {projectSlug && !slugError && !isCheckingSlug && (
+                <small className="slug-status success">✓ Available</small>
+              )}
             </div>
 
             <div className="form-group">
@@ -137,7 +226,7 @@ export function ProjectCreate({ user }: ProjectCreateProps) {
             <div className="form-actions">
               <button
                 onClick={createProject}
-                disabled={isCreating || !projectName.trim()}
+                disabled={isCreating || !projectName.trim() || !projectSlug.trim() || !!slugError || isCheckingSlug}
                 className="create-btn"
               >
                 {isCreating ? "Creating..." : "Create Project"}

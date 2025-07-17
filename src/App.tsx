@@ -19,9 +19,10 @@ import { BoardSettings } from "./components/BoardSettings";
 import { InitialProfileSetup } from "./components/InitialProfileSetup";
 import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
-import { ProjectProvider } from "./contexts/ProjectContext";
+import { ProjectProvider, useProject } from "./contexts/ProjectContext";
 import { User } from "./types";
 import { getUserProfile } from "./utils/userProfile";
+import { SlugRouter } from "./components/SlugRouter";
 import "./App.css";
 
 function App() {
@@ -89,6 +90,17 @@ function App() {
     );
   }
 
+  // Home Route Component with redirect logic
+  function HomeRoute() {
+    const { currentProjectId } = useProject();
+    
+    if (currentProjectId) {
+      return <Navigate to={`/project/${currentProjectId}`} replace />;
+    }
+    
+    return <Home user={user!} />;
+  }
+
   return (
     <div className="app">
       <ProjectProvider>
@@ -105,7 +117,7 @@ function App() {
               path="/"
               element={
                 <ProtectedRoute>
-                  <Home user={user!} />
+                  <HomeRoute />
                 </ProtectedRoute>
               }
             />
@@ -155,7 +167,68 @@ function App() {
               }
             />
 
+            {/* New slug-based routes */}
+            <Route
+              path="/:projectSlug/:boardName"
+              element={
+                <SlugRouter type="board">
+                  {loading ? (
+                    <div className="loading"></div>
+                  ) : (
+                    <Layout>
+                      {user ? (
+                        <HeaderWrapper user={user} />
+                      ) : (
+                        <div
+                          style={{
+                            background: "white",
+                            padding: "6px 20px",
+                            borderBottom: "1px solid #e0e0e0",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            position: "fixed",
+                            top: 0,
+                            width: "100%",
+                          }}
+                        >
+                          <h1 style={{ margin: 0, fontSize: "18px" }}>
+                            Whiteboard
+                          </h1>
+                          <button
+                            onClick={() => (window.location.href = "/")}
+                            style={{
+                              padding: "4px 16px",
+                              background: "#007bff",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            ログイン
+                          </button>
+                        </div>
+                      )}
+                      <Board user={user} />
+                    </Layout>
+                  )}
+                </SlugRouter>
+              }
+            />
 
+            <Route
+              path="/:projectSlug"
+              element={
+                <ProtectedRoute>
+                  <SlugRouter type="project">
+                    <BoardList user={user!} />
+                  </SlugRouter>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Legacy route for backward compatibility */}
             <Route
               path="/:boardId"
               element={
