@@ -44,7 +44,7 @@ export function useBoard(
   const [project, setProject] = useState<Project | null>(null);
 
   // Check access permissions function
-  const checkAccess = async (boardData: any) => {
+  const checkAccess = async (boardData: Record<string, unknown>) => {
     const currentBoard: Board = {
       id: boardId || "",
       ...boardData,
@@ -189,7 +189,7 @@ export function useBoard(
       if (data) {
         const notesArray = Object.entries(data).map(([id, note]) => ({
           id,
-          ...(note as any),
+          ...(note as Record<string, unknown>),
         })) as Note[];
         setNotes(notesArray);
       } else {
@@ -205,7 +205,7 @@ export function useBoard(
         const now = Date.now();
         const CURSOR_TIMEOUT = 30000; // 30 seconds timeout
 
-        Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
+        Object.entries(data).forEach(([cursorId, cursor]: [string, Cursor]) => {
           // Remove old cursors
           if (now - cursor.timestamp > CURSOR_TIMEOUT) {
             const oldCursorRef = ref(

@@ -41,10 +41,10 @@ export async function copyStickyNoteToClipboard(
           clonedElement.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
         }
       }
-    } as any);
+    } as Record<string, unknown>);
 
     return await copyCanvasToClipboard(canvas);
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -99,14 +99,14 @@ export async function copyMultipleStickyNotesToClipboard(
             htmlNote.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.05)';
           });
         }
-      } as any);
+      } as Record<string, unknown>);
 
       return await copyCanvasToClipboard(canvas);
     } finally {
       // 仮想コンテナを削除
       document.body.removeChild(container);
     }
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -140,7 +140,7 @@ async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<boolean
           URL.revokeObjectURL(url);
           resolve(true);
         }
-      } catch (error) {
+      } catch {
         // Try fallback method
         try {
           const url = URL.createObjectURL(blob);
@@ -152,7 +152,7 @@ async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<boolean
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
           resolve(true);
-        } catch (fallbackError) {
+        } catch {
           resolve(false);
         }
       }

@@ -40,8 +40,8 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
 
         // 同じプロジェクト内のボードを検索
         const projectBoards = Object.entries(allBoards)
-          .filter(([, board]: [string, unknown]) => (board as any).projectId === projectId)
-          .map(([id, board]: [string, unknown]) => ({ ...(board as any), id }));
+          .filter(([, board]: [string, unknown]) => (board as Record<string, unknown>).projectId === projectId)
+          .map(([id, board]: [string, unknown]) => ({ ...(board as Record<string, unknown>), id }));
 
         // ボード名が一致するボードを探す
         let targetBoard = null;

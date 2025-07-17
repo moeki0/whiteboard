@@ -52,7 +52,7 @@ export async function deleteBoardThumbnail(boardId: string): Promise<void> {
     // Database からURLを削除
     const boardThumbnailRef = dbRef(rtdb, `boardThumbnails/${boardId}`);
     await set(boardThumbnailRef, null);
-  } catch (error) {
+  } catch {
     // Silent fail - 画像が存在しない場合もあるため
   }
 }

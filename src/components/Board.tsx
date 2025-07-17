@@ -447,7 +447,7 @@ export function Board({ user }: BoardProps) {
 
       const notePromises = selectedNotes.map((note) => {
         const newNoteId = nanoid();
-        const newNote: any = {
+        const newNote: Note = {
           content: note.content || "",
           x: note.x + offsetX,
           y: note.y + offsetY,

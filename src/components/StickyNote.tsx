@@ -22,6 +22,7 @@ import {
 } from "../utils/textCompletion";
 import { useProjectBoards } from "../hooks/useProjectBoards";
 import { BoardSuggestions } from "./BoardSuggestions";
+import { extractBoardLinks } from "../utils/extractBoardLinks";
 
 interface ImageContent {
   type: "image";
@@ -318,7 +319,7 @@ export function StickyNote({
                         prev.set(boardName, currentBoardInfo.thumbnailUrl)
                       )
                   );
-                } catch (error) {
+                } catch {
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) => new Map(prev.set(boardName, null))
@@ -336,7 +337,7 @@ export function StickyNote({
                         )
                     );
                   }
-                } catch (error) {
+                } catch {
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) => new Map(prev.set(boardName, null))
@@ -524,7 +525,7 @@ export function StickyNote({
                         prev.set(boardName, currentBoardInfo.thumbnailUrl)
                       )
                   );
-                } catch (error) {
+                } catch {
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) => new Map(prev.set(boardName, null))
@@ -542,7 +543,7 @@ export function StickyNote({
                         )
                     );
                   }
-                } catch (error) {
+                } catch {
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) => new Map(prev.set(boardName, null))
@@ -1431,34 +1432,6 @@ export function StickyNote({
     return [...new Set(links)];
   };
 
-  const extractBoardLinks = (
-    text: string
-  ): Array<{ name: string; boardId: string }> => {
-    const boardLinksArray: Array<{ name: string; boardId: string }> = [];
-
-    const boardLinkMatches = text.matchAll(/\[([^\]]+)\](?!\.icon)/g);
-    for (const match of boardLinkMatches) {
-      const boardName = match[1];
-      const boardId = boardLinks.get(boardName);
-      // 存在しないボードも含めて問答無用でリンクを表示
-      boardLinksArray.push({ name: boardName, boardId: boardId || "" });
-    }
-
-    const boardIconMatches = text.matchAll(/\[([^\]]+)\.icon\]/g);
-    for (const match of boardIconMatches) {
-      const boardName = match[1];
-      const boardId = boardLinks.get(boardName);
-      // 存在しないボードも含めて問答無用でリンクを表示
-      boardLinksArray.push({ name: boardName, boardId: boardId || "" });
-    }
-
-    const uniqueLinks = boardLinksArray.filter(
-      (link, index, self) =>
-        index === self.findIndex((l) => l.name === link.name)
-    );
-
-    return uniqueLinks;
-  };
 
   const parsedContent = useMemo(() => parseContent(content), [content]);
 
@@ -1499,7 +1472,7 @@ export function StickyNote({
       {isHovered &&
         !isEditing &&
         (extractLinks(content).length > 0 ||
-          extractBoardLinks(content).length > 0) && (
+          extractBoardLinks(content, boardLinks).length > 0) && (
           <div
             style={{
               position: "absolute",
@@ -1543,7 +1516,7 @@ export function StickyNote({
                 </button>
               ))}
             {/* ボードリンク */}
-            {extractBoardLinks(content)
+            {extractBoardLinks(content, boardLinks)
               .slice(0, 3)
               .map((boardLink, index) => {
                 return (
