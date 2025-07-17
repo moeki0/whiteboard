@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../config/firebase";
+import { auth, rtdb, db } from "../config/firebase";
+import { ref, get, remove, set } from "firebase/database";
+import { doc, deleteDoc } from "firebase/firestore";
 import { deleteUser, updateProfile } from "firebase/auth";
 import { User, UserProfile } from "../types";
 import {
@@ -99,7 +101,15 @@ export function UserSettings({ user }: UserSettingsProps) {
         throw new Error("No authenticated user");
       }
 
+      // First, remove user from all projects before deleting the account
+      await removeUserFromAllProjects(user.uid);
+
+      // Delete the user's profile data
+      await deleteUserData(user.uid);
+
+      // Finally, delete the Firebase Auth user
       await deleteUser(currentUser);
+      
       // User deletion successful, user will be automatically logged out
       navigate("/");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,6 +125,150 @@ export function UserSettings({ user }: UserSettingsProps) {
       }
 
       setIsDeletingAccount(false);
+    }
+  };
+
+  const removeUserFromAllProjects = async (userId: string) => {
+    try {
+      // Get all projects the user is a member of
+      const userProjectsRef = ref(rtdb, `userProjects/${userId}`);
+      const userProjectsSnapshot = await get(userProjectsRef);
+      
+      if (userProjectsSnapshot.exists()) {
+        const userProjects = userProjectsSnapshot.val();
+        const projectIds = Object.keys(userProjects);
+        
+        // Remove user from each project
+        const removePromises = projectIds.map(async (projectId) => {
+          try {
+            // Remove user from project members
+            const projectMemberRef = ref(rtdb, `projects/${projectId}/members/${userId}`);
+            await remove(projectMemberRef);
+            
+            // Check if the user was the owner and the project has other members
+            const projectRef = ref(rtdb, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            
+            if (projectSnapshot.exists()) {
+              const projectData = projectSnapshot.val();
+              const members = projectData.members || {};
+              const remainingMembers = Object.keys(members).filter(id => id !== userId);
+              
+              if (remainingMembers.length === 0) {
+                // If no remaining members, delete the entire project
+                await deleteProject(projectId);
+              } else if (projectData.members?.[userId]?.role === "owner") {
+                // If user was owner but there are other members, transfer ownership to first remaining member
+                const newOwnerId = remainingMembers[0];
+                const newOwnerRef = ref(rtdb, `projects/${projectId}/members/${newOwnerId}/role`);
+                await set(newOwnerRef, "owner");
+              }
+            }
+          } catch (error) {
+            console.error(`Error removing user from project ${projectId}:`, error);
+          }
+        });
+        
+        await Promise.all(removePromises);
+      }
+    } catch (error) {
+      console.error("Error removing user from projects:", error);
+    }
+  };
+
+  const deleteProject = async (projectId: string) => {
+    try {
+      // Remove project
+      const projectRef = ref(rtdb, `projects/${projectId}`);
+      await remove(projectRef);
+
+      // Remove project boards, notes and cursors
+      const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
+      const projectNotesRef = ref(rtdb, `projectNotes/${projectId}`);
+      const projectCursorsRef = ref(rtdb, `projectCursors/${projectId}`);
+      
+      await Promise.all([
+        remove(projectBoardsRef),
+        remove(projectNotesRef),
+        remove(projectCursorsRef)
+      ]);
+      
+      // Remove invite mapping if exists
+      const projectSnapshot = await get(ref(rtdb, `projects/${projectId}`));
+      if (projectSnapshot.exists()) {
+        const projectData = projectSnapshot.val();
+        if (projectData.inviteCode) {
+          const inviteRef = ref(rtdb, `invites/${projectData.inviteCode}`);
+          await remove(inviteRef);
+        }
+      }
+    } catch (error) {
+      console.error(`Error deleting project ${projectId}:`, error);
+    }
+  };
+
+  const deleteUserData = async (userId: string) => {
+    try {
+      // Remove user's project list from Realtime Database
+      const userProjectsRef = ref(rtdb, `userProjects/${userId}`);
+      await remove(userProjectsRef);
+      
+      // Remove user profile data from Firestore
+      const userProfileDoc = doc(db, "userProfiles", userId);
+      await deleteDoc(userProfileDoc);
+      
+      // Remove user's cursor data from all boards
+      await removeUserCursors(userId);
+      
+      // Remove any other user-related data
+      // You may need to add more cleanup based on your data structure
+      
+    } catch (error) {
+      console.error("Error deleting user data:", error);
+    }
+  };
+
+  const removeUserCursors = async (userId: string) => {
+    try {
+      // Get all boards to clean up cursor data
+      const boardsRef = ref(rtdb, "boards");
+      const boardsSnapshot = await get(boardsRef);
+      
+      if (boardsSnapshot.exists()) {
+        const boards = boardsSnapshot.val();
+        const boardIds = Object.keys(boards);
+        
+        // Remove user's cursors from all boards
+        const cursorCleanupPromises = boardIds.map(async (boardId) => {
+          try {
+            const boardCursorsRef = ref(rtdb, `boardCursors/${boardId}`);
+            const cursorsSnapshot = await get(boardCursorsRef);
+            
+            if (cursorsSnapshot.exists()) {
+              const cursors = cursorsSnapshot.val();
+              const cursorIds = Object.keys(cursors);
+              
+              // Find and remove cursors that belong to this user
+              const userCursorIds = cursorIds.filter(cursorId => 
+                cursorId.startsWith(`${userId}-`)
+              );
+              
+              const removePromises = userCursorIds.map(cursorId => {
+                const cursorRef = ref(rtdb, `boardCursors/${boardId}/${cursorId}`);
+                return remove(cursorRef);
+              });
+              
+              await Promise.all(removePromises);
+            }
+          } catch (error) {
+            console.error(`Error removing cursors for board ${boardId}:`, error);
+          }
+        });
+        
+        await Promise.all(cursorCleanupPromises);
+      }
+    } catch (error) {
+      console.error("Error removing user cursors:", error);
     }
   };
 
