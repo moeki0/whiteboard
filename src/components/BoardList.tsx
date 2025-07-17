@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { rtdb, auth } from "../config/firebase";
-import { ref, onValue, set, remove, get } from "firebase/database";
-import { signOut } from "firebase/auth";
+import { rtdb } from "../config/firebase";
+import { ref, onValue, set, get } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
-import { getBoardThumbnail } from "../utils/thumbnailUtils";
+import { getBoardInfo } from "../utils/boardInfo";
 import { User, Board, Cursor } from "../types";
 import { LuPlus } from "react-icons/lu";
 
@@ -20,13 +19,14 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [boards, setBoards] = useState<Board[]>([]);
-  const [projectName, setProjectName] = useState<string>("");
-  const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
-  const [newBoardName, setNewBoardName] = useState<string>("");
   const [boardCursors, setBoardCursors] = useState<
     Record<string, Record<string, Cursor>>
   >({});
   const [boardThumbnails, setBoardThumbnails] = useState<
+    Record<string, string>
+  >({});
+  const [boardTitles, setBoardTitles] = useState<Record<string, string>>({});
+  const [boardDescriptions, setBoardDescriptions] = useState<
     Record<string, string>
   >({});
   const nanoid = customAlphabet(
@@ -43,8 +43,6 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       const projectSnapshot = await get(projectRef);
       if (projectSnapshot.exists()) {
         const name = projectSnapshot.val().name;
-        setProjectName(name);
-        // Update current project in context with both ID and name
         updateCurrentProject(projectId, name);
       } else {
         // Update current project with ID only if no name found
@@ -78,20 +76,34 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         const validBoards = boardResults.filter((board) => board !== null);
         setBoards(validBoards.sort((a, b) => b.createdAt - a.createdAt));
 
-        // ボードのサムネイルを読み込み
-        const thumbnailPromises = validBoards.map(async (board) => {
-          const thumbnailUrl = await getBoardThumbnail(board.id);
-          return { boardId: board.id, thumbnailUrl };
+        // ボードの情報を読み込み
+        const boardInfoPromises = validBoards.map(async (board) => {
+          const boardInfo = await getBoardInfo(board.id);
+          return { boardId: board.id, ...boardInfo };
         });
 
-        const thumbnailResults = await Promise.all(thumbnailPromises);
+        const boardInfoResults = await Promise.all(boardInfoPromises);
         const thumbnailMap: Record<string, string> = {};
-        thumbnailResults.forEach(({ boardId, thumbnailUrl }) => {
-          if (thumbnailUrl) {
-            thumbnailMap[boardId] = thumbnailUrl;
+        const titleMap: Record<string, string> = {};
+        const descriptionMap: Record<string, string> = {};
+
+        boardInfoResults.forEach(
+          ({ boardId, thumbnailUrl, title, description }) => {
+            if (thumbnailUrl) {
+              thumbnailMap[boardId] = thumbnailUrl;
+            }
+            if (title) {
+              titleMap[boardId] = title;
+            }
+            if (description) {
+              descriptionMap[boardId] = description;
+            }
           }
-        });
+        );
+
         setBoardThumbnails(thumbnailMap);
+        setBoardTitles(titleMap);
+        setBoardDescriptions(descriptionMap);
 
         // サムネイルの更新をリアルタイムで監視
         validBoards.forEach((board) => {
@@ -109,6 +121,8 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       } else {
         setBoards([]);
         setBoardThumbnails({});
+        setBoardTitles({});
+        setBoardDescriptions({});
       }
     });
 
@@ -120,7 +134,6 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     if (!boards.length) return;
 
     const unsubscribes: (() => void)[] = [];
-    const newBoardCursors: Record<string, Record<string, Cursor>> = {};
 
     boards.forEach((board) => {
       const cursorsRef = ref(rtdb, `boardCursors/${board.id}`);
@@ -132,6 +145,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
             // Only show recent cursors (active users)
             if (now - cursor.timestamp < CURSOR_TIMEOUT) {
@@ -164,7 +178,6 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const createBoard = async () => {
     const boardId = nanoid();
     const board = {
-      name: "Untitled",
       createdBy: user!.uid,
       createdAt: Date.now(),
       projectId: projectId,
@@ -237,21 +250,31 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         {boards.map((board) => (
           <div key={board.id} className="board-card-wrapper">
             <Link to={`/${board.id}`} className="board-card">
-              <div className="board-card-content">
-                <p className="board-name">{board.name}</p>
-                <ActiveMembers boardId={board.id} />
-              </div>
-              <div className="board-thumbnail">
-                {boardThumbnails[board.id] ? (
-                  <img
-                    src={boardThumbnails[board.id]}
-                    alt={`${board.name} thumbnail`}
-                    className="thumbnail-image"
-                  />
-                ) : (
-                  <div className="thumbnail-placeholder"></div>
-                )}
-              </div>
+              <p className="board-name">
+                {boardTitles[board.id] || "Untitled"}
+              </p>
+              {boardThumbnails[board.id] ? (
+                <div className="board-thumbnail">
+                  {boardThumbnails[board.id] ? (
+                    <img
+                      src={boardThumbnails[board.id]}
+                      alt={`${board.name} thumbnail`}
+                      className="thumbnail-image"
+                    />
+                  ) : (
+                    <div className="thumbnail-placeholder"></div>
+                  )}
+                </div>
+              ) : (
+                <div className="board-card-content">
+                  {boardDescriptions[board.id] && (
+                    <p className="board-description">
+                      {boardDescriptions[board.id]}
+                    </p>
+                  )}
+                  <ActiveMembers boardId={board.id} />
+                </div>
+              )}
             </Link>
           </div>
         ))}

@@ -24,7 +24,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
 
   // Check if we're on a board page - memoized to avoid recalculation
   const { currentBoardId, isOnBoardPage } = useMemo(() => {
-    const boardId = location.pathname.match(/^\/([^\/]+)$/)?.[1];
+    const boardId = location.pathname.match(/^\/([^/]+)$/)?.[1];
     const onBoardPage =
       boardId &&
       !location.pathname.includes("/project/") &&

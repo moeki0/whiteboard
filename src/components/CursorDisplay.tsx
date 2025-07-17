@@ -1,4 +1,3 @@
-import React from "react";
 import { LuMousePointer2 } from "react-icons/lu";
 import { Cursor } from "../types";
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -33,7 +33,7 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user as User | null);
-      
+
       // 初回ログイン時（usernameが未設定）の場合、初期設定画面を表示
       if (user) {
         try {
@@ -51,7 +51,7 @@ function App() {
       } else {
         setShowInitialSetup(false);
       }
-      
+
       setLoading(false);
     });
 
@@ -185,10 +185,12 @@ function App() {
                           alignItems: "center",
                           position: "fixed",
                           top: 0,
-                          width: "100%"
+                          width: "100%",
                         }}
                       >
-                        <h1 style={{ margin: 0, fontSize: "18px" }}>Whiteboard</h1>
+                        <h1 style={{ margin: 0, fontSize: "18px" }}>
+                          Whiteboard
+                        </h1>
                         <button
                           onClick={() => (window.location.href = "/")}
                           style={{

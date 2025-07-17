@@ -15,6 +15,7 @@ interface Member {
   displayName?: string;
   email?: string;
   role: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -23,7 +24,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isEditingName, setIsEditingName] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -56,6 +56,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
             const membersArray = Object.entries(projectData.members).map(
               ([uid, member]) => ({
                 uid,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ...(member as any),
               })
             );
@@ -82,7 +83,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
 
     if (!newProjectName.trim() || newProjectName === project?.name) {
-      setIsEditingName(false);
       setNewProjectName(project?.name || "");
       return;
     }
@@ -92,7 +92,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       await set(projectRef, newProjectName);
 
       setProject((prev) => (prev ? { ...prev, name: newProjectName } : null));
-      setIsEditingName(false);
     } catch (error) {
       console.error("Error updating project name:", error);
       alert("Failed to update project name");
@@ -206,7 +205,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       alert("Invite link copied!");
-    } catch (err) {
+    } catch {
       // Fallback for older browsers
       const textArea = document.createElement("textarea");
       textArea.value = inviteUrl;

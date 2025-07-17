@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, get, set, remove } from "firebase/database";
+import { ref, get, remove } from "firebase/database";
 import { User, Board } from "../types";
 import "./SettingsCommon.css";
 
@@ -13,11 +13,8 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   const { boardId } = useParams();
   const navigate = useNavigate();
   const [board, setBoard] = useState<Board | null>(null);
-  const [boardName, setBoardName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
@@ -29,7 +26,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
         if (boardSnapshot.exists()) {
           const boardData = boardSnapshot.val();
           setBoard(boardData);
-          setBoardName(boardData.name || "");
 
           // Check if user has access to this board
           if (boardData.projectId) {
@@ -41,7 +37,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
               const userMember = projectData.members?.[user.uid];
 
               if (userMember) {
-                setUserRole(userMember.role);
                 setHasAccess(true);
               } else {
                 setHasAccess(false);
@@ -67,40 +62,6 @@ export function BoardSettings({ user }: BoardSettingsProps) {
 
     loadBoardSettings();
   }, [boardId, navigate]);
-
-  const saveSettings = async () => {
-    if (!boardName.trim()) {
-      alert("Please enter a board name");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const updates = {
-        name: boardName.trim(),
-        updatedAt: Date.now(),
-      };
-
-      const boardRef = ref(rtdb, `boards/${boardId}`);
-      await set(boardRef, board ? { ...board, ...updates } : updates);
-
-      // Also update in projectBoards for consistency
-      if (board?.projectId) {
-        const projectBoardRef = ref(
-          rtdb,
-          `projectBoards/${board.projectId}/${boardId}`
-        );
-        await set(projectBoardRef, { ...board, ...updates });
-      }
-
-      alert("Settings saved successfully!");
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      alert("Failed to save settings. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const deleteBoard = async () => {
     if (
@@ -182,40 +143,13 @@ export function BoardSettings({ user }: BoardSettingsProps) {
   return (
     <div className="board-settings">
       <div className="settings-container">
-        <div className="settings-section">
-          <h2>Board Information</h2>
-          <div className="settings-form">
-            <div className="form-group">
-              <label htmlFor="boardName">Board Name</label>
-              <input
-                id="boardName"
-                type="text"
-                value={boardName}
-                onChange={(e) => setBoardName(e.target.value)}
-                placeholder="Enter board name"
-                maxLength={100}
-                disabled={isSaving}
-              />
-              <div>
-                <button
-                  onClick={saveSettings}
-                  disabled={isSaving}
-                  className="save-btn"
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="settings-section danger-zone">
           <h2>Delete Board</h2>
           <div className="setting-item">
             <div>
               <button
                 onClick={deleteBoard}
-                disabled={isDeleting || isSaving}
+                disabled={isDeleting}
                 className="danger-btn"
               >
                 Delete Board

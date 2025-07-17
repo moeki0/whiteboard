@@ -1,10 +1,19 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
-import { Note, Board, Project } from "../types";
+import { Note, Board, Project, UserProfile } from "../types";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { calculateBorderColor } from "../utils/borderColors";
-import { LuPlus } from "react-icons/lu";
+import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
+import { getBoardInfo } from "../utils/boardInfo";
+import { rtdb } from "../config/firebase";
+import { ref, get } from "firebase/database";
 
 interface ImageContent {
   type: "image";
@@ -18,7 +27,37 @@ interface TextContent {
   content: string;
 }
 
-type ParsedContent = ImageContent | TextContent;
+interface UserIconContent {
+  type: "usericon";
+  username: string;
+  photoURL?: string | null;
+  displayName?: string | null;
+}
+
+interface InlineImageContent {
+  type: "inlineimage";
+  url: string;
+}
+
+interface BoardThumbnailContent {
+  type: "boardthumbnail";
+  boardName: string;
+  thumbnailUrl: string | null;
+}
+
+interface BoardLinkContent {
+  type: "boardlink";
+  boardName: string;
+  boardId: string | null;
+}
+
+type ParsedContent =
+  | ImageContent
+  | TextContent
+  | UserIconContent
+  | InlineImageContent
+  | BoardThumbnailContent
+  | BoardLinkContent;
 
 interface StickyNoteProps {
   note: Note;
@@ -66,7 +105,6 @@ export function StickyNote({
   onFocused,
   board,
   project,
-  user,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -76,7 +114,23 @@ export function StickyNote({
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
-  const [showSignButton, setShowSignButton] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<
+    Map<string, UserProfile | null>
+  >(new Map());
+  const [currentUserProfile, setCurrentUserProfile] =
+    useState<UserProfile | null>(null);
+  const [boardThumbnails, setBoardThumbnails] = useState<
+    Map<string, string | null>
+  >(new Map());
+  const [boardLinks, setBoardLinks] = useState<Map<string, string | null>>(
+    new Map()
+  );
+  const [insertCount, setInsertCount] = useState(0);
+  const [lastInsertTime, setLastInsertTime] = useState(0);
+  const [lastInsertPosition, setLastInsertPosition] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
 
   // 権限チェック
   const { canEdit: canEditBoard } = checkBoardEditPermission(
@@ -140,6 +194,209 @@ export function StickyNote({
     textSize,
   ]);
 
+  // ボードサムネイル取得
+  useEffect(() => {
+    let isMounted = true; // コンポーネントのマウント状態を追跡
+
+    const loadBoardThumbnails = async () => {
+      if (!content || !board.id || !isMounted) return;
+
+      // [name.icon]記法を検出
+      const iconMatches = content.matchAll(/\[([^\]]+)\.icon(\*\d+)?\]/g);
+      const boardNames = new Set<string>();
+
+      for (const match of iconMatches) {
+        boardNames.add(match[1]);
+      }
+
+      // [name]記法（リンク用）を検出
+      const linkMatches = content.matchAll(/\[([^\]]+)\](?!\.[a-z])/g);
+      const linkBoardNames = new Set<string>();
+
+      for (const match of linkMatches) {
+        linkBoardNames.add(match[1]);
+      }
+
+      if (boardNames.size === 0 && linkBoardNames.size === 0) return;
+
+      // 各ボード名のサムネイルを取得
+      for (const boardName of boardNames) {
+        if (!isMounted) break; // マウント状態チェック
+
+        // 既にキャッシュされている場合はスキップ
+        if (boardThumbnails.has(boardName)) continue;
+
+        try {
+          // プロジェクト内の全ボードを取得
+          const boardsRef = ref(rtdb, `boards`);
+          const boardsSnapshot = await get(boardsRef);
+
+          if (!isMounted) break; // 非同期処理後のマウント状態チェック
+
+          const allBoards = boardsSnapshot.val() || {};
+
+          // 同じプロジェクト内のボードを検索
+          const projectBoards = Object.entries(allBoards)
+            .filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+              ([_, boardData]: [string, any]) =>
+                boardData.projectId === board.projectId
+            )
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
+
+          let foundMatch = false;
+          for (const targetBoard of projectBoards) {
+            if (!isMounted) break; // ループ中のマウント状態チェック
+
+            // 自分自身のボードも含めて検索するが、getBoardInfoは直接使わずキャッシュから取得
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let targetBoardInfo: any;
+            let boardTitle;
+
+            if (targetBoard.id === board.id) {
+              // 自分自身の場合は、現在取得可能な情報から判定
+              // getBoardInfoを再帰的に呼ばないよう、基本情報のみ使用
+              boardTitle = targetBoard.name || "";
+            } else {
+              targetBoardInfo = await getBoardInfo(targetBoard.id);
+
+              if (!isMounted) break; // getBoardInfo後のマウント状態チェック
+
+              boardTitle = targetBoardInfo.title || targetBoard.name || "";
+            }
+
+            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
+              // サムネイル用のボードでもリンク用のIDを保存
+              if (isMounted) {
+                setBoardLinks(
+                  (prev) => new Map(prev.set(boardName, targetBoard.id))
+                );
+              }
+
+              // 自分自身の場合は現在のボードのサムネイル取得を試行
+              if (targetBoard.id === board.id) {
+                // 現在のボードのサムネイルはboardInfoから直接取得
+                try {
+                  const currentBoardInfo = await getBoardInfo(board.id);
+
+                  if (!isMounted) break; // getBoardInfo後のマウント状態チェック
+
+                  setBoardThumbnails(
+                    (prev) =>
+                      new Map(
+                        prev.set(boardName, currentBoardInfo.thumbnailUrl)
+                      )
+                  );
+                } catch {
+                  if (isMounted) {
+                    setBoardThumbnails(
+                      (prev) => new Map(prev.set(boardName, null))
+                    );
+                  }
+                }
+              } else {
+                if (isMounted) {
+                  setBoardThumbnails(
+                    (prev) =>
+                      new Map(prev.set(boardName, targetBoardInfo.thumbnailUrl))
+                  );
+                }
+              }
+              foundMatch = true;
+              break;
+            }
+          }
+
+          if (!foundMatch && isMounted) {
+            setBoardThumbnails((prev) => new Map(prev.set(boardName, null)));
+          }
+        } catch (error) {
+          if (isMounted) {
+            console.error(
+              `Failed to get board thumbnail for: ${boardName}`,
+              error
+            );
+            setBoardThumbnails((prev) => new Map(prev.set(boardName, null)));
+          }
+        }
+      }
+
+      // 各ボード名のリンクIDを取得
+      for (const boardName of linkBoardNames) {
+        if (!isMounted) break; // マウント状態チェック
+
+        // 既にキャッシュされている場合はスキップ
+        if (boardLinks.has(boardName)) continue;
+
+        try {
+          // プロジェクト内の全ボードを取得
+          const boardsRef = ref(rtdb, `boards`);
+          const boardsSnapshot = await get(boardsRef);
+
+          if (!isMounted) break; // 非同期処理後のマウント状態チェック
+
+          const allBoards = boardsSnapshot.val() || {};
+
+          // 同じプロジェクト内のボードを検索
+          const projectBoards = Object.entries(allBoards)
+            .filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+              ([_, boardData]: [string, any]) =>
+                boardData.projectId === board.projectId
+            )
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
+
+          // ボード名またはタイトルが一致するボードを探す
+          let foundMatch = false;
+          for (const targetBoard of projectBoards) {
+            if (!isMounted) break; // ループ中のマウント状態チェック
+
+            let targetBoardInfo;
+            let boardTitle;
+
+            if (targetBoard.id === board.id) {
+              // 自分自身の場合は、現在取得可能な情報から判定
+              boardTitle = targetBoard.name || "";
+            } else {
+              targetBoardInfo = await getBoardInfo(targetBoard.id);
+
+              if (!isMounted) break; // getBoardInfo後のマウント状態チェック
+
+              boardTitle = targetBoardInfo.title || targetBoard.name || "";
+            }
+
+            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
+              if (isMounted) {
+                setBoardLinks(
+                  (prev) => new Map(prev.set(boardName, targetBoard.id))
+                );
+              }
+              foundMatch = true;
+              break;
+            }
+          }
+
+          if (!foundMatch && isMounted) {
+            setBoardLinks((prev) => new Map(prev.set(boardName, null)));
+          }
+        } catch (error) {
+          if (isMounted) {
+            console.error(`Failed to get board link for: ${boardName}`, error);
+            setBoardLinks((prev) => new Map(prev.set(boardName, null)));
+          }
+        }
+      }
+    };
+
+    loadBoardThumbnails();
+
+    // クリーンアップ関数でマウント状態を更新
+    return () => {
+      isMounted = false;
+    };
+  }, [content, board.id, board.projectId]);
 
   // 固定幅なので自動リサイズは不要
 
@@ -154,10 +411,7 @@ export function StickyNote({
       return;
     }
 
-    // 複数選択されている場合は一括移動を開始
-    console.log('Debug: isSelected=', isSelected, 'hasMultipleSelected=', hasMultipleSelected, 'noteId=', note.id);
     if (isSelected && hasMultipleSelected) {
-      console.log('Debug: Starting bulk drag for noteId=', note.id);
       e.preventDefault();
       e.stopPropagation();
       onStartBulkDrag(note.id, e);
@@ -259,7 +513,6 @@ export function StickyNote({
   const handleBlur = () => {
     setIsEditing(false);
     setShowToolbar(false);
-    setShowSignButton(false); // 編集終了時にSignボタンも非表示に
     onUpdate(note.id, {
       content,
       width: dimensions.width,
@@ -310,12 +563,30 @@ export function StickyNote({
     return `https://gyazo.com/${id}/max_size/1000`;
   };
 
-  // アスタリスクの数から画像サイズを計算
-  const getImageSize = (asteriskCount: number) => {
+  // アスタリスクの数から画像サイズを計算（#との組み合わせにも対応）
+  const getImageSize = (line: string) => {
     const baseSize = 50;
-    const sizeMultiplier = Math.max(1, asteriskCount);
+    let sizeMultiplier = 1;
 
-    return Math.min(2000, baseSize * 2 * sizeMultiplier);
+    // #と*の組み合わせをチェック
+    const combinedMatch = line.match(/^(#+)\s*(\*+)(.*)/);
+    const hashOnlyMatch = line.match(/^(#+)\s*(.*)/) && !combinedMatch;
+    const asteriskOnlyMatch = line.match(/^(\*+)(.*)/);
+
+    if (combinedMatch) {
+      const asteriskCount = combinedMatch[2].length;
+      // #のベース倍率(2倍) + *による追加倍率
+      sizeMultiplier = 2 + asteriskCount;
+    } else if (hashOnlyMatch) {
+      // #のみの場合は2倍
+      sizeMultiplier = 2;
+    } else if (asteriskOnlyMatch) {
+      // *のみの場合
+      const asteriskCount = asteriskOnlyMatch[1].length;
+      sizeMultiplier = Math.max(1, asteriskCount);
+    }
+
+    return Math.min(2000, baseSize * sizeMultiplier);
   };
 
   // 付箋全体がGyazoのURLのみかどうかをチェック
@@ -325,10 +596,22 @@ export function StickyNote({
 
     const line = lines[0].trim();
     const withoutAsterisks = line.replace(/^\*+/, "");
-    return (
-      isGyazoUrl(withoutAsterisks) &&
-      withoutAsterisks.trim() === withoutAsterisks
-    );
+    const trimmedContent = withoutAsterisks.trim();
+
+    // テキストが含まれている場合や、[]で囲まれている場合はテキストとして処理
+    if (trimmedContent.includes("[") || trimmedContent.includes("]")) {
+      return false;
+    }
+
+    // 他の文字が前後にある場合はテキストとして処理
+    if (
+      line.length >
+      trimmedContent.length + (line.length - line.replace(/^\*+/, "").length)
+    ) {
+      return false;
+    }
+
+    return isGyazoUrl(trimmedContent);
   };
 
   // コンテンツを解析して画像、リンク、テキストを分離
@@ -340,7 +623,6 @@ export function StickyNote({
       const asteriskMatch = line.match(/^(\*+)(.*)/);
 
       if (asteriskMatch) {
-        const asteriskCount = asteriskMatch[1].length;
         const contentAfterAsterisks = asteriskMatch[2];
         const imageUrl = getGyazoImageUrl(contentAfterAsterisks);
 
@@ -349,7 +631,7 @@ export function StickyNote({
             {
               type: "image",
               url: imageUrl,
-              size: getImageSize(asteriskCount),
+              size: getImageSize(line),
               originalUrl: contentAfterAsterisks,
             },
           ];
@@ -361,7 +643,7 @@ export function StickyNote({
             {
               type: "image",
               url: imageUrl,
-              size: getImageSize(1),
+              size: getImageSize(line),
               originalUrl: line,
             },
           ];
@@ -382,9 +664,9 @@ export function StickyNote({
         }
       );
 
-      // 次に通常のURLを処理（Scrapbox記法内のURLは除外）
+      // 次に通常のURLを処理（Scrapbox記法内のURLとインライン画像記法内のURLは除外）
       processedLine = processedLine.replace(
-        /(https?:\/\/[^\s]+)(?!__SCRAPBOX__)/g,
+        /(https?:\/\/[^\s\]]+)(?!__SCRAPBOX__)(?![^[]*\])/g,
         (url) => {
           if (isUrl(url)) {
             return `__LINK__${url}__LINK__`;
@@ -399,7 +681,83 @@ export function StickyNote({
       });
     }
 
-    return result;
+    // ユーザーアイコン記法 [username.icon] と画像記法 [image:url] を処理
+    const finalResult: ParsedContent[] = [];
+    for (const item of result) {
+      if (item.type === "text") {
+        // ボードアイコン、ボードリンク、任意の画像、Gyazo URLのパターンをマッチ
+        const combinedPattern =
+          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^.\]]+)\](?!\.[a-z])|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
+        let lastIndex = 0;
+        let match;
+        const parts: ParsedContent[] = [];
+
+        while ((match = combinedPattern.exec(item.content)) !== null) {
+          // マッチ前のテキストを追加
+          if (match.index > lastIndex) {
+            parts.push({
+              type: "text",
+              content: item.content.substring(lastIndex, match.index),
+            });
+          }
+
+          if (match[1]) {
+            // [name.icon]記法をボードサムネイルとして処理
+            const name = match[1];
+            const count = match[2] ? parseInt(match[2], 10) : 1;
+
+            // 数分だけボードサムネイルを追加
+            for (let i = 0; i < count; i++) {
+              parts.push({
+                type: "boardthumbnail",
+                boardName: name,
+                thumbnailUrl: null, // レンダリング時に動的に取得
+              });
+            }
+          } else if (match[3]) {
+            // [name]記法をボードリンクとして処理
+            const name = match[3];
+            parts.push({
+              type: "boardlink",
+              boardName: name,
+              boardId: null, // レンダリング時に動的に取得
+            });
+          } else if (match[4]) {
+            // インライン画像を追加
+            parts.push({ type: "inlineimage", url: match[4] });
+          } else if (match[5]) {
+            // Gyazo URLをインライン画像として追加
+            const gyazoUrl = match[5];
+            const imageUrl = getGyazoImageUrl(gyazoUrl);
+            if (imageUrl) {
+              parts.push({ type: "inlineimage", url: imageUrl });
+            } else {
+              parts.push({ type: "text", content: `[${gyazoUrl}]` });
+            }
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        // 残りのテキストを追加
+        if (lastIndex < item.content.length) {
+          parts.push({
+            type: "text",
+            content: item.content.substring(lastIndex),
+          });
+        }
+
+        if (parts.length > 0) {
+          finalResult.push(...parts);
+        } else {
+          finalResult.push(item);
+        }
+      } else {
+        finalResult.push(item);
+      }
+    }
+
+    return finalResult;
   };
 
   // テキスト内のリンクを処理
@@ -427,9 +785,8 @@ export function StickyNote({
         part.startsWith("__SCRAPBOX__") &&
         part.endsWith("__SCRAPBOX__")
       ) {
-        // Scrapbox記法の処理
-        const content = part.slice(12, -12); // __SCRAPBOX__を除去
-        const [linkText, url] = content.split("__URL__");
+        const content = part.slice(12, -12);
+        const [linkText] = content.split("__URL__");
         return (
           <span
             key={index}
@@ -470,8 +827,6 @@ export function StickyNote({
     if (canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
-      // 編集権限がある場合もSignボタンを表示可能にする
-      setShowSignButton(true);
     } else {
       // 編集権限がない場合は何もしない
       return;
@@ -507,13 +862,157 @@ export function StickyNote({
     if (shouldFocus && !isEditing && canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
-      setShowSignButton(true);
       // フォーカス完了を通知
       if (onFocused) {
         onFocused();
       }
     }
   }, [shouldFocus, isEditing, onFocused, canEditNote]);
+
+  // ユーザープロファイルを取得する関数（プロジェクトメンバーのみ）
+  const loadUserProfile = useCallback(
+    async (username: string) => {
+      if (userProfiles.has(username)) {
+        return;
+      }
+
+      try {
+        const profile = await getUserProfileByUsername(username);
+
+        // プロジェクトメンバーかどうかをチェック
+        let isProjectMember = false;
+        if (profile && project && project.members) {
+          isProjectMember = !!project.members[profile.uid];
+        }
+
+        // プロジェクトメンバーのみをキャッシュに保存
+        if (isProjectMember) {
+          setUserProfiles((prev) => new Map(prev).set(username, profile));
+        } else {
+          setUserProfiles((prev) => new Map(prev).set(username, null));
+        }
+      } catch (error) {
+        console.error("Failed to load user profile:", error);
+        setUserProfiles((prev) => new Map(prev).set(username, null));
+      }
+    },
+    [userProfiles, project]
+  );
+
+  // コンテンツ内のユーザー名を取得してプロファイルをロード
+  useEffect(() => {
+    const userIconPattern = /\[([^\]*]+)\.icon(?:\*\d+)?\]/g;
+    const usernames = new Set<string>();
+    let match;
+
+    while ((match = userIconPattern.exec(content)) !== null) {
+      usernames.add(match[1]);
+    }
+
+    usernames.forEach((username) => {
+      loadUserProfile(username);
+    });
+  }, [content, loadUserProfile]);
+
+  // 現在のユーザープロファイルをロード
+  useEffect(() => {
+    const loadCurrentUserProfile = async () => {
+      if (
+        currentUserId &&
+        currentUserId !== "anonymous" &&
+        !currentUserProfile
+      ) {
+        try {
+          const profile = await getUserProfile(currentUserId);
+          setCurrentUserProfile(profile);
+        } catch (error) {
+          console.error("Failed to load current user profile:", error);
+        }
+      }
+    };
+
+    loadCurrentUserProfile();
+  }, [currentUserId, currentUserProfile]);
+
+  // ユーザーアイコン挙入処理
+  const handleInsertUserIcon = useCallback(() => {
+    if (!currentUserProfile?.username) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeDiff = now - lastInsertTime;
+
+    const textarea = contentRef.current;
+    if (!textarea) return;
+
+    // 500ms以内の連打で、直前のアイコンがある場合は書き換え
+    let newCount;
+    let replaceMode = false;
+
+    if (timeDiff < 500 && lastInsertPosition) {
+      // 直前のアイコンを書き換えモード
+      newCount = insertCount + 1;
+      replaceMode = true;
+    } else {
+      // 新規挿入モード
+      newCount = 1;
+      replaceMode = false;
+    }
+
+    setInsertCount(newCount);
+    setLastInsertTime(now);
+
+    // アイコンテキストを生成
+    const iconText =
+      newCount === 1
+        ? `[${currentUserProfile.username}.icon]`
+        : `[${currentUserProfile.username}.icon*${newCount}]`;
+
+    let newContent: string;
+    let newCursorPosition: number;
+
+    if (replaceMode && lastInsertPosition) {
+      // 直前のアイコンを書き換え
+      const beforeReplace = content.substring(0, lastInsertPosition.start);
+      const afterReplace = content.substring(lastInsertPosition.end);
+      newContent = beforeReplace + iconText + afterReplace;
+      newCursorPosition = lastInsertPosition.start + iconText.length;
+
+      // 新しい位置を記録
+      setLastInsertPosition({
+        start: lastInsertPosition.start,
+        end: lastInsertPosition.start + iconText.length,
+      });
+    } else {
+      // 新規挿入
+      const cursorPosition = textarea.selectionStart;
+      const beforeCursor = content.substring(0, cursorPosition);
+      const afterCursor = content.substring(cursorPosition);
+      newContent = beforeCursor + iconText + afterCursor;
+      newCursorPosition = cursorPosition + iconText.length;
+
+      // 挿入位置を記録
+      setLastInsertPosition({
+        start: cursorPosition,
+        end: cursorPosition + iconText.length,
+      });
+    }
+
+    setContent(newContent);
+
+    // カーソル位置を設定
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+      textarea.focus();
+    }, 0);
+  }, [
+    currentUserProfile,
+    content,
+    insertCount,
+    lastInsertTime,
+    lastInsertPosition,
+  ]);
 
   // Get border color if someone else is interacting with this note
   const getInteractionBorderColor = () => {
@@ -537,24 +1036,6 @@ export function StickyNote({
     setNoteColor(color);
     onUpdate(note.id, {
       color,
-      isEditing: true,
-      editedBy: currentUserId,
-    });
-    // テキストボックスにフォーカスを戻す
-    setTimeout(() => {
-      if (contentRef.current) {
-        contentRef.current.focus();
-      }
-    }, 0);
-  };
-
-  // 文字サイズ変更ハンドラー
-  const handleFontSizeChange = (size: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setTextSize(size);
-    onUpdate(note.id, {
-      textSize: size,
       isEditing: true,
       editedBy: currentUserId,
     });
@@ -590,72 +1071,57 @@ export function StickyNote({
     return sizeMap[size] || sizeMap.medium;
   };
 
-  // サインの追加・削除処理
-  const handleAddMe = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!currentUserId || currentUserId === "anonymous") {
-      alert("Please log in to mark this note as yours");
-      return;
-    }
-
-    // ユーザー情報を追加
-    onUpdate(note.id, {
-      signedBy: {
-        uid: currentUserId,
-        displayName: user?.displayName || null,
-        photoURL: user?.photoURL || null,
-      },
-    });
-
-    // ボタンは表示したままにして、テキストボックスにフォーカスを戻す
-    setTimeout(() => {
-      if (contentRef.current) {
-        contentRef.current.focus();
-      }
-    }, 0);
-  };
-
-  const handleRemoveMe = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // サイン情報を削除
-    onUpdate(note.id, {
-      signedBy: null,
-    });
-
-    // ボタンは表示したままにして、テキストボックスにフォーカスを戻す
-    setTimeout(() => {
-      if (contentRef.current) {
-        contentRef.current.focus();
-      }
-    }, 0);
-  };
-
-  // コンテンツ内のリンクを抽出
   const extractLinks = (text: string): string[] => {
     const links: string[] = [];
 
-    // 通常のURL
     const urlRegex = /(https?:\/\/[^\s\]]+)/g;
     const urlMatches = text.match(urlRegex);
     if (urlMatches) {
       links.push(...urlMatches);
     }
 
-    // Scrapbox記法 [text url] から URLを抽出
     const scrapboxRegex = /\[[^\]]+\s+(https?:\/\/[^\s\]]+)\]/g;
     let match;
     while ((match = scrapboxRegex.exec(text)) !== null) {
       links.push(match[1]);
     }
 
-    // 重複を削除
     return [...new Set(links)];
   };
 
-  // 付箋の背景色に基づいてボーダー色を計算
+  const extractBoardLinks = (
+    text: string
+  ): Array<{ name: string; boardId: string }> => {
+    const boardLinksArray: Array<{ name: string; boardId: string }> = [];
+
+    const boardLinkMatches = text.matchAll(/\[([^\]]+)\](?!\.[a-z])/g);
+    for (const match of boardLinkMatches) {
+      const boardName = match[1];
+      const boardId = boardLinks.get(boardName);
+      if (boardId) {
+        boardLinksArray.push({ name: boardName, boardId });
+      }
+    }
+
+    const boardIconMatches = text.matchAll(/\[([^\]]+)\.icon\]/g);
+    for (const match of boardIconMatches) {
+      const boardName = match[1];
+      const boardId = boardLinks.get(boardName);
+      if (boardId) {
+        boardLinksArray.push({ name: boardName, boardId });
+      }
+    }
+
+    const uniqueLinks = boardLinksArray.filter(
+      (link, index, self) =>
+        index === self.findIndex((l) => l.boardId === link.boardId)
+    );
+
+    return uniqueLinks;
+  };
+
+  const parsedContent = useMemo(() => parseContent(content), [content]);
+
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
@@ -672,7 +1138,8 @@ export function StickyNote({
         backgroundColor: backgroundColor,
         boxShadow:
           noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.04)",
-        border: noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
+        border:
+          noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: note.zIndex || 1,
         opacity: canEditNote ? 1 : 0.8,
         fontSize: `${getTextSizeStyle(textSize)}px`,
@@ -694,53 +1161,90 @@ export function StickyNote({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* リンクボタン */}
-      {isHovered && !isEditing && extractLinks(content).length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "-22px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            display: "flex",
-            gap: "4px",
-            background: "#444",
-            borderRadius: "4px 4px 0 0",
-            zIndex: 1000,
-            border: "1px solid #ccc",
-            borderBottom: "none",
-          }}
-        >
-          {extractLinks(content)
-            .slice(0, 3)
-            .map((link, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(link, "_blank", "noopener,noreferrer");
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "11px",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  maxWidth: "150px",
-                  padding: "4px 8px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  color: "#eee",
-                }}
-                title={link}
-              >
-                {new URL(link).hostname}
-              </button>
-            ))}
-        </div>
-      )}
+      {isHovered &&
+        !isEditing &&
+        (extractLinks(content).length > 0 ||
+          extractBoardLinks(content).length > 0) && (
+          <div
+            style={{
+              position: "absolute",
+              top: "-22px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: "4px",
+              background: "#444",
+              borderRadius: "4px 4px 0 0",
+              zIndex: 1000,
+              border: "1px solid #ccc",
+              borderBottom: "none",
+            }}
+          >
+            {/* 通常のリンク */}
+            {extractLinks(content)
+              .slice(0, 3)
+              .map((link, index) => (
+                <button
+                  key={`url-${index}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(link, "_blank", "noopener,noreferrer");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    maxWidth: "150px",
+                    padding: "4px 8px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: "#eee",
+                  }}
+                  title={link}
+                >
+                  {new URL(link).hostname}
+                </button>
+              ))}
+            {/* ボードリンク */}
+            {extractBoardLinks(content)
+              .slice(0, 3)
+              .map((boardLink, index) => {
+                return (
+                  <button
+                    key={`board-${index}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.href = `/${boardLink.boardId}`;
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      maxWidth: "150px",
+                      padding: "4px 8px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      color: "#eee",
+                    }}
+                    title={`Board: ${boardLink.name}`}
+                  >
+                    {boardLink.name}
+                  </button>
+                );
+              })}
+          </div>
+        )}
       {/* ツールバー */}
       {showToolbar && isEditing && canEditNote ? (
-        <div className="note-toolbar" role="toolbar" aria-label="Color selection">
+        <div
+          className="note-toolbar"
+          role="toolbar"
+          aria-label="Color selection"
+        >
           {/* 色選択ボタン */}
           <div className="toolbar-section">
             <button
@@ -790,101 +1294,6 @@ export function StickyNote({
       ) : null}
 
       <div className="note-content" style={{ position: "relative" }}>
-        {/* 作成者情報の表示またはAdd meボタン */}
-        {note.signedBy ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              marginBottom: "4px",
-              fontSize: "11px",
-              color: "#666",
-            }}
-          >
-            {note.signedBy.photoURL ? (
-              <img
-                src={note.signedBy.photoURL}
-                alt={note.signedBy.displayName || "User"}
-                style={{
-                  width: "16px",
-                  height: "16px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div
-                style={{
-                  width: "16px",
-                  height: "16px",
-                  borderRadius: "50%",
-                  backgroundColor: "#ccc",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "10px",
-                  color: "white",
-                }}
-              >
-                {(note.signedBy.displayName || "U").charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span>{note.signedBy.displayName || "Anonymous"}</span>
-            {/* 削除ボタン（自分のサインの場合のみ） */}
-            {showSignButton && note.signedBy.uid === currentUserId && (
-              <button
-                onClick={handleRemoveMe}
-                onMouseDown={(e) => e.preventDefault()}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  color: "#999",
-                  padding: "0",
-                  marginLeft: "2px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "14px",
-                  height: "14px",
-                }}
-                title="Remove me"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ) : showSignButton ? (
-          <div
-            style={{
-              marginBottom: "4px",
-            }}
-          >
-            <button
-              onClick={handleAddMe}
-              onMouseDown={(e) => e.preventDefault()}
-              aria-label="Add me"
-              style={{
-                border: "none",
-                display: "flex",
-                gap: "4px",
-                padding: "0 4px",
-                fontSize: "11px",
-                cursor: "pointer",
-                background: "none",
-                whiteSpace: "nowrap",
-                color: "#888",
-              }}
-            >
-              <LuPlus />
-              <span>Add me</span>
-            </button>
-          </div>
-        ) : null}
-
         {isEditing && canEditNote ? (
           <TextareaAutosize
             ref={contentRef}
@@ -892,9 +1301,12 @@ export function StickyNote({
             onChange={handleContentChange}
             onBlur={handleBlur}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') {
+              if (e.key === "Escape") {
                 e.preventDefault();
                 handleBlur();
+              } else if (e.key === "i" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleInsertUserIcon();
               }
             }}
             autoFocus
@@ -927,54 +1339,141 @@ export function StickyNote({
                 {currentUserId ? "読み取り専用" : "ログインで編集可能"}
               </div>
             )}
-            {parseContent(content).map((item, index) => {
-              if (item.type === "image") {
-                return (
-                  <div key={index} style={{ margin: "4px 0" }}>
+            <div
+              style={{
+                lineHeight: 1.3,
+                overflowWrap: "break-word",
+                whiteSpace: "pre-wrap",
+                width: parsedContent.find((c) => c.type === "image")
+                  ? "auto"
+                  : `${dimensions.width}px`,
+              }}
+            >
+              {parsedContent.map((item, index) => {
+                if (item.type === "image") {
+                  return (
+                    <div key={index} style={{ margin: "4px 0" }}>
+                      <img
+                        src={item.url}
+                        alt="Gyazo"
+                        style={{
+                          width: `${item.size}px`,
+                          height: "auto",
+                          borderRadius: "4px",
+                          userSelect: "none",
+                          pointerEvents: "none",
+                        }}
+                        draggable={false}
+                        onMouseDown={(e) => e.preventDefault()}
+                      />
+                    </div>
+                  );
+                } else if (item.type === "inlineimage") {
+                  // インライン画像の表示
+                  return (
                     <img
+                      key={index}
                       src={item.url}
-                      alt="Gyazo"
+                      alt="inline image"
                       style={{
-                        width: `${item.size}px`,
-                        height: "auto",
-                        borderRadius: "4px",
-                        userSelect: "none",
-                        pointerEvents: "none",
+                        width: "1em",
+                        height: "1em",
+                        verticalAlign: "middle",
+                        display: "inline-block",
                       }}
-                      draggable={false}
-                      onMouseDown={(e) => e.preventDefault()}
+                      onError={(e) => {
+                        // 画像が読み込めなかった場合のフォールバック
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
                     />
-                  </div>
-                );
-              } else {
-                // テキストの場合、アスタリスクでフォントサイズを調整
-                const asteriskMatch = item.content!.match(/^(\*+)(.*)/);
-                let fontSize = 13;
-                let displayContent = item.content;
+                  );
+                } else if (item.type === "boardthumbnail") {
+                  const thumbnailUrl = boardThumbnails.get(item.boardName);
+                  return (
+                    <img
+                      key={index}
+                      src={thumbnailUrl || "#"}
+                      alt={`${item.boardName} thumbnail`}
+                      style={{
+                        width: "1em",
+                        height: "1em",
+                        verticalAlign: "middle",
+                        display: "inline-block",
+                        borderRadius: "2px",
+                      }}
+                      onError={(e) => {
+                        // 画像が読み込めなかった場合のフォールバック
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
+                    />
+                  );
+                } else if (item.type === "boardlink") {
+                  // ボードリンクの表示（クリック不可能なテキスト）
+                  const boardId = boardLinks.get(item.boardName);
+                  if (boardId) {
+                    return (
+                      <span
+                        key={index}
+                        style={{
+                          color: "#007acc",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {item.boardName}
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span key={index} style={{ color: "#666" }}>
+                        {item.boardName}
+                      </span>
+                    );
+                  }
+                } else if (item.type === "text") {
+                  // テキストの場合、アスタリスクや#でフォントサイズを調整
+                  let fontSize = 13;
+                  let displayContent = item.content;
 
-                if (asteriskMatch) {
-                  const asteriskCount = asteriskMatch[1].length;
-                  fontSize = Math.min(30, 13 + asteriskCount * 2);
-                  displayContent = asteriskMatch[2];
+                  // #と*の組み合わせをチェック
+                  const combinedMatch =
+                    item.content!.match(/^(#+)\s*(\*+)(.*)/);
+                  const hashOnlyMatch = item.content!.match(/^(#+)\s*(.*)/);
+                  const asteriskOnlyMatch = item.content!.match(/^(\*+)(.*)/);
+
+                  if (combinedMatch) {
+                    const asteriskCount = combinedMatch[2].length;
+                    // #のベースサイズ(24px) + *による追加サイズ
+                    fontSize = Math.min(40, 24 + asteriskCount * 2);
+                    displayContent = combinedMatch[3];
+                  } else if (hashOnlyMatch) {
+                    // #のみの場合は大きいフォント（24px）で、#は非表示
+                    fontSize = 24;
+                    const hashMatch = item.content!.match(/^(#+)\s*(.*)/);
+                    displayContent = hashMatch![2];
+                  } else if (asteriskOnlyMatch) {
+                    // *のみの場合
+                    const asteriskCount = asteriskOnlyMatch[1].length;
+                    fontSize = Math.min(30, 13 + asteriskCount * 2);
+                    displayContent = asteriskOnlyMatch[2];
+                  }
+
+                  return (
+                    <span
+                      key={index}
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        wordWrap: "break-word",
+                        fontSize: `${fontSize}px`,
+                      }}
+                    >
+                      {renderTextWithLinks(displayContent || "")}
+                    </span>
+                  );
                 }
-
-                return (
-                  <div
-                    key={index}
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      wordWrap: "break-word",
-                      fontSize: `${fontSize}px`,
-                      margin: fontSize > 13 ? "4px 0" : "0",
-                      width: `${dimensions.width}px`,
-                    }}
-                  >
-                    {renderTextWithLinks(displayContent || "")}
-                    {index === parseContent(content).length - 1 ? "\n" : ""}
-                  </div>
-                );
-              }
-            })}
+              })}
+            </div>
           </div>
         )}
       </div>

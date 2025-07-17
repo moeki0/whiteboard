@@ -53,6 +53,7 @@ export function InviteJoin({ user }: InviteJoinProps) {
 
         setProject(projectData);
         setLoading(false);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         setError("An error occurred while checking the invite link.");
         setLoading(false);
@@ -84,6 +85,7 @@ export function InviteJoin({ user }: InviteJoinProps) {
       await set(userProjectRef, { role: "member", joinedAt: Date.now() });
 
       navigate(`/project/${project.id}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setError("An error occurred while joining the project.");
       setJoining(false);

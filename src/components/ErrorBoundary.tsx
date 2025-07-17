@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -27,10 +27,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="error-boundary">
           <h2>Something went wrong</h2>
-          <p>We apologize for the inconvenience. Please try refreshing the page.</p>
-          <button onClick={() => window.location.reload()}>
-            Refresh Page
-          </button>
+          <p>
+            We apologize for the inconvenience. Please try refreshing the page.
+          </p>
+          <button onClick={() => window.location.reload()}>Refresh Page</button>
         </div>
       );
     }

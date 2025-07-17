@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, get } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
-import { BoardList } from "./BoardList";
+import { getBoardInfo } from "../utils/boardInfo";
 import { User, Project } from "../types";
 
 interface HomeProps {
@@ -12,7 +11,6 @@ interface HomeProps {
 }
 
 export function Home({ user }: HomeProps) {
-  const navigate = useNavigate();
   const { currentProjectId, updateCurrentProject } = useProject();
   const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +93,7 @@ export function Home({ user }: HomeProps) {
         // If current project doesn't exist, clear it
         else if (
           currentProjectId &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           !validProjects.find((p) => (p as any).id === currentProjectId)
         ) {
           updateCurrentProject(null);
@@ -108,48 +107,72 @@ export function Home({ user }: HomeProps) {
 
     return () => unsubscribe();
   }, [user.uid, updateCurrentProject, currentProjectId]);
-  
+
+  // プロジェクトのサムネイルとプレビューを取得
+  useEffect(() => {
+    const loadProjectPreviews = async () => {
+      const thumbnails: Record<string, string> = {};
+      const previews: Record<string, string> = {};
+
+      for (const project of projects) {
+        try {
+          // プロジェクトのボード一覧を取得
+          const boardsRef = ref(rtdb, `boards`);
+          const boardsSnapshot = await get(boardsRef);
+          const allBoards = boardsSnapshot.val() || {};
+
+          // このプロジェクトのボードをフィルタリング
+          const projectBoards = Object.entries(allBoards)
+            .filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+              ([_, board]: [string, any]) => board.projectId === project.id
+            )
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(([id, board]: [string, any]) => ({ ...board, id }));
+
+          if (projectBoards.length > 0) {
+            // 最初のボードの情報を取得
+            const firstBoard = projectBoards[0];
+            const boardInfo = await getBoardInfo(firstBoard.id);
+
+            if (boardInfo.thumbnailUrl) {
+              thumbnails[project.id] = boardInfo.thumbnailUrl;
+            } else if (boardInfo.description) {
+              previews[project.id] = boardInfo.description;
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load project preview:", error);
+        }
+      }
+    };
+
+    if (projects.length > 0) {
+      loadProjectPreviews();
+    }
+  }, [projects]);
+
   if (loading) {
     return <div className="loading"></div>;
   }
 
-  // If user has no projects, show welcome screen
-  if (projects.length === 0) {
-    return (
-      <div className="welcome-screen">
-        <div className="welcome-content">
-          <div className="welcome-card">
-            <h2>Welcome to Whiteboard!</h2>
-            <p>
-              You don't have any projects yet. Let's create your first project
-              to get started.
-            </p>
-            <button
-              onClick={createFirstProject}
-              className="create-first-project-btn"
-            >
-              Create Your First Project
-            </button>
-          </div>
+  return (
+    <div className="welcome-screen">
+      <div className="welcome-content">
+        <div className="welcome-card">
+          <h2>Welcome to Whiteboard!</h2>
+          <p>
+            You don't have any projects yet. Let's create your first project to
+            get started.
+          </p>
+          <button
+            onClick={createFirstProject}
+            className="create-first-project-btn"
+          >
+            Create Your First Project
+          </button>
         </div>
       </div>
-    );
-  }
-
-  // If user has a current project, redirect to project page
-  if (currentProjectId) {
-    navigate(`/project/${currentProjectId}`, { replace: true });
-    return <div className="loading">Redirecting...</div>;
-  }
-
-  // If user has projects but no current project, redirect to first project
-  if (projects.length > 0) {
-    const firstProject = projects[0];
-    updateCurrentProject(firstProject.id);
-    navigate(`/project/${firstProject.id}`);
-    return <div className="loading">Redirecting...</div>;
-  }
-
-  // Fallback - should not happen
-  return <div className="loading"></div>;
+    </div>
+  );
 }

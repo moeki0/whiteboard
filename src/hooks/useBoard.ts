@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
@@ -22,7 +22,11 @@ interface UseBoardReturn {
   project: Project | null;
 }
 
-export function useBoard(user: User | null, navigate: any, sessionId: string): UseBoardReturn {
+export function useBoard(
+  user: User | null,
+  navigate: any,
+  sessionId: string
+): UseBoardReturn {
   const { boardId } = useParams<{ boardId: string }>();
   const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -38,7 +42,7 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
   // Check access permissions function
   const checkAccess = async (boardData: any) => {
     const currentBoard: Board = {
-      id: boardId || '',
+      id: boardId || "",
       ...boardData,
     };
 
@@ -55,9 +59,18 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
     setBoard(currentBoard);
     setProject(currentProject);
 
-    const accessResult = checkBoardAccess(currentBoard, currentProject, user?.uid || null);
+    const accessResult = checkBoardAccess(
+      currentBoard,
+      currentProject,
+      user?.uid || null
+    );
     if (!accessResult.hasAccess) {
-      alert(`Access denied: ${accessResult.reason || 'You do not have permission to access this board.'}`);
+      alert(
+        `Access denied: ${
+          accessResult.reason ||
+          "You do not have permission to access this board."
+        }`
+      );
       navigate("/");
       return false;
     }
@@ -97,7 +110,7 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
         setBoardName(boardData.name);
         setEditingBoardName(boardData.name);
         setProjectId(boardData.projectId);
-        
+
         // Update current project in context
         if (boardData.projectId) {
           // Get project name and update context
@@ -114,7 +127,7 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
         // Check initial access permissions
         const hasAccess = await checkAccess(boardData);
         if (!hasAccess) return;
-        
+
         // Access check complete, allow rendering
         setIsCheckingAccess(false);
       }
@@ -130,7 +143,7 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
         setBoardName(boardData.name);
         setEditingBoardName(boardData.name);
         setProjectId(boardData.projectId);
-        
+
         // Update current project in context
         if (boardData.projectId) {
           // Get project name and update context
@@ -183,12 +196,15 @@ export function useBoard(user: User | null, navigate: any, sessionId: string): U
         Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
           // Remove old cursors
           if (now - cursor.timestamp > CURSOR_TIMEOUT) {
-            const oldCursorRef = ref(rtdb, `boardCursors/${boardId}/${cursorId}`);
+            const oldCursorRef = ref(
+              rtdb,
+              `boardCursors/${boardId}/${cursorId}`
+            );
             remove(oldCursorRef).catch(console.error);
             return;
           }
 
-          if (cursorId !== `${user?.uid || 'anonymous'}-${sessionId}`) {
+          if (cursorId !== `${user?.uid || "anonymous"}-${sessionId}`) {
             // Don't show own session cursor
             cursorsObj[cursorId] = cursor;
           }

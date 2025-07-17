@@ -1,11 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ReactNode, memo, useEffect } from "react";
+import { ReactNode, memo } from "react";
 import { UnifiedMenu } from "./UnifiedMenu";
 import { User } from "../types";
-import { useProject } from "../contexts/ProjectContext";
 import "./Header.css";
-import { get, ref } from "firebase/database";
-import { rtdb } from "../config/firebase";
 
 interface BackButton {
   path: string;
@@ -30,7 +27,6 @@ export const Header = memo(function Header({
   backButton,
   user,
   children,
-  title,
   subtitle,
   titleLink,
   onSubtitleClick,
@@ -40,11 +36,11 @@ export const Header = memo(function Header({
   onSubtitleSave,
 }: HeaderProps) {
   const navigate = useNavigate();
-  const { currentProjectName } = useProject();
-
-  // sessionStorageから直接読み取って即座に表示、フォールバックでContextを使用
-  const savedProjectName = typeof window !== 'undefined' ? sessionStorage.getItem("currentProjectName") : null;
-  const displayTitle = savedProjectName || currentProjectName || title || "Whiteboard";
+  const savedProjectName =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("currentProjectName")
+      : null;
+  const displayTitle = savedProjectName;
 
   return (
     <div className="app-header">

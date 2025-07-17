@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
-import { signOut, deleteUser, updateProfile } from "firebase/auth";
+import { deleteUser, updateProfile } from "firebase/auth";
 import { User, UserProfile } from "../types";
 import {
   getUserProfile,
@@ -103,6 +103,7 @@ export function UserSettings({ user }: UserSettingsProps) {
       await deleteUser(currentUser);
       // User deletion successful, user will be automatically logged out
       navigate("/");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Error deleting account:", error);
 
@@ -165,19 +166,13 @@ export function UserSettings({ user }: UserSettingsProps) {
 
       // Force a page refresh to update the user state
       window.location.reload();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Error updating profile:", error);
       alert("Failed to update profile. Please try again.");
     } finally {
       setIsUpdatingProfile(false);
     }
-  };
-
-  const handleReset = () => {
-    setDisplayName(user.displayName || "");
-    setUsername(userProfile?.username || "");
-    setPhotoURL(user.photoURL || "");
-    setUsernameError("");
   };
 
   return (

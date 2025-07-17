@@ -104,6 +104,7 @@ export function InitialProfileSetup({
       }
 
       onComplete();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Error updating profile:", error);
       alert("Failed to update profile. Please try again.");
