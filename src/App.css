@@ -129,13 +129,6 @@ button {
   -webkit-box-orient: vertical;
 }
 
-.project-name {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #333;
-}
-
 .project-members {
   font-size: 12px;
   color: #666;
