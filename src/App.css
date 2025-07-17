@@ -15,7 +15,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f5f5;
-  margin-top: 40px;
   position: relative;
   overflow: hidden;
 }
@@ -43,6 +42,7 @@ button {
   height: calc(100vh - 40px);
   position: relative;
   overflow: hidden;
+  margin-top: 40px;
 }
 
 /* Project List Styles */
@@ -741,7 +741,7 @@ button {
 .board-list {
   width: 100%;
   height: calc(100vh - 40px);
-  background-color: white;
+  background-color: #f5f5f5;
   overflow: scroll;
 }
 

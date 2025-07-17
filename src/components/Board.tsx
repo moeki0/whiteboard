@@ -91,7 +91,6 @@ export function Board({ user }: BoardProps) {
     null
   );
 
-
   // 新しいボード作成の状態
   const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
 
@@ -123,7 +122,7 @@ export function Board({ user }: BoardProps) {
       // setではなくupdateを使用して、既存のデータを上書きしないように
       update(boardRef, updateData);
     } catch (error) {
-      console.error('Error updating board timestamp:', error);
+      console.error("Error updating board timestamp:", error);
     }
   };
 
@@ -161,7 +160,6 @@ export function Board({ user }: BoardProps) {
       setNextZIndex(maxZ + 1);
     }
   }, [notes]);
-
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
@@ -250,7 +248,10 @@ export function Board({ user }: BoardProps) {
       try {
         updateBoardTimestamp();
       } catch (error) {
-        console.error('Error updating board timestamp after adding note:', error);
+        console.error(
+          "Error updating board timestamp after adding note:",
+          error
+        );
       }
     }, 100);
 
@@ -291,14 +292,17 @@ export function Board({ user }: BoardProps) {
       }
 
       set(noteRef, updatedNote);
-      
+
       // ボードの更新時刻を更新（内容が変更された場合のみ）
       if (updates.content !== undefined && updates.content !== note.content) {
         setTimeout(() => {
           try {
             updateBoardTimestamp();
           } catch (error) {
-            console.error('Error updating board timestamp after updating note:', error);
+            console.error(
+              "Error updating board timestamp after updating note:",
+              error
+            );
           }
         }, 100);
       }
@@ -321,21 +325,21 @@ export function Board({ user }: BoardProps) {
       });
     }
 
-    const noteRef = ref(
-      rtdb,
-      `boards/${boardId}/notes/${noteId}`
-    );
+    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     remove(noteRef);
-    
+
     // ボードの更新時刻を更新
     setTimeout(() => {
       try {
         updateBoardTimestamp();
       } catch (error) {
-        console.error('Error updating board timestamp after deleting note:', error);
+        console.error(
+          "Error updating board timestamp after deleting note:",
+          error
+        );
       }
     }, 100);
-    
+
     // 選択状態も削除
     if (selectedNoteIds.has(noteId)) {
       setSelectedNoteIds((prev) => {
@@ -389,12 +393,10 @@ export function Board({ user }: BoardProps) {
   // 選択された付箋から新しいボードを作成
   const createBoardFromSelection = async () => {
     if (!user || !boardId || !project || isCreatingBoard) return;
-    
+
     // 選択された付箋を取得
-    const selectedNotes = notes.filter((note) =>
-      selectedNoteIds.has(note.id)
-    );
-    
+    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
+
     if (selectedNotes.length === 0) return;
 
     // 確認ダイアログ
@@ -404,14 +406,14 @@ export function Board({ user }: BoardProps) {
     if (!confirmed) return;
 
     setIsCreatingBoard(true);
-    
+
     // 新しいボードを作成
     const newBoardId = nanoid();
     const now = Date.now();
-    
+
     // 重複しない一意なボード名を生成
     const uniqueName = await generateNewBoardName(project.id);
-    
+
     const newBoard = {
       createdBy: user.uid,
       createdAt: now,
@@ -419,28 +421,28 @@ export function Board({ user }: BoardProps) {
       projectId: project.id,
       name: uniqueName,
     };
-    
+
     try {
       // ボードを作成
       const boardRef = ref(rtdb, `boards/${newBoardId}`);
       await set(boardRef, newBoard);
-      
+
       // プロジェクトボードの参照も作成（正しいパス）
       const projectBoardRef = ref(
         rtdb,
         `projectBoards/${project.id}/${newBoardId}`
       );
       await set(projectBoardRef, newBoard);
-      
+
       // 選択された付箋を新しいボードにコピー
       // 付箋の最小位置を求めて、新しいボードの中央付近に配置
-      const minX = Math.min(...selectedNotes.map(note => note.x));
-      const minY = Math.min(...selectedNotes.map(note => note.y));
+      const minX = Math.min(...selectedNotes.map((note) => note.x));
+      const minY = Math.min(...selectedNotes.map((note) => note.y));
       const centerX = 0; // 新しいボードの中央
       const centerY = 0;
       const offsetX = centerX - minX;
       const offsetY = centerY - minY;
-      
+
       const notePromises = selectedNotes.map((note) => {
         const newNoteId = nanoid();
         const newNote: any = {
@@ -456,7 +458,7 @@ export function Board({ user }: BoardProps) {
           isEditing: false,
           editedBy: null,
         };
-        
+
         // オプションフィールドは値が存在する場合のみ追加
         if (note.color) {
           newNote.color = note.color;
@@ -467,13 +469,13 @@ export function Board({ user }: BoardProps) {
         if (note.signedBy) {
           newNote.signedBy = note.signedBy;
         }
-        
+
         const noteRef = ref(rtdb, `boards/${newBoardId}/notes/${newNoteId}`);
         return set(noteRef, newNote);
       });
-      
+
       await Promise.all(notePromises);
-      
+
       // 新しいボードにナビゲート
       navigate(`/${newBoardId}`);
     } catch (error) {
@@ -1025,9 +1027,7 @@ export function Board({ user }: BoardProps) {
       return;
     }
 
-    const selectedNotes = notes.filter((note) =>
-      selectedNoteIds.has(note.id)
-    );
+    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
     setCopiedNotes(selectedNotes);
     // 複数選択の場合は単一コピーをクリア
     setCopiedNote(null);
@@ -1082,10 +1082,7 @@ export function Board({ user }: BoardProps) {
 
     // 実際の削除処理
     notesToDelete.forEach((note) => {
-      const noteRef = ref(
-        rtdb,
-        `boards/${boardId}/notes/${note.id}`
-      );
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${note.id}`);
       remove(noteRef);
     });
 
@@ -1123,10 +1120,7 @@ export function Board({ user }: BoardProps) {
         editedBy: null,
       };
 
-      const noteRef = ref(
-        rtdb,
-        `boards/${boardId}/notes/${noteId}`
-      );
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
       set(noteRef, newNote);
       createdNotes.push(newNote);
       currentZIndex++;
@@ -1183,10 +1177,7 @@ export function Board({ user }: BoardProps) {
         });
       }
 
-      const noteRef = ref(
-        rtdb,
-        `boards/${boardId}/notes/${noteId}`
-      );
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
       set(noteRef, newNote);
       setNextZIndex((prev) => prev + 1);
 
@@ -1212,10 +1203,7 @@ export function Board({ user }: BoardProps) {
     setCurrentUndoRedoNoteId(action.noteId);
 
     try {
-      const noteRef = ref(
-        rtdb,
-        `boards/${boardId}/notes/${action.noteId}`
-      );
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
@@ -1286,10 +1274,7 @@ export function Board({ user }: BoardProps) {
     setCurrentUndoRedoNoteId(action.noteId);
 
     try {
-      const noteRef = ref(
-        rtdb,
-        `boards/${boardId}/notes/${action.noteId}`
-      );
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${action.noteId}`);
       const note = notes.find((n) => n.id === action.noteId);
 
       switch (action.type) {
@@ -1562,10 +1547,7 @@ export function Board({ user }: BoardProps) {
         createdNotes.push(newNote);
 
         // Firebaseに保存
-        const noteRef = ref(
-          rtdb,
-          `boards/${boardId}/notes/${noteId}`
-        );
+        const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
         set(noteRef, newNote);
       });
 

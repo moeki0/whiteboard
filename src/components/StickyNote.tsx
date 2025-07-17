@@ -210,7 +210,7 @@ export function StickyNote({
       }
 
       // [name]記法（リンク用）を検出
-      const linkMatches = content.matchAll(/\[([^\]]+)\](?!\.[a-z])/g);
+      const linkMatches = content.matchAll(/\[([^\]]+)\](?!\.icon)/g);
       const linkBoardNames = new Set<string>();
 
       for (const match of linkMatches) {
@@ -222,7 +222,6 @@ export function StickyNote({
       // 各ボード名のサムネイルを取得
       for (const boardName of boardNames) {
         if (!isMounted) break; // マウント状態チェック
-
 
         // 既にキャッシュされている場合はスキップ
         if (boardThumbnails.has(boardName)) {
@@ -304,7 +303,9 @@ export function StickyNote({
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) =>
-                        new Map(prev.set(boardName, otherBoardInfo.thumbnailUrl))
+                        new Map(
+                          prev.set(boardName, otherBoardInfo.thumbnailUrl)
+                        )
                     );
                   }
                 } catch (error) {
@@ -430,16 +431,16 @@ export function StickyNote({
       if (boardNames.size === 0) {
         return;
       }
-      
 
       // 各ボード名のサムネイルを取得（キャッシュされていない場合のみ）
       for (const boardName of boardNames) {
         if (!isMounted) break;
 
-
         // 既にキャッシュされている場合はスキップ
         if (boardThumbnails.has(boardName)) {
-          console.log(`[StickyNote] 初回マウント時: ${boardName}はキャッシュ済み`);
+          console.log(
+            `[StickyNote] 初回マウント時: ${boardName}はキャッシュ済み`
+          );
           continue;
         }
 
@@ -461,7 +462,6 @@ export function StickyNote({
             )
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
-
 
           let foundMatch = false;
           for (const targetBoard of boardsArray) {
@@ -509,7 +509,9 @@ export function StickyNote({
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) =>
-                        new Map(prev.set(boardName, otherBoardInfo.thumbnailUrl))
+                        new Map(
+                          prev.set(boardName, otherBoardInfo.thumbnailUrl)
+                        )
                     );
                   }
                 } catch (error) {
@@ -546,8 +548,6 @@ export function StickyNote({
       isMounted = false;
     };
   }, []);
-
-
 
   // 固定幅なので自動リサイズは不要
 
@@ -829,7 +829,7 @@ export function StickyNote({
       if (item.type === "text") {
         // ボードアイコン、ボードリンク、任意の画像、Gyazo URLのパターンをマッチ
         const combinedPattern =
-          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^.\]]+)\](?!\.[a-z])|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
+          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^\]]+)\](?!\.icon)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
         let lastIndex = 0;
         let match;
         const parts: ParsedContent[] = [];
@@ -1236,7 +1236,7 @@ export function StickyNote({
   ): Array<{ name: string; boardId: string }> => {
     const boardLinksArray: Array<{ name: string; boardId: string }> = [];
 
-    const boardLinkMatches = text.matchAll(/\[([^\]]+)\](?!\.[a-z])/g);
+    const boardLinkMatches = text.matchAll(/\[([^\]]+)\](?!\.icon)/g);
     for (const match of boardLinkMatches) {
       const boardName = match[1];
       const boardId = boardLinks.get(boardName);
@@ -1535,7 +1535,10 @@ export function StickyNote({
                   return (
                     <img
                       key={index}
-                      src={thumbnailUrl || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+"}
+                      src={
+                        thumbnailUrl ||
+                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+"
+                      }
                       alt={`${item.boardName} thumbnail`}
                       style={{
                         width: "1em",
@@ -1548,7 +1551,8 @@ export function StickyNote({
                         // 画像が読み込めなかった場合のフォールバック
                         const target = e.target as HTMLImageElement;
                         // プレースホルダーSVGに切り替え
-                        target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+";
+                        target.src =
+                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZjBmMGYwIiBzdHJva2U9IiNjY2MiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggNEw2IDEwSDEwTDggNFoiIGZpbGw9IiM5OTkiLz4KPC9zdmc+";
                       }}
                     />
                   );
@@ -1560,8 +1564,9 @@ export function StickyNote({
                       <span
                         key={index}
                         style={{
-                          color: "#007acc",
-                          textDecoration: "none",
+                          color: "#0066cc",
+                          textDecoration: "underline",
+                          cursor: "pointer",
                         }}
                       >
                         {item.boardName}
