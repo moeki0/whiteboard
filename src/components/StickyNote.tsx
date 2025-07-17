@@ -13,7 +13,7 @@ import { calculateBorderColor } from "../utils/borderColors";
 import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
 import { getBoardInfo } from "../utils/boardInfo";
 import { rtdb } from "../config/firebase";
-import { ref, get, query, orderByChild, equalTo } from "firebase/database";
+import { ref, get } from "firebase/database";
 
 interface ImageContent {
   type: "image";
@@ -719,19 +719,10 @@ export function StickyNote({
     const baseSize = 50;
     let sizeMultiplier = 1;
 
-    // #と*の組み合わせをチェック
-    const combinedMatch = line.match(/^(#+)\s*(\*+)(.*)/);
-    const hashOnlyMatch = line.match(/^(#+)\s*(.*)/) && !combinedMatch;
+    // *のみをチェック
     const asteriskOnlyMatch = line.match(/^(\*+)(.*)/);
 
-    if (combinedMatch) {
-      const asteriskCount = combinedMatch[2].length;
-      // #のベース倍率(2倍) + *による追加倍率
-      sizeMultiplier = 2 + asteriskCount;
-    } else if (hashOnlyMatch) {
-      // #のみの場合は2倍
-      sizeMultiplier = 2;
-    } else if (asteriskOnlyMatch) {
+    if (asteriskOnlyMatch) {
       // *のみの場合
       const asteriskCount = asteriskOnlyMatch[1].length;
       sizeMultiplier = Math.max(1, asteriskCount);
@@ -1588,23 +1579,10 @@ export function StickyNote({
                   let fontSize = 13;
                   let displayContent = item.content;
 
-                  // #と*の組み合わせをチェック
-                  const combinedMatch =
-                    item.content!.match(/^(#+)\s*(\*+)(.*)/);
-                  const hashOnlyMatch = item.content!.match(/^(#+)\s*(.*)/);
+                  // *のみをチェック
                   const asteriskOnlyMatch = item.content!.match(/^(\*+)(.*)/);
 
-                  if (combinedMatch) {
-                    const asteriskCount = combinedMatch[2].length;
-                    // #のベースサイズ(24px) + *による追加サイズ
-                    fontSize = Math.min(40, 24 + asteriskCount * 2);
-                    displayContent = combinedMatch[3];
-                  } else if (hashOnlyMatch) {
-                    // #のみの場合は大きいフォント（24px）で、#は非表示
-                    fontSize = 24;
-                    const hashMatch = item.content!.match(/^(#+)\s*(.*)/);
-                    displayContent = hashMatch![2];
-                  } else if (asteriskOnlyMatch) {
+                  if (asteriskOnlyMatch) {
                     // *のみの場合
                     const asteriskCount = asteriskOnlyMatch[1].length;
                     fontSize = Math.min(30, 13 + asteriskCount * 2);

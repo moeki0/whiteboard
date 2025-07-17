@@ -21,6 +21,7 @@ interface HeaderProps {
   editingSubtitle?: string;
   onSubtitleChange?: (value: string) => void;
   onSubtitleSave?: () => void;
+  isDuplicateName?: boolean;
 }
 
 export const Header = memo(function Header({
@@ -34,6 +35,7 @@ export const Header = memo(function Header({
   editingSubtitle,
   onSubtitleChange,
   onSubtitleSave,
+  isDuplicateName,
 }: HeaderProps) {
   const navigate = useNavigate();
   const savedProjectName =
@@ -53,15 +55,22 @@ export const Header = memo(function Header({
             <>
               <span className="header-separator">/</span>
               {isEditingSubtitle ? (
-                <input
-                  type="text"
-                  value={editingSubtitle ?? subtitle}
-                  onChange={(e) => onSubtitleChange?.(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && onSubtitleSave?.()}
-                  onBlur={onSubtitleSave}
-                  autoFocus
-                  className="board-title-input"
-                />
+                <div className="board-title-input-container">
+                  <input
+                    type="text"
+                    value={editingSubtitle ?? subtitle}
+                    onChange={(e) => onSubtitleChange?.(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && onSubtitleSave?.()}
+                    onBlur={onSubtitleSave}
+                    autoFocus
+                    className={`board-title-input ${isDuplicateName ? "duplicate-warning" : ""}`}
+                  />
+                  {isDuplicateName && (
+                    <div className="duplicate-tooltip">
+                      This name already exists. A suffix will be added automatically.
+                    </div>
+                  )}
+                </div>
               ) : (
                 <span
                   className="header-subtitle"

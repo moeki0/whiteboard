@@ -18,6 +18,7 @@ import {
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note } from "../types";
+import { generateNewBoardName } from "../utils/boardNaming";
 
 interface BoardProps {
   user: User | null;
@@ -407,12 +408,16 @@ export function Board({ user }: BoardProps) {
     // 新しいボードを作成
     const newBoardId = nanoid();
     const now = Date.now();
+    
+    // 重複しない一意なボード名を生成
+    const uniqueName = await generateNewBoardName(project.id);
+    
     const newBoard = {
       createdBy: user.uid,
       createdAt: now,
       updatedAt: now,
       projectId: project.id,
-      name: `Board from ${selectedNotes.length} notes`,
+      name: uniqueName,
     };
     
     try {

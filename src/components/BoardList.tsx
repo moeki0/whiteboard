@@ -7,6 +7,7 @@ import { useProject } from "../contexts/ProjectContext";
 import { getBoardInfo } from "../utils/boardInfo";
 import { User, Board, Cursor } from "../types";
 import { LuPlus } from "react-icons/lu";
+import { generateNewBoardName } from "../utils/boardNaming";
 
 interface BoardListProps {
   user: User | null;
@@ -190,9 +191,16 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   }, [boards]);
 
   const createBoard = async () => {
+    if (!projectId) return;
+    
     const boardId = nanoid();
     const now = Date.now();
+    
+    // 重複しない一意なボード名を生成
+    const uniqueName = await generateNewBoardName(projectId);
+    
     const board = {
+      name: uniqueName,
       createdBy: user!.uid,
       createdAt: now,
       updatedAt: now,
