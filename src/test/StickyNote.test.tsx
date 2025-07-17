@@ -326,4 +326,27 @@ describe('StickyNote', () => {
       expect(container.textContent).toContain('Bit Journey, Inc.');
     });
   });
+
+  describe('[ の補完機能', () => {
+    it('[ を入力すると [] に補完される', () => {
+      const propsWithActiveNote = {
+        ...mockProps,
+        note: { ...mockNote, content: '' },
+        isActive: true
+      };
+      
+      const { container } = render(<StickyNote {...propsWithActiveNote} />);
+      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+      
+      // textareaが存在することを確認
+      expect(textarea).not.toBeNull();
+      
+      // [ を入力
+      textarea.value = '[';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      // [] に補完されることを確認
+      expect(textarea.value).toBe('[]');
+    });
+  });
 });

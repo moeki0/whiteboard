@@ -14,6 +14,13 @@ import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
 import { getBoardInfo } from "../utils/boardInfo";
 import { rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
+import {
+  handleBracketCompletion,
+  analyzeBoardTitleSuggestion,
+  filterBoardSuggestions,
+} from "../utils/textCompletion";
+import { useProjectBoards } from "../hooks/useProjectBoards";
+import { BoardSuggestions } from "./BoardSuggestions";
 
 interface ImageContent {
   type: "image";
@@ -114,6 +121,16 @@ export function StickyNote({
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
+
+  // ボード候補関連の状態
+  const [showBoardSuggestions, setShowBoardSuggestions] = useState(false);
+  const [boardSuggestionInfo, setBoardSuggestionInfo] = useState({
+    searchText: "",
+    bracketStart: -1,
+    bracketEnd: -1,
+  });
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const [userProfiles, setUserProfiles] = useState<
     Map<string, UserProfile | null>
   >(new Map());
@@ -142,6 +159,9 @@ export function StickyNote({
   const canEditNote = canEditBoard || isNoteOwner;
   const canDeleteNote = canEditBoard || isNoteOwner;
   const canMoveNote = canEditBoard || isNoteOwner;
+  // プロジェクトボード一覧を取得
+  const { boards: projectBoards } = useProjectBoards(project?.id || null);
+
   const [dimensions] = useState({
     width: 160, // 固定幅に設定
     height: "auto" as const,
@@ -650,7 +670,38 @@ export function StickyNote({
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
+    const oldContent = content;
+
+    // [の補完機能
+    const completion = handleBracketCompletion(oldContent, newContent);
+
+    if (completion.shouldComplete) {
+      setContent(completion.completedContent);
+
+      // カーソルを[]の間に移動
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.setSelectionRange(
+            completion.cursorPosition,
+            completion.cursorPosition
+          );
+        }
+      }, 0);
+
+      throttledContentUpdate(note.id, {
+        content: completion.completedContent,
+        width: dimensions.width,
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+      return;
+    }
+
     setContent(newContent);
+
+    // カーソル位置を更新
+    const newCursorPosition = e.target.selectionStart || 0;
+    setCursorPosition(newCursorPosition);
 
     // 固定幅なので幅の計算は不要、コンテンツのみ更新
     throttledContentUpdate(note.id, {
@@ -661,14 +712,147 @@ export function StickyNote({
     });
   };
 
+  // キーボードイベントやカーソル移動を監視
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IMEの変換中は処理をスキップ
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setShowBoardSuggestions(false);
+      handleBlur();
+    } else if (e.key === "i" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleInsertUserIcon();
+    } else if (e.key === "Tab") {
+      // ボード候補が表示されている場合はタブキーで候補を移動
+      if (showBoardSuggestions) {
+        e.preventDefault();
+        const filteredBoards = filterBoardSuggestions(
+          projectBoards,
+          boardSuggestionInfo.searchText
+        );
+        if (filteredBoards.length > 0) {
+          setSelectedSuggestionIndex((prev) =>
+            prev < filteredBoards.length - 1 ? prev + 1 : 0
+          );
+        }
+      }
+    } else if (e.key === "ArrowDown") {
+      // 下矢印キーで次の候補を選択
+      if (showBoardSuggestions) {
+        e.preventDefault();
+        const filteredBoards = filterBoardSuggestions(
+          projectBoards,
+          boardSuggestionInfo.searchText
+        );
+        setSelectedSuggestionIndex((prev) =>
+          prev < filteredBoards.length - 1 ? prev + 1 : 0
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      // 上矢印キーで前の候補を選択
+      if (showBoardSuggestions) {
+        e.preventDefault();
+        const filteredBoards = filterBoardSuggestions(
+          projectBoards,
+          boardSuggestionInfo.searchText
+        );
+        setSelectedSuggestionIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredBoards.length - 1
+        );
+      }
+    } else if (e.key === "Enter") {
+      // Enterキーで選択された候補を確定
+      if (showBoardSuggestions) {
+        e.preventDefault();
+        const filteredBoards = filterBoardSuggestions(
+          projectBoards,
+          boardSuggestionInfo.searchText
+        );
+        if (
+          filteredBoards.length > 0 &&
+          filteredBoards[selectedSuggestionIndex]
+        ) {
+          handleSelectBoard(filteredBoards[selectedSuggestionIndex].name);
+        }
+      }
+    }
+  };
+
+  const handleSelectionChange = (
+    e: React.SyntheticEvent<HTMLTextAreaElement>
+  ) => {
+    const target = e.target as HTMLTextAreaElement;
+    const newCursorPosition = target.selectionStart || 0;
+    setCursorPosition(newCursorPosition);
+  };
+
   const handleBlur = () => {
     setIsEditing(false);
     setShowToolbar(false);
+    setShowBoardSuggestions(false);
     onUpdate(note.id, {
       content,
       width: dimensions.width,
       isEditing: false,
       editedBy: null,
+    });
+  };
+
+  // カーソル位置の変化を監視してボード候補を表示・非表示
+  useEffect(() => {
+    if (!isEditing) {
+      setShowBoardSuggestions(false);
+      return;
+    }
+
+    const suggestion = analyzeBoardTitleSuggestion(content, cursorPosition);
+
+    if (suggestion.shouldShow) {
+      setBoardSuggestionInfo({
+        searchText: suggestion.searchText,
+        bracketStart: suggestion.bracketStart,
+        bracketEnd: suggestion.bracketEnd,
+      });
+      setShowBoardSuggestions(true);
+      setSelectedSuggestionIndex(0); // 候補が表示されるときは最初の項目を選択
+    } else {
+      setShowBoardSuggestions(false);
+      setSelectedSuggestionIndex(0);
+    }
+  }, [content, cursorPosition, isEditing]);
+
+  // ボード候補を選択したときの処理
+  const handleSelectBoard = (boardName: string) => {
+    const { bracketStart, bracketEnd } = boardSuggestionInfo;
+    const newContent =
+      content.substring(0, bracketStart + 1) +
+      boardName +
+      content.substring(bracketEnd);
+
+    setContent(newContent);
+    setShowBoardSuggestions(false);
+
+    // カーソルを]の後に移動
+    const newCursorPosition = bracketStart + 1 + boardName.length + 1;
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.setSelectionRange(
+          newCursorPosition,
+          newCursorPosition
+        );
+        contentRef.current.focus();
+      }
+    }, 0);
+
+    throttledContentUpdate(note.id, {
+      content: newContent,
+      width: dimensions.width,
+      isEditing: true,
+      editedBy: currentUserId,
     });
   };
 
@@ -1442,15 +1626,8 @@ export function StickyNote({
             value={content}
             onChange={handleContentChange}
             onBlur={handleBlur}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                handleBlur();
-              } else if (e.key === "i" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                handleInsertUserIcon();
-              }
-            }}
+            onKeyDown={handleKeyDown}
+            onSelect={handleSelectionChange}
             autoFocus
             minRows={1}
             maxRows={20}
@@ -1611,6 +1788,18 @@ export function StickyNote({
             </div>
           </div>
         )}
+
+        <BoardSuggestions
+          boards={filterBoardSuggestions(
+            projectBoards,
+            boardSuggestionInfo.searchText
+          )}
+          searchText={boardSuggestionInfo.searchText}
+          onSelectBoard={handleSelectBoard}
+          position={{ x: 0, y: 0 }}
+          isVisible={showBoardSuggestions && isEditing}
+          selectedIndex={selectedSuggestionIndex}
+        />
       </div>
     </div>
   );
