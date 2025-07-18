@@ -71,7 +71,7 @@ export interface Project {
 }
 
 export interface ProjectMember {
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member';
   displayName: string;
   email: string;
   joinedAt: number;

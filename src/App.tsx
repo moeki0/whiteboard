@@ -16,6 +16,7 @@ import { ProjectSettings } from "./components/ProjectSettings";
 import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
 import { BoardSettings } from "./components/BoardSettings";
+import { SearchBoards } from "./components/SearchBoards";
 import { InitialProfileSetup } from "./components/InitialProfileSetup";
 import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
@@ -150,6 +151,15 @@ function App() {
             />
 
             <Route
+              path="/project/:projectId/search"
+              element={
+                <ProtectedRoute>
+                  <SearchBoards user={user!} />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/user/settings"
               element={
                 <ProtectedRoute>
@@ -157,6 +167,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
 
             <Route
               path="/board/:boardId/settings"
@@ -217,6 +228,17 @@ function App() {
                     )}
                   </Layout>
                 </SlugRouter>
+              }
+            />
+
+            <Route
+              path="/:projectSlug/search"
+              element={
+                <ProtectedRoute>
+                  <SlugRouter type="project">
+                    <SearchBoards user={user!} />
+                  </SlugRouter>
+                </ProtectedRoute>
               }
             />
 

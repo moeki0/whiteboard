@@ -139,9 +139,9 @@ export function checkProjectEditPermission(
     return { canEdit: false, reason: 'Not a project member' };
   }
 
-  // オーナーのみプロジェクト設定を編集可能
-  if (role !== 'owner') {
-    return { canEdit: false, reason: 'Only owners can edit project settings' };
+  // 管理者以上がプロジェクト設定を編集可能
+  if (role !== 'owner' && role !== 'admin') {
+    return { canEdit: false, reason: 'Admin privileges required' };
   }
 
   return { canEdit: true };
@@ -194,4 +194,56 @@ export function checkProjectDeletePermission(
   }
 
   return { canDelete: true };
+}
+
+/**
+ * ユーザーがプロジェクトの管理者（オーナーまたはadmin）かチェック
+ */
+export function isProjectAdmin(
+  project: Project | null,
+  userId: string
+): boolean {
+  if (!project || !project.members || !project.members[userId]) {
+    return false;
+  }
+  
+  const role = project.members[userId].role;
+  return role === 'owner' || role === 'admin';
+}
+
+/**
+ * 管理者管理権限をチェック（オーナーのみ）
+ */
+export function canManageAdmins(
+  project: Project | null,
+  userId: string
+): boolean {
+  const role = getUserRole(project, userId);
+  return role === 'owner';
+}
+
+/**
+ * 管理者権限をチェック
+ */
+export function checkAdminPermission(
+  project: Project | null,
+  userId: string
+): {
+  isAdmin: boolean;
+  reason?: string;
+} {
+  if (!project) {
+    return { isAdmin: false, reason: 'Project not found' };
+  }
+
+  if (!project.members || !project.members[userId]) {
+    return { isAdmin: false, reason: 'Not a project member' };
+  }
+
+  const role = project.members[userId].role;
+  if (role !== 'owner' && role !== 'admin') {
+    return { isAdmin: false, reason: 'Admin privileges required' };
+  }
+
+  return { isAdmin: true };
 }

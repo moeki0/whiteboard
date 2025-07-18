@@ -4,6 +4,7 @@ import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { User, Project } from "../types";
+import { canManageAdmins, isProjectAdmin } from "../utils/permissions";
 import "./SettingsCommon.css";
 
 interface ProjectSettingsProps {
@@ -27,8 +28,9 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectSlug, setNewProjectSlug] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [canManageAdminsFlag, setCanManageAdminsFlag] = useState(false);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -45,12 +47,14 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           // Check user role
           const userMember = projectData.members?.[user.uid];
           if (userMember) {
-            setUserRole(userMember.role);
             setIsOwner(userMember.role === "owner");
+            setIsAdmin(isProjectAdmin(projectData, user.uid));
+            setCanManageAdminsFlag(canManageAdmins(projectData, user.uid));
           } else {
             // User is not a member
-            setUserRole(null);
             setIsOwner(false);
+            setIsAdmin(false);
+            setCanManageAdminsFlag(false);
           }
 
           // Convert members object to array for easier rendering
@@ -76,11 +80,11 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     };
 
     loadProject();
-  }, [projectId, navigate]);
+  }, [projectId, navigate, user.uid]);
 
   const updateProjectName = async () => {
-    if (!isOwner) {
-      alert("Only project owners can modify project settings");
+    if (!isAdmin) {
+      alert("Admin privileges required to modify project settings");
       return;
     }
 
@@ -101,8 +105,8 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   };
 
   const updateProjectSlug = async () => {
-    if (!isOwner) {
-      alert("Only project owners can modify project settings");
+    if (!isAdmin) {
+      alert("Admin privileges required to modify project settings");
       return;
     }
 
@@ -130,8 +134,8 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   };
 
   const updateProjectPrivacy = async (isPublic: boolean) => {
-    if (!isOwner) {
-      alert("Only project owners can modify project settings");
+    if (!isAdmin) {
+      alert("Admin privileges required to modify project settings");
       return;
     }
 
@@ -147,8 +151,8 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   };
 
   const removeMember = async (memberUid: string) => {
-    if (!isOwner) {
-      alert("Only project owners can remove members");
+    if (!isAdmin) {
+      alert("Admin privileges required to remove members");
       return;
     }
 
@@ -181,9 +185,65 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
+  const promoteToAdmin = async (memberUid: string) => {
+    if (!canManageAdminsFlag) {
+      alert("Only project owners can manage administrators");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to promote this member to admin?")) {
+      return;
+    }
+
+    try {
+      const memberRef = ref(rtdb, `projects/${projectId}/members/${memberUid}/role`);
+      await set(memberRef, "admin");
+
+      // Update local state
+      setMembers((prev) => 
+        prev.map((member) => 
+          member.uid === memberUid 
+            ? { ...member, role: "admin" }
+            : member
+        )
+      );
+    } catch (error) {
+      console.error("Error promoting member:", error);
+      alert("Failed to promote member");
+    }
+  };
+
+  const demoteFromAdmin = async (memberUid: string) => {
+    if (!canManageAdminsFlag) {
+      alert("Only project owners can manage administrators");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to demote this admin to member?")) {
+      return;
+    }
+
+    try {
+      const memberRef = ref(rtdb, `projects/${projectId}/members/${memberUid}/role`);
+      await set(memberRef, "member");
+
+      // Update local state
+      setMembers((prev) => 
+        prev.map((member) => 
+          member.uid === memberUid 
+            ? { ...member, role: "member" }
+            : member
+        )
+      );
+    } catch (error) {
+      console.error("Error demoting admin:", error);
+      alert("Failed to demote admin");
+    }
+  };
+
   const generateInviteCode = async () => {
-    if (!isOwner) {
-      alert("Only project owners can generate invite codes");
+    if (!isAdmin) {
+      alert("Admin privileges required to generate invite codes");
       return;
     }
 
@@ -216,7 +276,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
 
   const copyInviteLink = async () => {
     if (!project?.inviteCode) {
-      if (isOwner) {
+      if (isAdmin) {
         const shouldGenerate = window.confirm(
           "No invite code found. Would you like to generate one?"
         );
@@ -315,13 +375,13 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     return <div className="loading">Project not found</div>;
   }
 
-  if (!userRole) {
+  if (!isAdmin) {
     return (
       <div className="project-settings">
         <div className="settings-container">
           <div className="settings-section">
             <h2>Access Denied</h2>
-            <p>You don't have permission to access this project's settings.</p>
+            <p>Admin privileges required to access project settings.</p>
             <button onClick={() => navigate("/")} className="cancel-btn">
               Back to Home
             </button>
@@ -366,11 +426,11 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                 onKeyPress={(e) => e.key === "Enter" && updateProjectSlug()}
                 placeholder="project-slug"
                 pattern="[a-z0-9-]+"
-                disabled={!isOwner}
+                disabled={!isAdmin}
               />
             </div>
             <div>
-              <button onClick={updateProjectSlug} className="save-btn" disabled={!isOwner}>
+              <button onClick={updateProjectSlug} className="save-btn" disabled={!isAdmin}>
                 Save
               </button>
             </div>
@@ -391,7 +451,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                   value="public"
                   checked={project.isPublic}
                   onChange={() => updateProjectPrivacy(true)}
-                  disabled={!isOwner}
+                  disabled={!isAdmin}
                 />
                 <label htmlFor="public">
                   <strong>Public</strong>
@@ -406,7 +466,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                   value="private"
                   checked={!project.isPublic}
                   onChange={() => updateProjectPrivacy(false)}
-                  disabled={!isOwner}
+                  disabled={!isAdmin}
                 />
                 <label htmlFor="private">
                   <strong>Private</strong>
@@ -439,7 +499,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
               <button onClick={copyInviteLink} className="copy-btn">
                 Copy
               </button>
-              {isOwner && (
+              {isAdmin && (
                 <button onClick={generateInviteCode} className="generate-btn">
                   {project.inviteCode ? "Regenerate" : "Generate"}
                 </button>
@@ -464,13 +524,33 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                     </div>
                     <div className="member-email">{member.email}</div>
                     <div className="member-role">
-                      {member.role === "owner" ? "Owner" : "Member"}
+                      {member.role === "owner" 
+                        ? "Owner" 
+                        : member.role === "admin" 
+                        ? "Admin" 
+                        : "Member"}
                       {member.uid === user.uid && " (You)"}
                     </div>
                   </div>
                 </div>
                 <div className="member-actions">
-                  {isOwner && member.uid !== user.uid && (
+                  {canManageAdminsFlag && member.uid !== user.uid && member.role === "member" && (
+                    <button
+                      onClick={() => promoteToAdmin(member.uid)}
+                      className="promote-btn"
+                    >
+                      Promote to Admin
+                    </button>
+                  )}
+                  {canManageAdminsFlag && member.uid !== user.uid && member.role === "admin" && (
+                    <button
+                      onClick={() => demoteFromAdmin(member.uid)}
+                      className="demote-btn"
+                    >
+                      Demote to Member
+                    </button>
+                  )}
+                  {isAdmin && member.uid !== user.uid && (
                     <button
                       onClick={() => removeMember(member.uid)}
                       className="remove-member-btn"

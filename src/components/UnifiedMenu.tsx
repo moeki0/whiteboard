@@ -20,6 +20,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
   const { resolvedBoardId } = useSlug();
   const [isOpen, setIsOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [canEditBoard, setCanEditBoard] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -59,13 +60,20 @@ export const UnifiedMenu = memo(function UnifiedMenu({
         const projectResults = await Promise.all(projectPromises);
         const validProjects = projectResults.filter((p) => p !== null);
         setProjects(validProjects);
+        
+        // Set current project
+        if (currentProjectId) {
+          const currentProj = validProjects.find(p => p.id === currentProjectId);
+          setCurrentProject(currentProj || null);
+        }
       } else {
         setProjects([]);
+        setCurrentProject(null);
       }
     });
 
     return () => unsubscribe();
-  }, [user.uid]);
+  }, [user.uid, currentProjectId]);
 
   // Check board permissions when on a board page
   useEffect(() => {
@@ -160,6 +168,16 @@ export const UnifiedMenu = memo(function UnifiedMenu({
           <Link to="/user/settings" className="menu-item" onClick={handleCloseMenu}>
             User Settings
           </Link>
+
+          {currentProject && (
+            <Link 
+              to={currentProject.slug ? `/${currentProject.slug}/search` : `/project/${currentProjectId}/search`} 
+              className="menu-item" 
+              onClick={handleCloseMenu}
+            >
+              Search Boards
+            </Link>
+          )}
 
           {isOnBoardPage && canEditBoard && currentBoardId && (
             <>

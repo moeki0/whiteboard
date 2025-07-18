@@ -26,6 +26,12 @@ const mockProject: Project = {
       email: "owner@test.com",
       joinedAt: Date.now(),
     },
+    admin1: {
+      role: "admin",
+      displayName: "Admin User",
+      email: "admin@test.com",
+      joinedAt: Date.now(),
+    },
     member1: {
       role: "member",
       displayName: "Member User",
@@ -182,10 +188,15 @@ describe("権限チェック機能", () => {
       expect(result.canEdit).toBe(true);
     });
 
+    it("管理者はプロジェクト設定を編集可能", () => {
+      const result = checkProjectEditPermission(mockProject, "admin1");
+      expect(result.canEdit).toBe(true);
+    });
+
     it("メンバーはプロジェクト設定を編集不可", () => {
       const result = checkProjectEditPermission(mockProject, "member1");
       expect(result.canEdit).toBe(false);
-      expect(result.reason).toBe("Only owners can edit project settings");
+      expect(result.reason).toBe("Admin privileges required");
     });
 
     it("非メンバーはプロジェクト設定を編集不可", () => {

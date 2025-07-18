@@ -85,7 +85,36 @@ describe('ProjectSettings Slug Feature', () => {
     expect(slugInput).toHaveAttribute('pattern', '[a-z0-9-]+');
   });
 
-  it('should disable slug editing for non-owners', async () => {
+  it('should disable slug editing for non-admins', async () => {
+    const { get } = await import('firebase/database');
+    
+    vi.mocked(get).mockResolvedValue({
+      exists: () => true,
+      val: () => ({
+        name: 'Test Project',
+        slug: 'test-project',
+        members: {
+          'test-user-id': {
+            role: 'admin',
+            displayName: 'Test User',
+            email: 'test@example.com'
+          }
+        },
+        isPublic: false
+      })
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/test-id/settings']}>
+        <ProjectSettings user={mockUser} />
+      </MemoryRouter>
+    );
+
+    const slugInput = await screen.findByLabelText('Project Slug');
+    expect(slugInput).not.toBeDisabled();
+  });
+
+  it('should show access denied for non-admin members', async () => {
     const { get } = await import('firebase/database');
     
     vi.mocked(get).mockResolvedValue({
@@ -110,7 +139,8 @@ describe('ProjectSettings Slug Feature', () => {
       </MemoryRouter>
     );
 
-    const slugInput = await screen.findByLabelText('Project Slug');
-    expect(slugInput).toBeDisabled();
+    const accessDeniedHeading = await screen.findByText('Access Denied');
+    expect(accessDeniedHeading).toBeInTheDocument();
+    expect(screen.getByText('Admin privileges required to access project settings.')).toBeInTheDocument();
   });
 });
