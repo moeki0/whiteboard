@@ -1707,7 +1707,11 @@ export function Board({ user }: BoardProps) {
       </div>
       {board &&
         checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
-          <button onClick={() => addNote()} className="fab-add-btn">
+          <button onClick={() => {
+            const newNoteId = addNote();
+            setNoteToFocus(newNoteId);
+            setSelectedNoteIds(new Set([newNoteId]));
+          }} className="fab-add-btn">
             <LuPlus />
           </button>
         )}
