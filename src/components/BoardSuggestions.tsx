@@ -60,9 +60,9 @@ export function BoardSuggestions({
   return (
     <div
       style={{
-        position: "fixed",
-        left: position.x,
-        top: position.y,
+        position: "relative",
+        left: 0,
+        top: 0,
         borderRadius: "4px",
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
         display: "flex",

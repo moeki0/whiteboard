@@ -649,11 +649,23 @@ export function StickyNote({
 
     console.log(
       "analyzeBoardTitleSuggestion result in handleContentChange:",
-      result
+      result,
+      "shouldShow:",
+      result.shouldShow
     );
 
-    // 補完機能を無効化
-    setShowBoardSuggestions(false);
+    if (result.shouldShow) {
+      setBoardSuggestionInfo({
+        searchText: result.searchText,
+        bracketStart: result.bracketStart,
+        bracketEnd: result.bracketEnd,
+        position: { x: 0, y: 0 }, // 相対位置なので不要
+      });
+      setShowBoardSuggestions(true);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setShowBoardSuggestions(false);
+    }
 
     // 固定幅なので幅の計算は不要、コンテンツのみ更新
     throttledContentUpdate(note.id, {
@@ -672,14 +684,10 @@ export function StickyNote({
 
     const rect = noteElement.getBoundingClientRect();
     console.log("noteElement rect:", rect);
-    console.log("window scroll:", {
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-    });
 
-    // 付箋の下部、左側に表示（fixed positionなのでスクロールは考慮不要）
+    // 付箋の真下に表示（fixed positionなのでスクロールは考慮不要）
     const x = rect.left;
-    const y = rect.bottom - 40; // 付箋のもう少し上に表示
+    const y = rect.bottom + 2; // 付箋の真下に表示
 
     console.log("Final position:", { x, y });
 
@@ -751,8 +759,18 @@ export function StickyNote({
 
     console.log("analyzeBoardTitleSuggestion result:", result);
 
-    // 補完機能を無効化
-    setShowBoardSuggestions(false);
+    if (result.shouldShow) {
+      setBoardSuggestionInfo({
+        searchText: result.searchText,
+        bracketStart: result.bracketStart,
+        bracketEnd: result.bracketEnd,
+        position: { x: 0, y: 0 }, // 相対位置なので不要
+      });
+      setShowBoardSuggestions(true);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setShowBoardSuggestions(false);
+    }
   };
 
   const handleBlur = () => {
@@ -1785,13 +1803,16 @@ export function StickyNote({
           </div>
         )}
       </div>
-      {(() => {
-        console.log("BoardSuggestions条件チェック:", {
-          showBoardSuggestions,
-          isEditing,
-          shouldRender: showBoardSuggestions && isEditing,
-        });
-        return showBoardSuggestions && isEditing ? (
+      {/* BoardSuggestions を StickyNote の中に配置 */}
+      {showBoardSuggestions && isEditing && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: "0",
+            zIndex: 1000,
+          }}
+        >
           <BoardSuggestions
             boards={filterBoardSuggestions(
               projectBoards,
@@ -1799,12 +1820,12 @@ export function StickyNote({
             )}
             searchText={boardSuggestionInfo.searchText}
             onSelectBoard={handleSelectBoard}
-            position={boardSuggestionInfo.position}
+            position={{ x: 0, y: 0 }} // 相対位置なので不要
             isVisible={true}
             selectedIndex={selectedSuggestionIndex}
           />
-        ) : null;
-      })()}
+        </div>
+      )}
     </div>
   );
 }
