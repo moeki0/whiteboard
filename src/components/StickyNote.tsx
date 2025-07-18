@@ -1474,7 +1474,7 @@ export function StickyNote({
           <div
             style={{
               position: "absolute",
-              top: "-25px",
+              top: "-22px",
               left: "50%",
               transform: "translateX(-50%)",
               display: "flex",
