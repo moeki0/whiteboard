@@ -20,13 +20,10 @@ const boardsIndex = client.initIndex('boards');
 
 // CORS設定
 const corsHandler = cors({
-  origin: [
-    'https://maplap-41b08.web.app',
-    'https://whiteboard.moeki.org',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ],
-  credentials: true
+  origin: true, // すべてのオリジンを許可
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 });
 
 interface AlgoliaBoard {
@@ -44,28 +41,37 @@ interface AlgoliaBoard {
   searchableText: string;
 }
 
-export const syncBoard = functions.https.onCall(async (data, context) => {
-  // 認証チェック
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-  }
+export const syncBoard = functions
+  .region('us-central1')
+  .runWith({ 
+    timeoutSeconds: 60,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
+    // 認証チェック - 開発時は認証をスキップ
+    if (!context.auth && process.env.NODE_ENV !== 'development') {
+      console.warn('User not authenticated, skipping sync');
+      return { success: false, error: 'Not authenticated' };
+    }
 
-  const { board }: { board: AlgoliaBoard } = data;
-  
-  if (!board || !board.objectID) {
-    throw new functions.https.HttpsError('invalid-argument', 'Board data is required');
-  }
-
-  try {
-    // Algoliaにボードデータを保存
-    await boardsIndex.saveObject(board);
+    const { board }: { board: AlgoliaBoard } = data;
     
-    return { success: true, objectID: board.objectID };
-  } catch (error) {
-    console.error('Algolia sync error:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to sync board');
-  }
-});
+    if (!board || !board.objectID) {
+      return { success: false, error: 'Board data is required' };
+    }
+
+    try {
+      // Algoliaにボードデータを保存
+      await boardsIndex.saveObject(board);
+      console.log('Board synced to Algolia:', board.objectID);
+      
+      return { success: true, objectID: board.objectID };
+    } catch (error) {
+      console.error('Algolia sync error:', error);
+      // エラーを投げずに結果を返す
+      return { success: false, error: 'Failed to sync board' };
+    }
+  });
 
 export const removeBoard = functions.https.onCall(async (data, context) => {
   // 認証チェック
@@ -136,7 +142,7 @@ export const syncBoardHttp = functions.https.onRequest(async (req, res) => {
       }
 
       const idToken = authorization.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      await admin.auth().verifyIdToken(idToken);
       
       const { board }: { board: AlgoliaBoard } = req.body;
       
@@ -176,7 +182,7 @@ export const removeBoardHttp = functions.https.onRequest(async (req, res) => {
       }
 
       const idToken = authorization.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      await admin.auth().verifyIdToken(idToken);
       
       const { objectID } = req.body;
       

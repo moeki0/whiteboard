@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncProject = exports.removeBoard = exports.syncBoard = void 0;
+exports.removeBoardHttp = exports.syncBoardHttp = exports.syncProject = exports.removeBoard = exports.syncBoard = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const algoliasearch_1 = require("algoliasearch");
+const cors = require("cors");
 admin.initializeApp();
 // Algolia設定
 const algoliaConfig = functions.config().algolia || {
@@ -12,6 +13,13 @@ const algoliaConfig = functions.config().algolia || {
 };
 const client = (0, algoliasearch_1.default)(algoliaConfig.app_id, algoliaConfig.admin_key);
 const boardsIndex = client.initIndex('boards');
+// CORS設定
+const corsHandler = cors({
+    origin: true, // すべてのオリジンを許可
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+});
 exports.syncBoard = functions.https.onCall(async (data, context) => {
     // 認証チェック
     if (!context.auth) {
@@ -68,5 +76,73 @@ exports.syncProject = functions.https.onCall(async (data, context) => {
         console.error('Algolia project sync error:', error);
         throw new functions.https.HttpsError('internal', 'Failed to sync project');
     }
+});
+// onRequest版の関数（CORS対応）
+exports.syncBoardHttp = functions.https.onRequest(async (req, res) => {
+    return corsHandler(req, res, async () => {
+        try {
+            // プリフライトリクエストの処理
+            if (req.method === 'OPTIONS') {
+                res.status(204).send('');
+                return;
+            }
+            if (req.method !== 'POST') {
+                res.status(405).json({ error: 'Method not allowed' });
+                return;
+            }
+            // Firebase Auth IDトークンの検証
+            const authorization = req.headers.authorization;
+            if (!authorization || !authorization.startsWith('Bearer ')) {
+                res.status(401).json({ error: 'Unauthorized' });
+                return;
+            }
+            const idToken = authorization.split('Bearer ')[1];
+            await admin.auth().verifyIdToken(idToken);
+            const { board } = req.body;
+            if (!board || !board.objectID) {
+                res.status(400).json({ error: 'Board data is required' });
+                return;
+            }
+            // Algoliaにボードデータを保存
+            await boardsIndex.saveObject(board);
+            res.json({ data: { success: true, objectID: board.objectID } });
+        }
+        catch (error) {
+            console.error('Algolia sync error:', error);
+            res.status(500).json({ error: 'Failed to sync board' });
+        }
+    });
+});
+exports.removeBoardHttp = functions.https.onRequest(async (req, res) => {
+    return corsHandler(req, res, async () => {
+        try {
+            if (req.method === 'OPTIONS') {
+                res.status(204).send('');
+                return;
+            }
+            if (req.method !== 'POST') {
+                res.status(405).json({ error: 'Method not allowed' });
+                return;
+            }
+            const authorization = req.headers.authorization;
+            if (!authorization || !authorization.startsWith('Bearer ')) {
+                res.status(401).json({ error: 'Unauthorized' });
+                return;
+            }
+            const idToken = authorization.split('Bearer ')[1];
+            await admin.auth().verifyIdToken(idToken);
+            const { objectID } = req.body;
+            if (!objectID) {
+                res.status(400).json({ error: 'ObjectID is required' });
+                return;
+            }
+            await boardsIndex.deleteObject(objectID);
+            res.json({ data: { success: true, objectID } });
+        }
+        catch (error) {
+            console.error('Algolia remove error:', error);
+            res.status(500).json({ error: 'Failed to remove board' });
+        }
+    });
 });
 //# sourceMappingURL=index.js.map
