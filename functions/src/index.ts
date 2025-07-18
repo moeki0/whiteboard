@@ -18,6 +18,17 @@ const client = algoliasearch(
 
 const boardsIndex = client.initIndex('boards');
 
+// CORS設定
+const corsHandler = cors({
+  origin: [
+    'https://maplap-41b08.web.app',
+    'https://whiteboard.moeki.org',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true
+});
+
 interface AlgoliaBoard {
   objectID: string;
   boardId: string;
@@ -100,4 +111,47 @@ export const syncProject = functions.https.onCall(async (data, context) => {
     console.error('Algolia project sync error:', error);
     throw new functions.https.HttpsError('internal', 'Failed to sync project');
   }
+});
+
+// onRequest版の関数（CORS対応）
+export const syncBoardHttp = functions.https.onRequest(async (req, res) => {
+  return corsHandler(req, res, async () => {
+    try {
+      // プリフライトリクエストの処理
+      if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+      }
+
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      // Firebase Auth IDトークンの検証
+      const authorization = req.headers.authorization;
+      if (!authorization || !authorization.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const idToken = authorization.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      
+      const { board }: { board: AlgoliaBoard } = req.body;
+      
+      if (!board || !board.objectID) {
+        res.status(400).json({ error: 'Board data is required' });
+        return;
+      }
+
+      // Algoliaにボードデータを保存
+      await boardsIndex.saveObject(board);
+      
+      res.json({ data: { success: true, objectID: board.objectID } });
+    } catch (error) {
+      console.error('Algolia sync error:', error);
+      res.status(500).json({ error: 'Failed to sync board' });
+    }
+  });
 });

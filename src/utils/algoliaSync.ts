@@ -1,5 +1,5 @@
 import { AlgoliaBoard } from "../config/algolia";
-import { rtdb, functions } from "../config/firebase";
+import { rtdb, functions, auth } from "../config/firebase";
 import { ref, get } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
 import { Board, Project } from "../types";
@@ -83,10 +83,17 @@ export async function syncBoardToAlgolia(
   board: Board
 ): Promise<void> {
   try {
+    // 認証状態を確認
+    if (!auth.currentUser) {
+      console.warn("User not authenticated, skipping Algolia sync");
+      return;
+    }
+
     const algoliaBoard = await boardToAlgoliaObject(boardId, board);
     if (algoliaBoard) {
       const syncBoard = httpsCallable(functions, "syncBoard");
-      await syncBoard({ board: algoliaBoard });
+      const result = await syncBoard({ board: algoliaBoard });
+      console.log("Board synced to Algolia:", result.data);
     }
   } catch (error) {
     console.error(`Error syncing board ${boardId} to Algolia:`, error);
@@ -105,8 +112,15 @@ export async function syncBoardToAlgolia(
 // Remove a board from Algolia index via Firebase Functions
 export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
   try {
+    // 認証状態を確認
+    if (!auth.currentUser) {
+      console.warn("User not authenticated, skipping Algolia remove");
+      return;
+    }
+
     const removeBoard = httpsCallable(functions, "removeBoard");
-    await removeBoard({ objectID: boardId });
+    const result = await removeBoard({ objectID: boardId });
+    console.log("Board removed from Algolia:", result.data);
   } catch (error) {
     console.error(`Error removing board ${boardId} from Algolia:`, error);
 
