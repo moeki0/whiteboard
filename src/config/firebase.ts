@@ -23,11 +23,18 @@ export const rtdb = getDatabase(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");
 
-// Connect to emulator in development
+// Connect to emulator in development only
 if (
-  process.env.NODE_ENV === "development" &&
+  import.meta.env.DEV &&
+  typeof window !== "undefined" &&
+  window.location.hostname === "localhost" &&
   !(globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED
 ) {
-  connectFunctionsEmulator(functions, "localhost", 5001);
-  (globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
+  try {
+    connectFunctionsEmulator(functions, "localhost", 5002);
+    (globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
+    console.log("Connected to Functions emulator");
+  } catch (error) {
+    console.warn("Failed to connect to Functions emulator:", error);
+  }
 }

@@ -92,11 +92,13 @@ export async function syncBoardToAlgolia(
     console.error(`Error syncing board ${boardId} to Algolia:`, error);
 
     // 開発環境ではエラーを無視
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.warn("Algolia sync disabled in development mode");
       return;
     }
-    throw error;
+    // 本番環境でもFirebase Functionsのエラーは無視（ログのみ出力）
+    console.warn("Algolia sync failed, continuing without sync:", error);
+    return;
   }
 }
 
@@ -109,11 +111,13 @@ export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
     console.error(`Error removing board ${boardId} from Algolia:`, error);
 
     // 開発環境ではエラーを無視
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.warn("Algolia remove disabled in development mode");
       return;
     }
-    throw error;
+    // 本番環境でもFirebase Functionsのエラーは無視（ログのみ出力）
+    console.warn("Algolia remove failed, continuing without sync:", error);
+    return;
   }
 }
 
