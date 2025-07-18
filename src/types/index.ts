@@ -25,7 +25,7 @@ export interface Note {
   userId: string;
   createdAt: number;
   zIndex: number;
-  width: number;
+  width: string;
   isDragging?: boolean;
   draggedBy?: string | null;
   isEditing?: boolean;
@@ -71,7 +71,7 @@ export interface Project {
 }
 
 export interface ProjectMember {
-  role: 'owner' | 'admin' | 'member';
+  role: "owner" | "admin" | "member";
   displayName: string;
   email: string;
   joinedAt: number;
@@ -87,7 +87,7 @@ export interface Cursor {
 }
 
 export interface HistoryAction {
-  type: 'CREATE_NOTES' | 'DELETE_NOTES' | 'MOVE_NOTES' | 'EDIT_NOTE';
+  type: "CREATE_NOTES" | "DELETE_NOTES" | "MOVE_NOTES" | "EDIT_NOTE";
   noteId: string;
   userId: string;
   notes?: Note[];

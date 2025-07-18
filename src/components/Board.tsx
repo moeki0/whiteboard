@@ -119,7 +119,9 @@ export function Board({ user }: BoardProps) {
   const updateBoardMetadata = async () => {
     if (!boardId || !user?.uid || !notes) return;
     try {
-      const { updateBoardMetadata: updateMetadata } = await import("../utils/boardMetadata");
+      const { updateBoardMetadata: updateMetadata } = await import(
+        "../utils/boardMetadata"
+      );
       await updateMetadata(boardId, notes);
     } catch (error) {
       console.error("Error updating board metadata:", error);
@@ -222,7 +224,7 @@ export function Board({ user }: BoardProps) {
       userId: user.uid,
       createdAt: Date.now(),
       zIndex: nextZIndex,
-      width: 250,
+      width: "auto",
       isDragging: false,
       draggedBy: null,
     };
@@ -450,7 +452,7 @@ export function Board({ user }: BoardProps) {
           content: note.content || "",
           x: note.x + offsetX,
           y: note.y + offsetY,
-          width: note.width || 250,
+          width: "auto",
           zIndex: note.zIndex || 100,
           createdAt: Date.now(),
           userId: user.uid,
@@ -582,7 +584,7 @@ export function Board({ user }: BoardProps) {
       const notesInSelection = notes.filter((note) => {
         const noteX = note.x;
         const noteY = note.y;
-        const noteWidth = note.width || 250;
+        const noteWidth = 160;
         const noteHeight = 100; // 推定高さ
 
         return (
@@ -1115,7 +1117,7 @@ export function Board({ user }: BoardProps) {
         id: noteId,
         content: noteData.content,
         color: noteData.color,
-        width: noteData.width || 250,
+        width: "auto",
         x: noteData.x + 20, // 少しずらして配置
         y: noteData.y + 20,
         userId: user.uid,
@@ -1546,7 +1548,7 @@ export function Board({ user }: BoardProps) {
           userId: user.uid,
           createdAt: Date.now(),
           zIndex: nextZIndex + index,
-          width: 160,
+          width: "auto",
           isDragging: false,
           draggedBy: null,
         };

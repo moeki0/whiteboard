@@ -18,7 +18,9 @@ interface UseBoardActionsProps {
   nextZIndex: number;
   setNextZIndex: (value: number | ((prev: number) => number)) => void;
   selectedNoteIds: Set<string>;
-  setSelectedNoteIds: (value: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  setSelectedNoteIds: (
+    value: Set<string> | ((prev: Set<string>) => Set<string>)
+  ) => void;
   copiedNote: Note | null;
   setCopiedNote: (note: Note | null) => void;
   copiedNotes: Note[];
@@ -77,176 +79,200 @@ export function useBoardActions({
   }, [boardId, board]);
 
   // 付箋を追加
-  const addNote = useCallback((x?: number, y?: number): string => {
-    if (!user?.uid) return "";
-
-    if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
-      return "";
-    }
-
-    let noteX: number;
-    let noteY: number;
-
-    if (x !== undefined && y !== undefined) {
-      noteX = x;
-      noteY = y;
-    } else {
-      const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
-      const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
-      noteX = viewportCenterX + (Math.random() - 0.5) * 300;
-      noteY = viewportCenterY + (Math.random() - 0.5) * 300;
-    }
-
-    const newNote: Omit<Note, "id"> = {
-      content: "",
-      x: noteX,
-      y: noteY,
-      color: "white",
-      textSize: "medium",
-      userId: user.uid,
-      createdAt: Date.now(),
-      zIndex: nextZIndex,
-      width: 250,
-      isDragging: false,
-      draggedBy: null,
-    };
-
-    const noteId = nanoid();
-
-    if (!isUndoRedoOperation) {
-      addToHistory({
-        type: "CREATE_NOTES",
-        noteId: noteId,
-        notes: [{ ...newNote, id: noteId }],
-        userId: user.uid,
-      });
-    }
-
-    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
-    set(noteRef, newNote);
-    setNextZIndex((prev) => prev + 1);
-
-    setTimeout(() => {
-      try {
-        updateBoardTimestamp();
-        syncToAlgolia();
-      } catch (error) {
-        console.error("Error updating board timestamp after adding note:", error);
-      }
-    }, 100);
-
-    return noteId;
-  }, [
-    user?.uid,
-    board,
-    project,
-    boardId,
-    nextZIndex,
-    updateBoardTimestamp,
-    syncToAlgolia,
-    addToHistory,
-    isUndoRedoOperation,
-    nanoid,
-    panX,
-    panY,
-    zoom,
-    setNextZIndex,
-  ]);
-
-  // 付箋を更新
-  const updateNote = useCallback((noteId: string, updates: Partial<Note>) => {
-    if (!user?.uid) return;
-
-    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
-    const note = notes.find((n) => n.id === noteId);
-    if (note) {
-      const updatedNote = { ...note, ...updates };
+  const addNote = useCallback(
+    (x?: number, y?: number): string => {
+      if (!user?.uid) return "";
 
       if (
-        !isUndoRedoOperation &&
-        note.userId === user.uid &&
-        currentUndoRedoNoteId !== noteId
+        !board ||
+        !checkBoardEditPermission(board, project, user.uid).canEdit
       ) {
-        if (updates.content !== undefined && updates.content !== note.content) {
-          addToHistory({
-            type: "EDIT_NOTE",
-            noteId: noteId,
-            oldContent: note.content,
-            newContent: updates.content,
-            userId: user.uid,
-          });
+        return "";
+      }
+
+      let noteX: number;
+      let noteY: number;
+
+      if (x !== undefined && y !== undefined) {
+        noteX = x;
+        noteY = y;
+      } else {
+        const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
+        const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+        noteX = viewportCenterX + (Math.random() - 0.5) * 300;
+        noteY = viewportCenterY + (Math.random() - 0.5) * 300;
+      }
+
+      const newNote: Omit<Note, "id"> = {
+        content: "",
+        x: noteX,
+        y: noteY,
+        color: "white",
+        textSize: "medium",
+        userId: user.uid,
+        createdAt: Date.now(),
+        zIndex: nextZIndex,
+        width: "auto",
+        isDragging: false,
+        draggedBy: null,
+      };
+
+      const noteId = nanoid();
+
+      if (!isUndoRedoOperation) {
+        addToHistory({
+          type: "CREATE_NOTES",
+          noteId: noteId,
+          notes: [{ ...newNote, id: noteId }],
+          userId: user.uid,
+        });
+      }
+
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+      set(noteRef, newNote);
+      setNextZIndex((prev) => prev + 1);
+
+      setTimeout(() => {
+        try {
+          updateBoardTimestamp();
+          syncToAlgolia();
+        } catch (error) {
+          console.error(
+            "Error updating board timestamp after adding note:",
+            error
+          );
+        }
+      }, 100);
+
+      return noteId;
+    },
+    [
+      user?.uid,
+      board,
+      project,
+      boardId,
+      nextZIndex,
+      updateBoardTimestamp,
+      syncToAlgolia,
+      addToHistory,
+      isUndoRedoOperation,
+      nanoid,
+      panX,
+      panY,
+      zoom,
+      setNextZIndex,
+    ]
+  );
+
+  // 付箋を更新
+  const updateNote = useCallback(
+    (noteId: string, updates: Partial<Note>) => {
+      if (!user?.uid) return;
+
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+      const note = notes.find((n) => n.id === noteId);
+      if (note) {
+        const updatedNote = { ...note, ...updates };
+
+        if (
+          !isUndoRedoOperation &&
+          note.userId === user.uid &&
+          currentUndoRedoNoteId !== noteId
+        ) {
+          if (
+            updates.content !== undefined &&
+            updates.content !== note.content
+          ) {
+            addToHistory({
+              type: "EDIT_NOTE",
+              noteId: noteId,
+              oldContent: note.content,
+              newContent: updates.content,
+              userId: user.uid,
+            });
+          }
+        }
+
+        set(noteRef, updatedNote);
+
+        if (updates.content !== undefined) {
+          setTimeout(() => {
+            try {
+              updateBoardTimestamp();
+              syncToAlgolia();
+            } catch (error) {
+              console.error(
+                "Error updating board timestamp after updating note:",
+                error
+              );
+            }
+          }, 100);
         }
       }
-
-      set(noteRef, updatedNote);
-
-      if (updates.content !== undefined) {
-        setTimeout(() => {
-          try {
-            updateBoardTimestamp();
-            syncToAlgolia();
-          } catch (error) {
-            console.error("Error updating board timestamp after updating note:", error);
-          }
-        }, 100);
-      }
-    }
-  }, [
-    user?.uid,
-    boardId,
-    notes,
-    addToHistory,
-    updateBoardTimestamp,
-    syncToAlgolia,
-    currentUndoRedoNoteId,
-    isUndoRedoOperation,
-  ]);
+    },
+    [
+      user?.uid,
+      boardId,
+      notes,
+      addToHistory,
+      updateBoardTimestamp,
+      syncToAlgolia,
+      currentUndoRedoNoteId,
+      isUndoRedoOperation,
+    ]
+  );
 
   // 付箋を削除
-  const deleteNote = useCallback((noteId: string) => {
-    if (!user?.uid) return;
+  const deleteNote = useCallback(
+    (noteId: string) => {
+      if (!user?.uid) return;
 
-    const note = notes.find((n) => n.id === noteId);
+      const note = notes.find((n) => n.id === noteId);
 
-    if (!isUndoRedoOperation && note && note.userId === user.uid) {
-      addToHistory({
-        type: "DELETE_NOTES",
-        noteId: noteId,
-        notes: [note],
-        userId: user.uid,
-      });
-    }
-
-    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
-    remove(noteRef);
-
-    setTimeout(() => {
-      try {
-        updateBoardTimestamp();
-        syncToAlgolia();
-      } catch (error) {
-        console.error("Error updating board timestamp after deleting note:", error);
+      if (!isUndoRedoOperation && note && note.userId === user.uid) {
+        addToHistory({
+          type: "DELETE_NOTES",
+          noteId: noteId,
+          notes: [note],
+          userId: user.uid,
+        });
       }
-    }, 100);
 
-    if (selectedNoteIds.has(noteId)) {
-      setSelectedNoteIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(noteId);
-        return newSet;
-      });
-    }
-  }, [
-    user?.uid,
-    notes,
-    boardId,
-    updateBoardTimestamp,
-    syncToAlgolia,
-    selectedNoteIds,
-    addToHistory,
-    isUndoRedoOperation,
-    setSelectedNoteIds,
-  ]);
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+      remove(noteRef);
+
+      setTimeout(() => {
+        try {
+          updateBoardTimestamp();
+          syncToAlgolia();
+        } catch (error) {
+          console.error(
+            "Error updating board timestamp after deleting note:",
+            error
+          );
+        }
+      }, 100);
+
+      if (selectedNoteIds.has(noteId)) {
+        setSelectedNoteIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(noteId);
+          return newSet;
+        });
+      }
+    },
+    [
+      user?.uid,
+      notes,
+      boardId,
+      updateBoardTimestamp,
+      syncToAlgolia,
+      selectedNoteIds,
+      addToHistory,
+      isUndoRedoOperation,
+      setSelectedNoteIds,
+    ]
+  );
 
   // 選択した付箋を削除
   const deleteSelectedNotes = useCallback(() => {
@@ -278,7 +304,10 @@ export function useBoardActions({
         updateBoardTimestamp();
         syncToAlgolia();
       } catch (error) {
-        console.error("Error updating board timestamp after deleting notes:", error);
+        console.error(
+          "Error updating board timestamp after deleting notes:",
+          error
+        );
       }
     }, 100);
   }, [
@@ -311,7 +340,8 @@ export function useBoardActions({
   const pasteCopiedNotes = useCallback(() => {
     if (!user?.uid) return;
 
-    const notesToPaste = copiedNotes.length > 0 ? copiedNotes : copiedNote ? [copiedNote] : [];
+    const notesToPaste =
+      copiedNotes.length > 0 ? copiedNotes : copiedNote ? [copiedNote] : [];
     if (notesToPaste.length === 0) return;
 
     const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
@@ -352,7 +382,10 @@ export function useBoardActions({
       try {
         updateBoardTimestamp();
       } catch (error) {
-        console.error("Error updating board timestamp after pasting notes:", error);
+        console.error(
+          "Error updating board timestamp after pasting notes:",
+          error
+        );
       }
     }, 100);
   }, [
@@ -410,13 +443,7 @@ export function useBoardActions({
     });
 
     navigate(`/board/${newBoardId}`);
-  }, [
-    user?.uid,
-    selectedNoteIds,
-    notes,
-    nanoid,
-    navigate,
-  ]);
+  }, [user?.uid, selectedNoteIds, notes, nanoid, navigate]);
 
   return {
     addNote,

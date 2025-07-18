@@ -174,7 +174,7 @@ export function StickyNote({
   const { boards: projectBoards } = useProjectBoards(project?.id || null);
 
   const [dimensions] = useState({
-    width: 160, // 固定幅に設定
+    width: "auto" as const, // 固定幅に設定
     height: "auto" as const,
   });
   const noteRef = useRef<HTMLDivElement>(null);
@@ -264,9 +264,14 @@ export function StickyNote({
 
           if (board.projectId) {
             // インデックスから効率的に検索
-            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
-            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
-            
+            const { getBoardIdByTitle } = await import(
+              "../utils/boardTitleIndex"
+            );
+            const targetBoardId = await getBoardIdByTitle(
+              board.projectId,
+              boardName
+            );
+
             if (targetBoardId && isMounted) {
               // サムネイル用のボードでもリンク用のIDを保存
               setBoardLinks(
@@ -341,9 +346,14 @@ export function StickyNote({
 
           if (board.projectId) {
             // インデックスから効率的に検索
-            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
-            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
-            
+            const { getBoardIdByTitle } = await import(
+              "../utils/boardTitleIndex"
+            );
+            const targetBoardId = await getBoardIdByTitle(
+              board.projectId,
+              boardName
+            );
+
             if (targetBoardId && isMounted) {
               setBoardLinks(
                 (prev) => new Map(prev.set(boardName, targetBoardId))
@@ -407,9 +417,14 @@ export function StickyNote({
 
           if (board.projectId) {
             // インデックスから効率的に検索
-            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
-            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
-            
+            const { getBoardIdByTitle } = await import(
+              "../utils/boardTitleIndex"
+            );
+            const targetBoardId = await getBoardIdByTitle(
+              board.projectId,
+              boardName
+            );
+
             if (targetBoardId && isMounted) {
               setBoardLinks(
                 (prev) => new Map(prev.set(boardName, targetBoardId))
@@ -1537,11 +1552,8 @@ export function StickyNote({
                 lineHeight: 1.3,
                 overflowWrap: "break-word",
                 whiteSpace: "pre-wrap",
-                width: parsedContent.find(
-                  (c) => c.type === "image" || c.type === "boardthumbnailimage"
-                )
-                  ? "auto"
-                  : `${dimensions.width}px`,
+                width: "auto",
+                maxWidth: "160px",
               }}
             >
               {parsedContent.map((item, index) => {
