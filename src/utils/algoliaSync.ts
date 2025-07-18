@@ -94,12 +94,11 @@ export async function syncBoardToAlgolia(
       const syncBoard = httpsCallable(functions, "syncBoard");
       const result = await syncBoard({ board: algoliaBoard });
       
-      if (result.data && typeof result.data === 'object' && 'success' in result.data) {
-        if (result.data.success) {
-          console.log("Board synced to Algolia:", result.data);
-        } else {
-          console.warn("Algolia sync failed:", result.data.error);
-        }
+      const response = result.data as { success: boolean; error?: string; objectID?: string };
+      if (response.success) {
+        console.log("Board synced to Algolia:", response);
+      } else {
+        console.warn("Algolia sync failed:", response.error);
       }
     }
   } catch (error) {
@@ -128,12 +127,11 @@ export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
     const removeBoard = httpsCallable(functions, "removeBoard");
     const result = await removeBoard({ objectID: boardId });
     
-    if (result.data && typeof result.data === 'object' && 'success' in result.data) {
-      if (result.data.success) {
-        console.log("Board removed from Algolia:", result.data);
-      } else {
-        console.warn("Algolia remove failed:", result.data.error);
-      }
+    const response = result.data as { success: boolean; error?: string; objectID?: string };
+    if (response.success) {
+      console.log("Board removed from Algolia:", response);
+    } else {
+      console.warn("Algolia remove failed:", response.error);
     }
   } catch (error) {
     console.error(`Error removing board ${boardId} from Algolia:`, error);
