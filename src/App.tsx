@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase";
+import { resolveProjectIdToSlug } from "./utils/slugResolver";
 import { Auth } from "./components/Auth";
 import { Home } from "./components/Home";
 import { BoardList } from "./components/BoardList";
@@ -94,9 +95,26 @@ function App() {
   // Home Route Component with redirect logic
   function HomeRoute() {
     const { currentProjectId } = useProject();
+    const [projectSlug, setProjectSlug] = useState<string | null>(null);
+    const [slugResolved, setSlugResolved] = useState(false);
     
-    if (currentProjectId) {
-      return <Navigate to={`/project/${currentProjectId}`} replace />;
+    useEffect(() => {
+      if (currentProjectId) {
+        resolveProjectIdToSlug(currentProjectId)
+          .then(slug => {
+            setProjectSlug(slug);
+            setSlugResolved(true);
+          })
+          .catch(() => {
+            setSlugResolved(true);
+          });
+      } else {
+        setSlugResolved(true);
+      }
+    }, [currentProjectId]);
+    
+    if (currentProjectId && slugResolved && projectSlug) {
+      return <Navigate to={`/${projectSlug}`} replace />;
     }
     
     return <Home user={user!} />;

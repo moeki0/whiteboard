@@ -8,7 +8,9 @@ import {
   getLatestBoardName 
 } from '../utils/historyManager';
 import { SlugProvider } from '../contexts/SlugContext';
-import { auth } from '../config/firebase';
+import { useProject } from '../contexts/ProjectContext';
+import { auth, rtdb } from '../config/firebase';
+import { ref, get } from 'firebase/database';
 import { createBoardFromTitle } from '../utils/boardCreator';
 
 interface SlugRouterProps {
@@ -19,6 +21,7 @@ interface SlugRouterProps {
 export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
   const { projectSlug, boardName } = useParams<{ projectSlug: string; boardName?: string }>();
   const navigate = useNavigate();
+  const { updateCurrentProject } = useProject();
   const [loading, setLoading] = useState(true);
   const [resolved, setResolved] = useState<{
     projectId: string | null;
@@ -130,6 +133,23 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
           }
         }
 
+        // Update current project in context when projectId is resolved
+        if (projectId) {
+          try {
+            const projectRef = ref(rtdb, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            if (projectSnapshot.exists()) {
+              const projectData = projectSnapshot.val();
+              updateCurrentProject(projectId, projectData.name);
+            } else {
+              updateCurrentProject(projectId);
+            }
+          } catch (error) {
+            console.error('Error updating current project:', error);
+            updateCurrentProject(projectId);
+          }
+        }
+
         setResolved({ projectId, boardId });
       } catch (error) {
         console.error('Error resolving slug:', error);
@@ -140,7 +160,7 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
     };
 
     resolveAndRedirect();
-  }, [projectSlug, boardName, type, navigate]);
+  }, [projectSlug, boardName, type, navigate, updateCurrentProject]);
 
   if (loading) {
     return (

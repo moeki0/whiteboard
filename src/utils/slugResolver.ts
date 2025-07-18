@@ -79,3 +79,24 @@ export async function resolveProjectAndBoardSlugs(
     return { projectId: null, boardId: null };
   }
 }
+
+/**
+ * Resolves a project ID to its slug
+ */
+export async function resolveProjectIdToSlug(projectId: string): Promise<string | null> {
+  try {
+    const projectRef = ref(rtdb, `projects/${projectId}/slug`);
+    const snapshot = await get(projectRef);
+    
+    if (snapshot.exists()) {
+      const slug = snapshot.val();
+      // 空文字列の場合はnullを返す
+      return slug && slug.trim() !== '' ? slug : null;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error resolving project ID to slug:', error);
+    return null;
+  }
+}
