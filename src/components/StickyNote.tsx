@@ -846,7 +846,9 @@ export function StickyNote({
 
   // GyazoのURLから画像URLを取得
   const getGyazoImageUrl = (url: string): string | null => {
+    console.log("getGyazoImageUrl called with:", url);
     const match = url.match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
+    console.log("getGyazoImageUrl match:", match);
     if (!match) return null;
 
     const id = match[1];
@@ -967,9 +969,9 @@ export function StickyNote({
         }
       );
 
-      // 次に通常のURLを処理（既に処理済みのScrapbox記法は除外）
+      // 次に通常のURLを処理（既に処理済みのScrapbox記法と角括弧内のURLは除外）
       processedLine = processedLine.replace(
-        /(https?:\/\/[^\s\]]+)(?!__SCRAPBOX__)/g,
+        /(https?:\/\/[^\s\]]+)(?!__SCRAPBOX__)(?![^\]]*\])/g,
         (match) => {
           if (isUrl(match)) {
             return `__LINK__${match}__LINK__`;
@@ -990,7 +992,7 @@ export function StickyNote({
       if (item.type === "text") {
         // ボードアイコン、ボードリンク、任意の画像、Gyazo URL、サムネイル画像のパターンをマッチ
         const combinedPattern =
-          /\[([^\]]+)\.icon(?:\*(\d+))?\]|(\*+)?\[([^\]]+)\.img\]|\[([^\]]+)\](?!\.icon)(?!\.img)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
+          /\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]|\[([^\]]+)\.icon(?:\*(\d+))?\]|(\*+)?\[([^\]]+)\.img\]|\[([^\]]+)\](?!\.icon)(?!\.img)|\[image:([^\]]+)\]/g;
         let lastIndex = 0;
         let match;
         const parts: ParsedContent[] = [];
@@ -1005,9 +1007,27 @@ export function StickyNote({
           }
 
           if (match[1]) {
+            // Gyazo URLを通常の画像として追加
+            const gyazoUrl = match[1];
+            console.log("Processing Gyazo URL:", gyazoUrl);
+            const imageUrl = getGyazoImageUrl(gyazoUrl);
+            console.log("Generated image URL:", imageUrl);
+            if (imageUrl) {
+              parts.push({
+                type: "image",
+                url: imageUrl,
+                size: "medium", // デフォルトサイズ
+                originalUrl: gyazoUrl,
+              });
+              console.log("Added image part");
+            } else {
+              parts.push({ type: "text", content: `[${gyazoUrl}]` });
+              console.log("Added text part (fallback)");
+            }
+          } else if (match[2]) {
             // [name.icon]記法をボードサムネイルとして処理
-            const name = match[1];
-            const count = match[2] ? parseInt(match[2], 10) : 1;
+            const name = match[2];
+            const count = match[3] ? parseInt(match[3], 10) : 1;
 
             // 数分だけボードサムネイルを追加
             for (let i = 0; i < count; i++) {
@@ -1017,10 +1037,10 @@ export function StickyNote({
                 thumbnailUrl: null, // レンダリング時に動的に取得
               });
             }
-          } else if (match[4]) {
+          } else if (match[5]) {
             // [name.img]記法をボードサムネイル画像として処理
-            const asterisks = match[3] || "";
-            const name = match[4];
+            const asterisks = match[4] || "";
+            const name = match[5];
             const sizeMultiplier =
               asterisks.length > 0 ? asterisks.length + 1 : 1;
             parts.push({
@@ -1029,26 +1049,17 @@ export function StickyNote({
               thumbnailUrl: null, // レンダリング時に動的に取得
               sizeMultiplier: sizeMultiplier,
             });
-          } else if (match[5]) {
+          } else if (match[6]) {
             // [name]記法をボードリンクとして処理
-            const name = match[5];
+            const name = match[6];
             parts.push({
               type: "boardlink",
               boardName: name,
               boardId: null, // レンダリング時に動的に取得
             });
-          } else if (match[6]) {
-            // インライン画像を追加
-            parts.push({ type: "inlineimage", url: match[6] });
           } else if (match[7]) {
-            // Gyazo URLをインライン画像として追加
-            const gyazoUrl = match[7];
-            const imageUrl = getGyazoImageUrl(gyazoUrl);
-            if (imageUrl) {
-              parts.push({ type: "inlineimage", url: imageUrl });
-            } else {
-              parts.push({ type: "text", content: `[${gyazoUrl}]` });
-            }
+            // インライン画像を追加
+            parts.push({ type: "inlineimage", url: match[7] });
           }
 
           lastIndex = match.index + match[0].length;

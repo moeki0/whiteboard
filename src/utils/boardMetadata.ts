@@ -19,6 +19,7 @@ export async function calculateBoardMetadata(
   boardId: string,
   notes: Note[]
 ): Promise<BoardMetadata> {
+  console.log('calculateBoardMetadata called for boardId:', boardId, 'notes:', notes);
   // ボードの基本情報を取得
   const boardRef = ref(rtdb, `boards/${boardId}`);
   const boardSnapshot = await get(boardRef);
@@ -29,6 +30,7 @@ export async function calculateBoardMetadata(
 
   // 手動保存されたサムネイルを最初にチェック
   let thumbnailUrl: string | null = await getBoardThumbnail(boardId);
+  console.log('boardMetadata - manual thumbnail:', thumbnailUrl);
 
   // 手動サムネイルがない場合、ノートから画像URLを探す
   if (!thumbnailUrl) {
@@ -37,13 +39,30 @@ export async function calculateBoardMetadata(
       .sort((a, b) => a.x - b.x || a.y - b.y);
 
     for (const note of sortedNotes) {
-      // Gyazo URLを探す
+      console.log('boardMetadata - checking note:', note.content);
+      // Gyazo URLを探す（角括弧ラップと通常のURLの両方に対応）
       const gyazoMatch = note.content.match(
-        /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
+        /(?:\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]|https:\/\/gyazo\.com\/([a-zA-Z0-9]+))/
       );
+      console.log('boardMetadata - gyazo match:', gyazoMatch);
       if (gyazoMatch) {
-        const id = gyazoMatch[1];
+        let id: string;
+        if (gyazoMatch[1]) {
+          // 角括弧でラップされたURL
+          const idMatch = gyazoMatch[1].match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
+          if (idMatch) {
+            id = idMatch[1];
+          } else {
+            continue; // IDが抽出できない場合は次のノートへ
+          }
+        } else if (gyazoMatch[2]) {
+          // 通常のURL
+          id = gyazoMatch[2];
+        } else {
+          continue; // マッチしなかった場合は次のノートへ
+        }
         thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+        console.log('boardMetadata - generated thumbnail URL:', thumbnailUrl);
         break;
       }
 
@@ -75,6 +94,13 @@ export async function calculateBoardMetadata(
     }
   }
 
+  console.log('boardMetadata - final result:', {
+    title,
+    description,
+    thumbnailUrl,
+    lastUpdated: Date.now(),
+  });
+  
   return {
     title,
     description,

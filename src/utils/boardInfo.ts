@@ -22,8 +22,11 @@ export async function getBoardInfo(
   boardId: string,
   _visitedBoards = new Set<string>()
 ): Promise<BoardInfo> {
+  console.log('getBoardInfo called with boardId:', boardId);
+  
   // 無限再帰を防ぐ
   if (_visitedBoards.has(boardId)) {
+    console.log('Already visited boardId:', boardId);
     return { title: null, thumbnailUrl: null, description: null };
   }
   _visitedBoards.add(boardId);
@@ -60,6 +63,7 @@ export async function getBoardInfo(
 
     // 手動保存されたサムネイルを最初にチェック
     const savedThumbnail = await getBoardThumbnail(boardId);
+    console.log('Saved thumbnail:', savedThumbnail);
     if (savedThumbnail) {
       thumbnailUrl = savedThumbnail;
     }
@@ -70,6 +74,7 @@ export async function getBoardInfo(
       if (!thumbnailUrl) {
         // [pageTitle.img]記法を探す（ボードサムネイル用）
         const imgMatch = note.content.match(/\[([^\]]+)\.img\]/);
+        console.log('Checking .img match for:', note.content, 'Result:', imgMatch);
         if (imgMatch) {
           const pageName = imgMatch[1];
 
@@ -98,13 +103,28 @@ export async function getBoardInfo(
         } else {
           // [name.icon]記法はアイコン表示専用のため、サムネイル選定から除外
           // 直接画像URLを探す
-          // Gyazo URLを探す
+          console.log('Entering else block for note:', note.content);
+          // Gyazo URLを探す（角括弧ラップと通常のURLの両方に対応）
+          console.log('Checking note content:', note.content);
           const gyazoMatch = note.content.match(
-            /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
+            /(?:\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]|https:\/\/gyazo\.com\/([a-zA-Z0-9]+))/
           );
+          console.log('Gyazo match result:', gyazoMatch);
           if (gyazoMatch) {
-            const id = gyazoMatch[1];
-            thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+            let gyazoUrl: string;
+            if (gyazoMatch[1]) {
+              // 角括弧でラップされたURL
+              gyazoUrl = gyazoMatch[1];
+              const idMatch = gyazoUrl.match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
+              if (idMatch) {
+                const id = idMatch[1];
+                thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+              }
+            } else if (gyazoMatch[2]) {
+              // 通常のURL（キャプチャグループ2）
+              const id = gyazoMatch[2];
+              thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
+            }
           } else {
             // その他の画像URLを探す
             const imageMatch = note.content.match(
