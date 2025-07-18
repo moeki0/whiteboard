@@ -6,7 +6,7 @@ import { User, Note, Board, Project } from "../types";
 import { useHistory } from "./useHistory";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { generateNewBoardName } from "../utils/boardNaming";
-import { syncBoardToAlgolia } from "../utils/algoliaSync";
+import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
 
 interface UseBoardActionsProps {
   user: User | null;
@@ -68,14 +68,11 @@ export function useBoardActions({
     }
   }, [boardId, user?.uid]);
 
-  // Algolia同期をトリガーする関数
-  const syncToAlgolia = useCallback(async () => {
+  // Algolia同期をトリガーする関数（非同期で実行）
+  const syncToAlgolia = useCallback(() => {
     if (!boardId || !board) return;
-    try {
-      await syncBoardToAlgolia(boardId, board);
-    } catch (error) {
-      console.error("Error syncing board to Algolia:", error);
-    }
+    // 非同期でAlgolia同期を実行（UIをブロックしない）
+    syncBoardToAlgoliaAsync(boardId, board);
   }, [boardId, board]);
 
   // 付箋を追加

@@ -1,11 +1,20 @@
 import { rtdb } from '../config/firebase';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
+import { getBoardIdByTitle } from './boardTitleIndex';
+import { getProjectIdBySlug } from './projectSlugIndex';
 
 /**
  * Resolves a project slug to its ID by searching all projects
  */
 export async function resolveProjectSlug(projectSlug: string): Promise<string | null> {
   try {
+    // First try the index for fast lookup
+    const projectIdFromIndex = await getProjectIdBySlug(projectSlug);
+    if (projectIdFromIndex) {
+      return projectIdFromIndex;
+    }
+    
+    // Fallback to query (for projects without index)
     const projectsRef = ref(rtdb, 'projects');
     const projectQuery = query(projectsRef, orderByChild('slug'), equalTo(projectSlug));
     const snapshot = await get(projectQuery);
@@ -28,7 +37,13 @@ export async function resolveProjectSlug(projectSlug: string): Promise<string | 
  */
 export async function resolveBoardName(projectId: string, boardName: string): Promise<string | null> {
   try {
-    // First, get all boards for the project
+    // Use title index for fast lookup
+    const boardId = await getBoardIdByTitle(projectId, boardName);
+    if (boardId) {
+      return boardId;
+    }
+    
+    // Fallback: get all boards for the project (for boards without index)
     const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
     const projectBoardsSnapshot = await get(projectBoardsRef);
     
@@ -37,18 +52,11 @@ export async function resolveBoardName(projectId: string, boardName: string): Pr
     }
     
     const projectBoardsData = projectBoardsSnapshot.val();
-    const boardIds = Object.keys(projectBoardsData);
     
-    // Check each board to find the one with matching name
-    for (const boardId of boardIds) {
-      const boardRef = ref(rtdb, `boards/${boardId}`);
-      const boardSnapshot = await get(boardRef);
-      
-      if (boardSnapshot.exists()) {
-        const boardData = boardSnapshot.val();
-        if (boardData.name === boardName) {
-          return boardId;
-        }
+    // Check each board name directly from projectBoards data
+    for (const [boardId, boardData] of Object.entries(projectBoardsData)) {
+      if ((boardData as any).name === boardName) {
+        return boardId;
       }
     }
     

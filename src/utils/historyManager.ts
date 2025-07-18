@@ -93,47 +93,42 @@ export async function findBoardIdByHistoricalName(
   name: string
 ): Promise<string | null> {
   try {
-    // First, check if the name is currently in use
+    // First, check if the name is currently in use (optimized version)
     const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
     const projectBoardsSnapshot = await get(projectBoardsRef);
     
     if (projectBoardsSnapshot.exists()) {
       const projectBoardsData = projectBoardsSnapshot.val();
-      const boardIds = Object.keys(projectBoardsData);
       
-      for (const boardId of boardIds) {
-        const boardRef = ref(rtdb, `boards/${boardId}`);
-        const boardSnapshot = await get(boardRef);
-        
-        if (boardSnapshot.exists()) {
-          const boardData = boardSnapshot.val();
-          if (boardData.name === name) {
-            return boardId;
-          }
+      // Check names directly from projectBoards data (faster than individual queries)
+      for (const [boardId, boardData] of Object.entries(projectBoardsData)) {
+        if ((boardData as any).name === name) {
+          return boardId;
         }
       }
     }
 
-    // If not found, search in history
+    // If not found, search in history (early exit if no history exists)
     const historyRef = ref(rtdb, 'boardNameHistory');
     const historySnapshot = await get(historyRef);
     
-    if (historySnapshot.exists()) {
-      const allHistory = historySnapshot.val();
-      for (const [boardId, boardHistory] of Object.entries(allHistory)) {
-        // Check if this board belongs to the project
-        const boardRef = ref(rtdb, `boards/${boardId}`);
-        const boardSnapshot = await get(boardRef);
-        
-        if (boardSnapshot.exists()) {
-          const boardData = boardSnapshot.val();
-          if (boardData.projectId === projectId) {
-            const historyEntries = Object.values(boardHistory as Record<string, NameHistory>);
-            for (const entry of historyEntries) {
-              if (entry.oldName === name) {
-                return boardId;
-              }
-            }
+    if (!historySnapshot.exists()) {
+      return null; // No history at all, early exit
+    }
+    
+    const allHistory = historySnapshot.val();
+    
+    // Pre-filter boards that belong to this project to avoid individual board queries
+    const projectBoardsForHistory = projectBoardsSnapshot.exists() ? 
+      Object.keys(projectBoardsSnapshot.val()) : [];
+    
+    for (const [boardId, boardHistory] of Object.entries(allHistory)) {
+      // Only check boards that belong to this project
+      if (projectBoardsForHistory.includes(boardId)) {
+        const historyEntries = Object.values(boardHistory as Record<string, NameHistory>);
+        for (const entry of historyEntries) {
+          if (entry.oldName === name) {
+            return boardId;
           }
         }
       }

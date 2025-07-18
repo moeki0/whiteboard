@@ -19,7 +19,9 @@ interface SlugRouterProps {
 }
 
 export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
+  console.log('[SlugRouter] Component rendering, type:', type, 'time:', new Date().toISOString());
   const { projectSlug, boardName } = useParams<{ projectSlug: string; boardName?: string }>();
+  console.log('[SlugRouter] Params:', { projectSlug, boardName });
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [loading, setLoading] = useState(true);
@@ -28,8 +30,10 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
     boardId: string | null;
   }>({ projectId: null, boardId: null });
   const creatingRef = useRef<string | null>(null);
+  const hasAttemptedCreationRef = useRef<Set<string>>(new Set());
 
   const resolveAndRedirect = useCallback(async () => {
+      console.log('[SlugRouter] resolveAndRedirect called at:', new Date().toISOString());
       if (!projectSlug) {
         setLoading(false);
         return;
@@ -37,7 +41,10 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
 
       try {
         // Try to resolve current slug
+        console.log('[SlugRouter] Starting to resolve project slug:', projectSlug);
+        const resolveStart = performance.now();
         let projectId = await resolveProjectSlug(projectSlug);
+        console.log('[SlugRouter] Project slug resolution took:', performance.now() - resolveStart, 'ms');
         
         // If not found, try historical slugs
         if (!projectId) {
@@ -67,12 +74,18 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
         let boardId: string | null = null;
         
         if (type === 'board' && boardName) {
+          console.log('[SlugRouter] Resolving board name:', boardName);
+          const boardResolveStart = performance.now();
           // Try to resolve current board name
           boardId = await resolveBoardName(projectId, boardName);
+          console.log('[SlugRouter] Board name resolution took:', performance.now() - boardResolveStart, 'ms, found:', !!boardId);
           
-          // If not found, try historical names
+          // If not found, try historical names (but skip if we're about to create a new board)
           if (!boardId) {
+            console.log('[SlugRouter] Trying historical names');
+            const historyStart = performance.now();
             boardId = await findBoardIdByHistoricalName(projectId, boardName);
+            console.log('[SlugRouter] Historical name lookup took:', performance.now() - historyStart, 'ms, found:', !!boardId);
             
             // If found in history, redirect to current name
             if (boardId) {
@@ -90,10 +103,18 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
           if (!boardId) {
             // Board not found, try to create it if boardName exists
             if (boardName) {
-              // Check if we're already creating this board to prevent duplicates
               const creatingKey = `${projectId}_${boardName}`;
+              
+              // 既に作成を試みた場合はスキップ
+              if (hasAttemptedCreationRef.current.has(creatingKey)) {
+                console.log('[SlugRouter] Already attempted to create this board, skipping:', boardName);
+                return;
+              }
+              
+              console.log('[SlugRouter] Board not found, attempting to create:', boardName);
+              // Check if we're already creating this board to prevent duplicates
               if (creatingRef.current === creatingKey) {
-                console.log('Board creation already in progress, skipping...');
+                console.log('[SlugRouter] Board creation already in progress, skipping...');
                 return;
               }
               
@@ -101,7 +122,10 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
                 const currentUser = auth.currentUser;
                 if (currentUser) {
                   creatingRef.current = creatingKey;
+                  hasAttemptedCreationRef.current.add(creatingKey);
+                  const createStart = performance.now();
                   boardId = await createBoardFromTitle(projectId, boardName, currentUser.uid);
+                  console.log('[SlugRouter] Board creation completed in:', performance.now() - createStart, 'ms');
                   
                   // ボード作成後、作成されたボードの実際の名前を取得
                   const actualBoardName = await getLatestBoardName(boardId);
@@ -161,15 +185,18 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
         }
 
         setResolved({ projectId, boardId });
+        console.log('[SlugRouter] Resolution complete, projectId:', projectId, 'boardId:', boardId);
       } catch (error) {
         console.error('Error resolving slug:', error);
         navigate('/', { replace: true });
       } finally {
         setLoading(false);
+        console.log('[SlugRouter] Loading set to false');
       }
     }, [projectSlug, boardName, type, navigate, updateCurrentProject]);
 
   useEffect(() => {
+    console.log('[SlugRouter] useEffect triggered at:', new Date().toISOString());
     resolveAndRedirect();
   }, [resolveAndRedirect]);
 

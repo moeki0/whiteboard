@@ -1,9 +1,9 @@
 import { nanoid } from 'nanoid';
 import { rtdb } from '../config/firebase';
-import { ref, set } from 'firebase/database';
+import { ref, set, update } from 'firebase/database';
 import { Board } from '../types';
-import { checkBoardNameDuplicate } from './boardNaming';
-import { addBoardTitleIndex } from './boardTitleIndex';
+import { checkBoardNameDuplicate, addToRecentlyCreated } from './boardNaming';
+import { normalizeTitle } from './boardTitleIndex';
 
 /**
  * タイトルから新しいボードを作成する
@@ -13,9 +13,14 @@ export const createBoardFromTitle = async (
   boardTitle: string,
   userId: string
 ): Promise<string> => {
+  const startTime = performance.now();
+  console.log('[Board Creation] Starting board creation for:', boardTitle);
+  
   try {
     // ボード名の重複チェック
+    const dupCheckStart = performance.now();
     const isDuplicate = await checkBoardNameDuplicate(projectId, boardTitle);
+    console.log('[Board Creation] Duplicate check took:', performance.now() - dupCheckStart, 'ms');
     
     // 重複する場合は番号を付けて一意にする
     let finalBoardName = boardTitle;
@@ -44,17 +49,30 @@ export const createBoardFromTitle = async (
       projectId: projectId,
     };
 
-    // Firebaseに保存
-    const boardRef = ref(rtdb, `boards/${boardId}`);
-    await set(boardRef, boardData);
-
+    // バッチ更新用のデータを準備
+    const updates: { [key: string]: any } = {};
+    
+    // ボードデータ
+    updates[`boards/${boardId}`] = boardData;
+    
     // プロジェクトボードの関連付け
-    const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
-    await set(projectBoardRef, { ...boardData, id: boardId });
+    updates[`projectBoards/${projectId}/${boardId}`] = { ...boardData, id: boardId };
+    
+    // タイトルインデックス
+    const normalizedTitle = normalizeTitle(finalBoardName);
+    if (normalizedTitle) {
+      updates[`boardTitleIndex/${projectId}/${normalizedTitle}`] = boardId;
+    }
 
-    // タイトルインデックスに追加
-    await addBoardTitleIndex(projectId, boardId, finalBoardName);
-
+    // 一括更新（アトミックな操作）
+    const updateStart = performance.now();
+    await update(ref(rtdb), updates);
+    console.log('[Board Creation] Firebase batch update took:', performance.now() - updateStart, 'ms');
+    
+    // 作成したボードをキャッシュに追加（インデックスの遅延対策）
+    addToRecentlyCreated(projectId, finalBoardName, boardId);
+    
+    console.log('[Board Creation] Total time:', performance.now() - startTime, 'ms');
     return boardId;
   } catch (error) {
     console.error('Error creating board from title:', error);

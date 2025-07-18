@@ -2,7 +2,7 @@ import { rtdb } from "../config/firebase";
 import { ref, get, update } from "firebase/database";
 import { Note } from "../types";
 import { getBoardThumbnail } from "./thumbnailGenerator";
-import { syncBoardToAlgolia } from "./algoliaSync";
+import { syncBoardToAlgoliaAsync } from "./algoliaSync";
 import { updateBoardTitleIndex } from "./boardTitleIndex";
 
 export interface BoardMetadata {
@@ -99,16 +99,15 @@ export async function updateBoardMetadata(
       metadata,
     });
 
-    // Sync to Algolia
-    try {
-      const updatedBoardSnapshot = await get(boardRef);
+    // Sync to Algolia asynchronously (non-blocking)
+    get(boardRef).then(updatedBoardSnapshot => {
       if (updatedBoardSnapshot.exists()) {
         const updatedBoard = updatedBoardSnapshot.val();
-        await syncBoardToAlgolia(boardId, updatedBoard);
+        syncBoardToAlgoliaAsync(boardId, updatedBoard);
       }
-    } catch (algoliaError) {
-      console.error("Error syncing board metadata to Algolia:", algoliaError);
-    }
+    }).catch(error => {
+      console.error("Error getting board for Algolia sync:", error);
+    });
   } catch (error) {
     console.error("Error updating board metadata:", error);
   }
@@ -149,16 +148,15 @@ export async function updateBoardTitle(
         await updateBoardTitleIndex(projectId, boardId, oldTitle, newTitle);
       }
 
-      // Sync to Algolia
-      try {
-        const updatedBoardSnapshot = await get(boardRootRef);
+      // Sync to Algolia asynchronously (non-blocking)
+      get(boardRootRef).then(updatedBoardSnapshot => {
         if (updatedBoardSnapshot.exists()) {
           const updatedBoard = updatedBoardSnapshot.val();
-          await syncBoardToAlgolia(boardId, updatedBoard);
+          syncBoardToAlgoliaAsync(boardId, updatedBoard);
         }
-      } catch (algoliaError) {
-        console.error("Error syncing board title to Algolia:", algoliaError);
-      }
+      }).catch(error => {
+        console.error("Error getting board for Algolia sync:", error);
+      });
     }
   } catch (error) {
     console.error("Error updating board title:", error);

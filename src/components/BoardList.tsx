@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set, get } from "firebase/database";
+import { ref, onValue, set, get, update } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { User, Board, Cursor, Project } from "../types";
 import { LuPlus } from "react-icons/lu";
-import { generateNewBoardName } from "../utils/boardNaming";
-import { syncBoardToAlgolia } from "../utils/algoliaSync";
+import { generateNewBoardName, addToRecentlyCreated } from "../utils/boardNaming";
+import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
+import { normalizeTitle } from "../utils/boardTitleIndex";
 
 interface BoardListProps {
   user: User | null;
@@ -195,19 +196,24 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       projectId: projectId,
     };
 
-    // Store board with both references
-    const boardRef = ref(rtdb, `boards/${boardId}`);
-    await set(boardRef, board);
-
-    const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
-    await set(projectBoardRef, board);
-
-    // Sync to Algolia
-    try {
-      await syncBoardToAlgolia(boardId, board);
-    } catch (error) {
-      console.error("Error syncing new board to Algolia:", error);
+    // バッチ更新で全てのデータを一度に書き込み
+    const updates: { [key: string]: any } = {};
+    updates[`boards/${boardId}`] = board;
+    updates[`projectBoards/${projectId}/${boardId}`] = board;
+    
+    // タイトルインデックスも同時に作成
+    const normalizedTitle = normalizeTitle(uniqueName);
+    if (normalizedTitle) {
+      updates[`boardTitleIndex/${projectId}/${normalizedTitle}`] = boardId;
     }
+    
+    await update(ref(rtdb), updates);
+    
+    // 作成したボードをキャッシュに追加
+    addToRecentlyCreated(projectId, uniqueName, boardId);
+
+    // Sync to Algolia asynchronously (non-blocking)
+    syncBoardToAlgoliaAsync(boardId, board);
 
     // Navigate to the new board using slug-based URL
     try {

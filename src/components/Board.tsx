@@ -20,14 +20,17 @@ import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note } from "../types";
 import { generateNewBoardName } from "../utils/boardNaming";
+import { isNoteInSelection } from "../utils/noteUtils";
 
 interface BoardProps {
   user: User | null;
 }
 
 export function Board({ user }: BoardProps) {
+  console.log('[Board] Component rendering at:', new Date().toISOString());
   const navigate = useNavigate();
   const slugContext = useSlugContext();
+  console.log('[Board] SlugContext:', slugContext);
   // activeNoteIdを削除 - selectedNoteIdsで管理
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
@@ -509,7 +512,7 @@ export function Board({ user }: BoardProps) {
     const clickX = (e.clientX - rect.left - panX) / zoom;
     const clickY = (e.clientY - rect.top - panY) / zoom;
 
-    // 付箋のサイズ（幅160px、高さ41.5px）
+    // 付箋の基本サイズ（新規作成時）
     const noteWidth = 160;
     const noteHeight = 41.5;
 
@@ -582,17 +585,7 @@ export function Board({ user }: BoardProps) {
       const maxY = Math.max(selectionStart.y, y);
 
       const notesInSelection = notes.filter((note) => {
-        const noteX = note.x;
-        const noteY = note.y;
-        const noteWidth = 160;
-        const noteHeight = 100; // 推定高さ
-
-        return (
-          noteX + noteWidth >= minX &&
-          noteX <= maxX &&
-          noteY + noteHeight >= minY &&
-          noteY <= maxY
-        );
+        return isNoteInSelection(note, { minX, minY, maxX, maxY });
       });
 
       // 範囲選択による選択状態を設定

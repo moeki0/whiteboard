@@ -115,6 +115,17 @@ export async function syncBoardToAlgolia(
   }
 }
 
+// Add or update a board in Algolia index asynchronously (non-blocking)
+export async function syncBoardToAlgoliaAsync(
+  boardId: string,
+  board: Board
+): Promise<void> {
+  // Execute sync in background without awaiting
+  syncBoardToAlgolia(boardId, board).catch(error => {
+    console.error(`Background Algolia sync failed for board ${boardId}:`, error);
+  });
+}
+
 // Remove a board from Algolia index via Firebase Functions
 export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
   try {
@@ -190,7 +201,7 @@ export async function syncProjectBoardsToAlgolia(
     );
 
     // 開発環境ではエラーを無視
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.warn("Algolia project sync disabled in development mode");
       return;
     }

@@ -50,8 +50,10 @@ export async function getBoardIdByTitle(
   const normalizedTitle = normalizeTitle(title);
   if (!normalizedTitle) return null;
 
+  const startTime = performance.now();
   const indexRef = ref(rtdb, `boardTitleIndex/${projectId}/${normalizedTitle}`);
   const snapshot = await get(indexRef);
+  console.log('[BoardTitleIndex] Lookup took:', performance.now() - startTime, 'ms');
   return snapshot.val() || null;
 }
 
