@@ -62,6 +62,7 @@ interface BoardThumbnailImageContent {
   type: "boardthumbnailimage";
   boardName: string;
   thumbnailUrl: string | null;
+  sizeMultiplier: number;
 }
 
 type ParsedContent =
