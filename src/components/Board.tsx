@@ -1690,7 +1690,12 @@ export function Board({ user }: BoardProps) {
               onFocused={() => setNoteToFocus(null)}
               board={board!}
               project={project}
-              user={user}
+              onBlur={() => {
+                // 付箋の編集が完了したときに確実にメタデータを更新
+                setTimeout(() => {
+                  updateBoardMetadata();
+                }, 500); // throttleの影響を考慮して少し遅延
+              }}
             />
           ))}
 

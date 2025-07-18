@@ -20,23 +20,32 @@ const corsHandler = cors({
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 });
-exports.syncBoard = functions.https.onCall(async (data, context) => {
-    // 認証チェック
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+exports.syncBoard = functions
+    .region('us-central1')
+    .runWith({
+    timeoutSeconds: 60,
+    memory: '256MB'
+})
+    .https.onCall(async (data, context) => {
+    // 認証チェック - 開発時は認証をスキップ
+    if (!context.auth && process.env.NODE_ENV !== 'development') {
+        console.warn('User not authenticated, skipping sync');
+        return { success: false, error: 'Not authenticated' };
     }
     const { board } = data;
     if (!board || !board.objectID) {
-        throw new functions.https.HttpsError('invalid-argument', 'Board data is required');
+        return { success: false, error: 'Board data is required' };
     }
     try {
         // Algoliaにボードデータを保存
         await boardsIndex.saveObject(board);
+        console.log('Board synced to Algolia:', board.objectID);
         return { success: true, objectID: board.objectID };
     }
     catch (error) {
         console.error('Algolia sync error:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to sync board');
+        // エラーを投げずに結果を返す
+        return { success: false, error: 'Failed to sync board' };
     }
 });
 exports.removeBoard = functions.https.onCall(async (data, context) => {

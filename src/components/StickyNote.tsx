@@ -96,6 +96,7 @@ interface StickyNoteProps {
     newPosition: { x: number; y: number }
   ) => void;
   hasMultipleSelected?: boolean;
+  onBlur?: () => void;
   shouldFocus?: boolean;
   onFocused?: () => void;
   board: Board;
@@ -121,6 +122,7 @@ export function StickyNote({
   onFocused,
   board,
   project,
+  onBlur,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -806,6 +808,10 @@ export function StickyNote({
       isEditing: false,
       editedBy: null,
     });
+    // 編集完了時のコールバックを実行
+    if (onBlur) {
+      onBlur();
+    }
   };
 
   // カーソル位置の変化を監視してボード候補を表示・非表示
