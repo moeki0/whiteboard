@@ -62,6 +62,11 @@ export async function boardToAlgoliaObject(boardId: string, board: Board): Promi
 
 // Add or update a board in Algolia index
 export async function syncBoardToAlgolia(boardId: string, board: Board): Promise<void> {
+  if (!boardsAdminIndex) {
+    console.warn('Algolia admin index not available - sync skipped');
+    return;
+  }
+  
   try {
     const algoliaBoard = await boardToAlgoliaObject(boardId, board);
     if (algoliaBoard) {
@@ -75,6 +80,11 @@ export async function syncBoardToAlgolia(boardId: string, board: Board): Promise
 
 // Remove a board from Algolia index
 export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
+  if (!boardsAdminIndex) {
+    console.warn('Algolia admin index not available - removal skipped');
+    return;
+  }
+  
   try {
     await boardsAdminIndex.deleteObject(boardId);
     console.log(`Board ${boardId} removed from Algolia`);
@@ -85,6 +95,11 @@ export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
 
 // Bulk sync all boards in a project to Algolia
 export async function syncProjectBoardsToAlgolia(projectId: string): Promise<void> {
+  if (!boardsAdminIndex) {
+    console.warn('Algolia admin index not available - project sync skipped');
+    return;
+  }
+  
   try {
     console.log(`Starting sync for project ${projectId}...`);
     
@@ -127,6 +142,11 @@ export async function syncProjectBoardsToAlgolia(projectId: string): Promise<voi
 
 // Initialize Algolia index with all existing boards
 export async function initializeAlgoliaIndex(): Promise<void> {
+  if (!boardsAdminIndex) {
+    console.warn('Algolia admin index not available - initialization skipped');
+    return;
+  }
+  
   try {
     console.log('Initializing Algolia index...');
     

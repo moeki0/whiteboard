@@ -32,20 +32,22 @@ export function SearchBoards({ user }: SearchBoardsProps) {
     setSearchError(null);
 
     try {
-      // Configure facets for filtering (one-time setup)
-      try {
-        await boardsAdminIndex.setSettings({
-          attributesForFaceting: ["projectId", "projectName"],
-          searchableAttributes: [
-            "title",
-            "description",
-            "name",
-            "searchableText",
-          ],
-          attributesToHighlight: ["title", "description", "name"],
-        });
-      } catch {
-        // Ignore settings errors (likely using search-only key)
+      // Configure facets for filtering (one-time setup) - only in development
+      if (boardsAdminIndex) {
+        try {
+          await boardsAdminIndex.setSettings({
+            attributesForFaceting: ["projectId", "projectName"],
+            searchableAttributes: [
+              "title",
+              "description",
+              "name",
+              "searchableText",
+            ],
+            attributesToHighlight: ["title", "description", "name"],
+          });
+        } catch {
+          // Ignore settings errors (likely using search-only key or in production)
+        }
       }
 
       // Search with Algolia using project filter

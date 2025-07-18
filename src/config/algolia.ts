@@ -10,11 +10,15 @@ export const BOARDS_INDEX_NAME = 'boards';
 
 // Initialize Algolia clients
 export const algoliaSearchClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY);
-export const algoliaAdminClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_ADMIN_API_KEY);
+
+// Admin client only for development (when admin key is available)
+export const algoliaAdminClient = ALGOLIA_ADMIN_API_KEY 
+  ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_ADMIN_API_KEY)
+  : null;
 
 // Get search index
 export const boardsSearchIndex = algoliaSearchClient.initIndex(BOARDS_INDEX_NAME);
-export const boardsAdminIndex = algoliaAdminClient.initIndex(BOARDS_INDEX_NAME);
+export const boardsAdminIndex = algoliaAdminClient?.initIndex(BOARDS_INDEX_NAME) || null;
 
 // Board search interface
 export interface AlgoliaBoard {
