@@ -1338,11 +1338,29 @@ export function Board({ user }: BoardProps) {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z" && !e.shiftKey) {
-          e.preventDefault();
-          performUndo();
+          // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            performUndo();
+          }
         } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
-          e.preventDefault();
-          performRedo();
+          // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            performRedo();
+          }
         } else if (e.key === "c") {
           // Check if a textarea or input is focused
           const activeElement = document.activeElement;

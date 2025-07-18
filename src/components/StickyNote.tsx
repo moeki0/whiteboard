@@ -960,8 +960,9 @@ export function StickyNote({
     for (const line of lines) {
       // まずScrapbox記法を処理
       let processedLine = line.replace(
-        /\[([^\]]+?)\s+(https?:\/\/[^\s\]]+?)\]/g,
+        /\[([^\]]+?)\s+(https?:\/\/[^\s\]]+)\]/g,
         (match, linkText, url) => {
+          console.log("Scrapbox記法マッチ:", { match, linkText, url });
           return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
         }
       );
