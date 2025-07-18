@@ -24,6 +24,7 @@
     "@types/html2canvas": "^0.5.35",
     "algoliasearch": "^4.25.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
     "firebase": "^11.10.0",
     "fuse.js": "^7.1.0",
     "html2canvas": "^1.4.1",

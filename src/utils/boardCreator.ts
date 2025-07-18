@@ -3,6 +3,7 @@ import { rtdb } from '../config/firebase';
 import { ref, set } from 'firebase/database';
 import { Board } from '../types';
 import { checkBoardNameDuplicate } from './boardNaming';
+import { addBoardTitleIndex } from './boardTitleIndex';
 
 /**
  * タイトルから新しいボードを作成する
@@ -50,6 +51,9 @@ export const createBoardFromTitle = async (
     // プロジェクトボードの関連付け
     const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
     await set(projectBoardRef, { ...boardData, id: boardId });
+
+    // タイトルインデックスに追加
+    await addBoardTitleIndex(projectId, boardId, finalBoardName);
 
     return boardId;
   } catch (error) {

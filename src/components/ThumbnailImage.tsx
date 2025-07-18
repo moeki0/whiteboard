@@ -30,38 +30,11 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
         setLoading(true);
         setError(null);
 
-        // Firebase から該当プロジェクトのボードを検索
-        const { rtdb } = await import("../config/firebase");
-        const { ref, get } = await import("firebase/database");
+        // インデックスから効率的に検索
+        const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
+        const targetBoardId = await getBoardIdByTitle(projectId, boardName);
 
-        const boardsRef = ref(rtdb, "boards");
-        const boardsSnapshot = await get(boardsRef);
-        const allBoards = boardsSnapshot.val() || {};
-
-        // 同じプロジェクト内のボードを検索
-        const projectBoards = Object.entries(allBoards)
-          .filter(
-            ([, board]: [string, unknown]) =>
-              (board as Record<string, unknown>).projectId === projectId
-          )
-          .map(([id, board]: [string, unknown]) => ({
-            ...(board as Record<string, unknown>),
-            id,
-          }));
-
-        // ボード名が一致するボードを探す
-        let targetBoard = null;
-        for (const board of projectBoards) {
-          const boardInfo = await getBoardInfo(board.id);
-          const boardTitle = boardInfo.title || (board as { name?: string }).name || "";
-
-          if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
-            targetBoard = board;
-            break;
-          }
-        }
-
-        if (!targetBoard) {
+        if (!targetBoardId) {
           throw new Error(`ボード "${boardName}" が見つかりません`);
         }
 
@@ -69,11 +42,11 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
         let thumbnail = null;
 
         // 手動保存されたサムネイルを最初にチェック
-        thumbnail = await getBoardThumbnail(targetBoard.id);
+        thumbnail = await getBoardThumbnail(targetBoardId);
 
         if (!thumbnail) {
           // 手動保存サムネイルがない場合は、ボード情報からサムネイルを取得
-          const boardInfo = await getBoardInfo(targetBoard.id);
+          const boardInfo = await getBoardInfo(targetBoardId);
           thumbnail = boardInfo.thumbnailUrl;
         }
 

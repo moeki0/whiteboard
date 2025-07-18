@@ -260,60 +260,24 @@ export function StickyNote({
         }
 
         try {
-          // プロジェクト内の全ボードを取得
-          const boardsRef = ref(rtdb, `boards`);
-          const boardsSnapshot = await get(boardsRef);
-
-          if (!isMounted) break; // 非同期処理後のマウント状態チェック
-
-          const allBoards = boardsSnapshot.val() || {};
-
-          // 同じプロジェクト内のボードを検索
-          const projectBoards = Object.entries(allBoards)
-            .filter(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-              ([_, boardData]: [string, any]) =>
-                boardData.projectId === board.projectId
-            )
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
-
           let foundMatch = false;
-          for (const targetBoard of projectBoards) {
-            if (!isMounted) break; // ループ中のマウント状態チェック
 
-            // 自分自身のボードも含めて検索するが、getBoardInfoは直接使わずキャッシュから取得
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let targetBoardInfo: any;
-            let boardTitle;
-
-            if (targetBoard.id === board.id) {
-              // 自分自身の場合は、現在取得可能な情報から判定
-              // getBoardInfoを再帰的に呼ばないよう、基本情報のみ使用
-              boardTitle = targetBoard.name || "";
-            } else {
-              targetBoardInfo = await getBoardInfo(targetBoard.id);
-
-              if (!isMounted) break; // getBoardInfo後のマウント状態チェック
-
-              boardTitle = targetBoardInfo.title || targetBoard.name || "";
-            }
-
-            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
+          if (board.projectId) {
+            // インデックスから効率的に検索
+            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
+            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
+            
+            if (targetBoardId && isMounted) {
               // サムネイル用のボードでもリンク用のIDを保存
-              if (isMounted) {
-                setBoardLinks(
-                  (prev) => new Map(prev.set(boardName, targetBoard.id))
-                );
-              }
+              setBoardLinks(
+                (prev) => new Map(prev.set(boardName, targetBoardId))
+              );
 
               // 自分自身の場合は現在のボードのサムネイル取得を試行
-              if (targetBoard.id === board.id) {
-                // 現在のボードのサムネイルはboardInfoから直接取得
+              if (targetBoardId === board.id) {
                 try {
                   const currentBoardInfo = await getBoardInfo(board.id);
-
-                  if (!isMounted) break; // getBoardInfo後のマウント状態チェック
+                  if (!isMounted) break;
 
                   setBoardThumbnails(
                     (prev) =>
@@ -330,7 +294,7 @@ export function StickyNote({
                 }
               } else {
                 try {
-                  const otherBoardInfo = await getBoardInfo(targetBoard.id);
+                  const otherBoardInfo = await getBoardInfo(targetBoardId);
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) =>
@@ -348,7 +312,6 @@ export function StickyNote({
                 }
               }
               foundMatch = true;
-              break;
             }
           }
 
@@ -374,51 +337,18 @@ export function StickyNote({
         if (boardLinks.has(boardName)) continue;
 
         try {
-          // プロジェクト内の全ボードを取得
-          const boardsRef = ref(rtdb, `boards`);
-          const boardsSnapshot = await get(boardsRef);
-
-          if (!isMounted) break; // 非同期処理後のマウント状態チェック
-
-          const allBoards = boardsSnapshot.val() || {};
-
-          // 同じプロジェクト内のボードを検索
-          const projectBoards = Object.entries(allBoards)
-            .filter(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-              ([_, boardData]: [string, any]) =>
-                boardData.projectId === board.projectId
-            )
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
-
-          // ボード名またはタイトルが一致するボードを探す
           let foundMatch = false;
-          for (const targetBoard of projectBoards) {
-            if (!isMounted) break; // ループ中のマウント状態チェック
 
-            let targetBoardInfo;
-            let boardTitle;
-
-            if (targetBoard.id === board.id) {
-              // 自分自身の場合は、現在取得可能な情報から判定
-              boardTitle = targetBoard.name || "";
-            } else {
-              targetBoardInfo = await getBoardInfo(targetBoard.id);
-
-              if (!isMounted) break; // getBoardInfo後のマウント状態チェック
-
-              boardTitle = targetBoardInfo.title || targetBoard.name || "";
-            }
-
-            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
-              if (isMounted) {
-                setBoardLinks(
-                  (prev) => new Map(prev.set(boardName, targetBoard.id))
-                );
-              }
+          if (board.projectId) {
+            // インデックスから効率的に検索
+            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
+            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
+            
+            if (targetBoardId && isMounted) {
+              setBoardLinks(
+                (prev) => new Map(prev.set(boardName, targetBoardId))
+              );
               foundMatch = true;
-              break;
             }
           }
 
@@ -473,48 +403,19 @@ export function StickyNote({
         }
 
         try {
-          // 全ボードを取得してフィルタリング（インデックスエラー回避）
-          const boardsRef = ref(rtdb, `boards`);
-          const boardsSnapshot = await get(boardsRef);
-
-          if (!isMounted) break;
-
-          const allBoards = boardsSnapshot.val() || {};
-
-          // プロジェクト内のボードをフィルタリング
-          const boardsArray = Object.entries(allBoards)
-            .filter(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-              ([_, boardData]: [string, any]) =>
-                boardData.projectId === board.projectId
-            )
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map(([id, boardData]: [string, any]) => ({ ...boardData, id }));
-
           let foundMatch = false;
-          for (const targetBoard of boardsArray) {
-            if (!isMounted) break;
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let targetBoardInfo: any;
-            let boardTitle;
+          if (board.projectId) {
+            // インデックスから効率的に検索
+            const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
+            const targetBoardId = await getBoardIdByTitle(board.projectId, boardName);
+            
+            if (targetBoardId && isMounted) {
+              setBoardLinks(
+                (prev) => new Map(prev.set(boardName, targetBoardId))
+              );
 
-            if (targetBoard.id === board.id) {
-              boardTitle = targetBoard.name || "";
-            } else {
-              targetBoardInfo = await getBoardInfo(targetBoard.id);
-              if (!isMounted) break;
-              boardTitle = targetBoardInfo.title || targetBoard.name || "";
-            }
-
-            if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
-              if (isMounted) {
-                setBoardLinks(
-                  (prev) => new Map(prev.set(boardName, targetBoard.id))
-                );
-              }
-
-              if (targetBoard.id === board.id) {
+              if (targetBoardId === board.id) {
                 try {
                   const currentBoardInfo = await getBoardInfo(board.id);
                   if (!isMounted) break;
@@ -533,7 +434,7 @@ export function StickyNote({
                 }
               } else {
                 try {
-                  const otherBoardInfo = await getBoardInfo(targetBoard.id);
+                  const otherBoardInfo = await getBoardInfo(targetBoardId);
                   if (isMounted) {
                     setBoardThumbnails(
                       (prev) =>
@@ -551,7 +452,6 @@ export function StickyNote({
                 }
               }
               foundMatch = true;
-              break;
             }
           }
 

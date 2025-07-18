@@ -3,6 +3,7 @@ import { ref, get, update } from "firebase/database";
 import { Note } from "../types";
 import { getBoardThumbnail } from "./thumbnailGenerator";
 import { syncBoardToAlgolia } from "./algoliaSync";
+import { updateBoardTitleIndex } from "./boardTitleIndex";
 
 export interface BoardMetadata {
   title: string;
@@ -121,27 +122,43 @@ export async function updateBoardTitle(
   newTitle: string
 ): Promise<void> {
   try {
-    const boardRef = ref(rtdb, `boards/${boardId}/metadata`);
-    await update(boardRef, {
-      title: newTitle,
-      lastUpdated: Date.now(),
-    });
-    
-    // updatedAtも更新
+    // 既存のボード情報を取得（プロジェクトIDと古いタイトル取得のため）
     const boardRootRef = ref(rtdb, `boards/${boardId}`);
-    await update(boardRootRef, {
-      updatedAt: Date.now(),
-    });
+    const boardSnapshot = await get(boardRootRef);
+    const boardData = boardSnapshot.val();
+    
+    if (boardData) {
+      const oldTitle = boardData.name || "";
+      const projectId = boardData.projectId;
+      
+      // ボードのnameフィールドを更新
+      await update(boardRootRef, {
+        name: newTitle,
+        updatedAt: Date.now(),
+      });
 
-    // Sync to Algolia
-    try {
-      const updatedBoardSnapshot = await get(boardRootRef);
-      if (updatedBoardSnapshot.exists()) {
-        const updatedBoard = updatedBoardSnapshot.val();
-        await syncBoardToAlgolia(boardId, updatedBoard);
+      // メタデータのタイトルも更新
+      const boardRef = ref(rtdb, `boards/${boardId}/metadata`);
+      await update(boardRef, {
+        title: newTitle,
+        lastUpdated: Date.now(),
+      });
+
+      // タイトルインデックスを更新
+      if (projectId) {
+        await updateBoardTitleIndex(projectId, boardId, oldTitle, newTitle);
       }
-    } catch (algoliaError) {
-      console.error("Error syncing board title to Algolia:", algoliaError);
+
+      // Sync to Algolia
+      try {
+        const updatedBoardSnapshot = await get(boardRootRef);
+        if (updatedBoardSnapshot.exists()) {
+          const updatedBoard = updatedBoardSnapshot.val();
+          await syncBoardToAlgolia(boardId, updatedBoard);
+        }
+      } catch (algoliaError) {
+        console.error("Error syncing board title to Algolia:", algoliaError);
+      }
     }
   } catch (error) {
     console.error("Error updating board title:", error);

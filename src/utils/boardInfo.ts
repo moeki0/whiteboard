@@ -73,44 +73,24 @@ export async function getBoardInfo(
         if (imgMatch) {
           const pageName = imgMatch[1];
 
-          // プロジェクト内の全ボードを取得
-          const boardsRef = ref(rtdb, `boards`);
-          const boardsSnapshot = await get(boardsRef);
-          const allBoards = boardsSnapshot.val() || {};
-
           if (boardData?.projectId) {
-            // 同じプロジェクト内のボードを検索
-            const projectBoards = Object.entries(allBoards)
-              .filter(
-                ([, board]: [string, unknown]) => {
-                  const boardObj = board as { projectId?: string };
-                  return boardObj.projectId === boardData.projectId;
-                }
-              )
-              .map(([id, board]: [string, unknown]) => ({ ...(board as object), id }));
-
-            // ボード名またはパースしたタイトルがpageNameと一致するボードを探す
-            for (const targetBoard of projectBoards) {
-              if (targetBoard.id === boardId) continue; // 自分自身はスキップ
-
-              const targetBoardInfo = await getBoardInfo(
-                targetBoard.id,
-                _visitedBoards
-              );
-              const boardTitle =
-                targetBoardInfo.title || (targetBoard as any).name || "";
-
-              if (boardTitle.toLowerCase() === pageName.toLowerCase()) {
-                // 対象ボードの手動保存サムネイルを取得
-                const targetSavedThumbnail = await getBoardThumbnail(targetBoard.id);
-                if (targetSavedThumbnail) {
-                  thumbnailUrl = targetSavedThumbnail;
-                  break;
-                }
-                // 手動保存サムネイルがない場合は、対象ボードのサムネイルを使用
+            // インデックスから効率的に検索
+            const { getBoardIdByTitle } = await import('./boardTitleIndex');
+            const targetBoardId = await getBoardIdByTitle(boardData.projectId, pageName);
+            
+            if (targetBoardId && targetBoardId !== boardId) {
+              // 対象ボードの手動保存サムネイルを取得
+              const targetSavedThumbnail = await getBoardThumbnail(targetBoardId);
+              if (targetSavedThumbnail) {
+                thumbnailUrl = targetSavedThumbnail;
+              } else {
+                // 手動保存サムネイルがない場合は対象ボードの自動サムネイルを取得
+                const targetBoardInfo = await getBoardInfo(
+                  targetBoardId,
+                  _visitedBoards
+                );
                 if (targetBoardInfo.thumbnailUrl) {
                   thumbnailUrl = targetBoardInfo.thumbnailUrl;
-                  break;
                 }
               }
             }
@@ -121,38 +101,19 @@ export async function getBoardInfo(
           if (iconMatch) {
             const iconName = iconMatch[1];
 
-            // プロジェクト内の全ボードを取得
-            const boardsRef = ref(rtdb, `boards`);
-            const boardsSnapshot = await get(boardsRef);
-            const allBoards = boardsSnapshot.val() || {};
-
             if (boardData?.projectId) {
-              // 同じプロジェクト内のボードを検索
-              const projectBoards = Object.entries(allBoards)
-                .filter(
-                  ([, board]: [string, unknown]) => {
-                    const boardObj = board as { projectId?: string };
-                    return boardObj.projectId === boardData.projectId;
-                  }
-                )
-                .map(([id, board]: [string, unknown]) => ({ ...(board as object), id }));
-
-              // ボード名またはパースしたタイトルがiconNameと一致するボードを探す
-              for (const targetBoard of projectBoards) {
-                if (targetBoard.id === boardId) continue; // 自分自身はスキップ
-
+              // インデックスから効率的に検索
+              const { getBoardIdByTitle } = await import('./boardTitleIndex');
+              const targetBoardId = await getBoardIdByTitle(boardData.projectId, iconName);
+              
+              if (targetBoardId && targetBoardId !== boardId) {
                 const targetBoardInfo = await getBoardInfo(
-                  targetBoard.id,
+                  targetBoardId,
                   _visitedBoards
                 );
-                const boardTitle =
-                  targetBoardInfo.title || (targetBoard as any).name || "";
-
-                if (boardTitle.toLowerCase() === iconName.toLowerCase()) {
-                  if (targetBoardInfo.thumbnailUrl) {
-                    thumbnailUrl = targetBoardInfo.thumbnailUrl;
-                    break;
-                  }
+                
+                if (targetBoardInfo.thumbnailUrl) {
+                  thumbnailUrl = targetBoardInfo.thumbnailUrl;
                 }
               }
             }
