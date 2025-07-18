@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { resolveProjectSlug, resolveBoardName } from '../utils/slugResolver';
 import { 
@@ -27,9 +27,9 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
     projectId: string | null;
     boardId: string | null;
   }>({ projectId: null, boardId: null });
+  const creatingRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const resolveAndRedirect = async () => {
+  const resolveAndRedirect = useCallback(async () => {
       if (!projectSlug) {
         setLoading(false);
         return;
@@ -90,9 +90,17 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
           if (!boardId) {
             // Board not found, try to create it if boardName exists
             if (boardName) {
+              // Check if we're already creating this board to prevent duplicates
+              const creatingKey = `${projectId}_${boardName}`;
+              if (creatingRef.current === creatingKey) {
+                console.log('Board creation already in progress, skipping...');
+                return;
+              }
+              
               try {
                 const currentUser = auth.currentUser;
                 if (currentUser) {
+                  creatingRef.current = creatingKey;
                   boardId = await createBoardFromTitle(projectId, boardName, currentUser.uid);
                   
                   // ボード作成後、作成されたボードの実際の名前を取得
@@ -121,6 +129,8 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
                   navigate(`/${currentProjectSlug}`, { replace: true });
                   return;
                 }
+              } finally {
+                creatingRef.current = null;
               }
             } else {
               // No boardName, redirect to project
@@ -157,10 +167,11 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
       } finally {
         setLoading(false);
       }
-    };
+    }, [projectSlug, boardName, type, navigate, updateCurrentProject]);
 
+  useEffect(() => {
     resolveAndRedirect();
-  }, [projectSlug, boardName, type, navigate, updateCurrentProject]);
+  }, [resolveAndRedirect]);
 
   if (loading) {
     return (
