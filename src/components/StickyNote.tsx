@@ -868,9 +868,12 @@ export function StickyNote({
 
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
+    // 末尾のアスタリスクを除去（縮小記法なので表示しない）
+    const contentWithoutTrailingAsterisks = text.replace(/\*+$/, '');
+    
     // 付箋全体がGyazoのURLのみの場合は画像として処理
-    if (isContentOnlyGyazoUrl(text)) {
-      const lines = text.split("\n").filter((line) => line.trim() !== "");
+    if (isContentOnlyGyazoUrl(contentWithoutTrailingAsterisks)) {
+      const lines = contentWithoutTrailingAsterisks.split("\n").filter((line) => line.trim() !== "");
       const line = lines[0].trim();
       const asteriskMatch = line.match(/^(\*+)(.*)/);
 
@@ -904,7 +907,7 @@ export function StickyNote({
     }
 
     // それ以外の場合はすべてテキストとしてリンク化処理
-    const lines = text.split("\n");
+    const lines = contentWithoutTrailingAsterisks.split("\n");
     const result: ParsedContent[] = [];
 
     for (const line of lines) {
@@ -1355,6 +1358,22 @@ export function StickyNote({
 
   const parsedContent = useMemo(() => parseContent(content), [content]);
 
+  // 末尾のアスタリスクで縮小サイズを計算
+  const calculateShrinkSize = (content: string) => {
+    const trailingAsteriskMatch = content.match(/\*+$/);
+    if (!trailingAsteriskMatch) {
+      return null;
+    }
+    
+    const asteriskCount = trailingAsteriskMatch[0].length;
+    const baseSize = getTextSizeStyle(textSize);
+    const shrinkSize = Math.max(5, baseSize - asteriskCount * 2); // 最小5px
+    return shrinkSize;
+  };
+
+  const shrinkSize = calculateShrinkSize(content);
+  const actualFontSize = shrinkSize || getTextSizeStyle(textSize);
+
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
@@ -1375,7 +1394,7 @@ export function StickyNote({
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: note.zIndex || 1,
         opacity: 1,
-        fontSize: `${getTextSizeStyle(textSize)}px`,
+        fontSize: `${actualFontSize}px`,
         ...(interactionBorderColor && {
           borderColor: interactionBorderColor,
           borderWidth: "1px",
@@ -1672,17 +1691,20 @@ export function StickyNote({
                   }
                 } else if (item.type === "text") {
                   // テキストの場合、アスタリスクや#でフォントサイズを調整
-                  let fontSize = 13;
+                  let fontSize = actualFontSize; // 末尾アスタリスクで設定されたサイズを使用
                   let displayContent = item.content;
 
-                  // *のみをチェック
-                  const asteriskOnlyMatch = item.content!.match(/^(\*+)(.*)/);
+                  // 末尾アスタリスクがない場合のみ先頭アスタリスクを処理
+                  if (!shrinkSize) {
+                    // *のみをチェック
+                    const asteriskOnlyMatch = item.content!.match(/^(\*+)(.*)/);
 
-                  if (asteriskOnlyMatch) {
-                    // *のみの場合
-                    const asteriskCount = asteriskOnlyMatch[1].length;
-                    fontSize = Math.min(30, 13 + asteriskCount * 2);
-                    displayContent = asteriskOnlyMatch[2];
+                    if (asteriskOnlyMatch) {
+                      // *のみの場合
+                      const asteriskCount = asteriskOnlyMatch[1].length;
+                      fontSize = Math.min(30, 13 + asteriskCount * 2);
+                      displayContent = asteriskOnlyMatch[2];
+                    }
                   }
 
                   return (
