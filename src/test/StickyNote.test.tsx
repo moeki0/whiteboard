@@ -241,6 +241,88 @@ describe("StickyNote", () => {
     });
   });
 
+  describe("[name.img]記法のサイズ処理", () => {
+    it("[board.img]記法が通常サイズで表示される", () => {
+      const noteWithImage = {
+        ...mockNote,
+        content: "[board.img]",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithImage} />
+      );
+
+      // ThumbnailImage要素が生成されることを確認
+      const thumbnailImage = container.querySelector('.inline-block');
+      expect(thumbnailImage).toBeInTheDocument();
+      
+      // 通常サイズのスタイルが適用されることを確認
+      const computedStyle = window.getComputedStyle(thumbnailImage as Element);
+      expect(computedStyle.width).toBe('200px');
+      expect(computedStyle.height).toBe('150px');
+    });
+
+    it("*[board.img]記法が大きなサイズで表示される", () => {
+      const noteWithImage = {
+        ...mockNote,
+        content: "*[board.img]",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithImage} />
+      );
+
+      // ThumbnailImage要素が生成されることを確認
+      const thumbnailImage = container.querySelector('.inline-block');
+      expect(thumbnailImage).toBeInTheDocument();
+      
+      // 大きなサイズのスタイルが適用されることを確認
+      const computedStyle = window.getComputedStyle(thumbnailImage as Element);
+      expect(computedStyle.width).toBe('400px');
+      expect(computedStyle.height).toBe('300px');
+    });
+
+    it("**[board.img]記法がより大きなサイズで表示される", () => {
+      const noteWithImage = {
+        ...mockNote,
+        content: "**[board.img]",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithImage} />
+      );
+
+      // ThumbnailImage要素が生成されることを確認
+      const thumbnailImage = container.querySelector('.inline-block');
+      expect(thumbnailImage).toBeInTheDocument();
+      
+      // さらに大きなサイズのスタイルが適用されることを確認
+      const computedStyle = window.getComputedStyle(thumbnailImage as Element);
+      expect(computedStyle.width).toBe('600px');
+      expect(computedStyle.height).toBe('450px');
+    });
+
+    it("複数のアスタリスクが付いた場合の最大サイズ制限", () => {
+      const noteWithImage = {
+        ...mockNote,
+        content: "*******[board.img]",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithImage} />
+      );
+
+      // ThumbnailImage要素が生成されることを確認
+      const thumbnailImage = container.querySelector('.inline-block');
+      expect(thumbnailImage).toBeInTheDocument();
+      
+      // 最大サイズ制限が適用されることを確認（例：1600px × 1200px）
+      const computedStyle = window.getComputedStyle(thumbnailImage as Element);
+      expect(computedStyle.width).toBe('1600px');
+      expect(computedStyle.height).toBe('1200px');
+    });
+  });
+
   describe("リンク記法のパース処理", () => {
     it("[name.icon]記法はリンクではなくアイコンとして処理される", () => {
       const noteWithIcon = {

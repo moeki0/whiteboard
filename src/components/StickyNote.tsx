@@ -12,8 +12,6 @@ import { checkBoardEditPermission } from "../utils/permissions";
 import { calculateBorderColor } from "../utils/borderColors";
 import { getUserProfileByUsername, getUserProfile } from "../utils/userProfile";
 import { getBoardInfo } from "../utils/boardInfo";
-import { rtdb } from "../config/firebase";
-import { ref, get } from "firebase/database";
 import { ThumbnailImage } from "./ThumbnailImage";
 import {
   handleBracketCompletion,
@@ -940,7 +938,7 @@ export function StickyNote({
       if (item.type === "text") {
         // ボードアイコン、ボードリンク、任意の画像、Gyazo URL、サムネイル画像のパターンをマッチ
         const combinedPattern =
-          /\[([^\]]+)\.icon(?:\*(\d+))?\]|\[([^\]]+)\.img\]|\[([^\]]+)\](?!\.icon)(?!\.img)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
+          /\[([^\]]+)\.icon(?:\*(\d+))?\]|(\*+)?\[([^\]]+)\.img\]|\[([^\]]+)\](?!\.icon)(?!\.img)|\[image:([^\]]+)\]|\[([^\]]*https:\/\/gyazo\.com\/[^\]]+)\]/g;
         let lastIndex = 0;
         let match;
         const parts: ParsedContent[] = [];
@@ -967,28 +965,32 @@ export function StickyNote({
                 thumbnailUrl: null, // レンダリング時に動的に取得
               });
             }
-          } else if (match[3]) {
+          } else if (match[4]) {
             // [name.img]記法をボードサムネイル画像として処理
-            const name = match[3];
+            const asterisks = match[3] || "";
+            const name = match[4];
+            const sizeMultiplier =
+              asterisks.length > 0 ? asterisks.length + 1 : 1;
             parts.push({
               type: "boardthumbnailimage",
               boardName: name,
               thumbnailUrl: null, // レンダリング時に動的に取得
+              sizeMultiplier: sizeMultiplier,
             });
-          } else if (match[4]) {
+          } else if (match[5]) {
             // [name]記法をボードリンクとして処理
-            const name = match[4];
+            const name = match[5];
             parts.push({
               type: "boardlink",
               boardName: name,
               boardId: null, // レンダリング時に動的に取得
             });
-          } else if (match[5]) {
-            // インライン画像を追加
-            parts.push({ type: "inlineimage", url: match[5] });
           } else if (match[6]) {
+            // インライン画像を追加
+            parts.push({ type: "inlineimage", url: match[6] });
+          } else if (match[7]) {
             // Gyazo URLをインライン画像として追加
-            const gyazoUrl = match[6];
+            const gyazoUrl = match[7];
             const imageUrl = getGyazoImageUrl(gyazoUrl);
             if (imageUrl) {
               parts.push({ type: "inlineimage", url: imageUrl });
@@ -1627,6 +1629,10 @@ export function StickyNote({
                   );
                 } else if (item.type === "boardthumbnailimage") {
                   // [pageTitle.img]記法でボードサムネイル画像を表示
+                  const sizeMultiplier = item.sizeMultiplier || 1;
+                  const baseWidth = 100;
+                  const maxWidth = baseWidth * sizeMultiplier;
+
                   return (
                     <ThumbnailImage
                       key={index}
@@ -1635,9 +1641,8 @@ export function StickyNote({
                       style={{
                         display: "inline-block",
                         verticalAlign: "middle",
-                        margin: "4px",
-                        maxWidth: "200px",
-                        maxHeight: "150px",
+                        maxWidth: `${maxWidth}px`,
+                        width: `${maxWidth}px`,
                       }}
                     />
                   );

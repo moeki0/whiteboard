@@ -31,7 +31,7 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
         setError(null);
 
         // インデックスから効率的に検索
-        const { getBoardIdByTitle } = await import('../utils/boardTitleIndex');
+        const { getBoardIdByTitle } = await import("../utils/boardTitleIndex");
         const targetBoardId = await getBoardIdByTitle(projectId, boardName);
 
         if (!targetBoardId) {
@@ -69,10 +69,12 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
   }, [boardName, projectId]);
 
   if (loading) {
+    const defaultStyle = { width: "100px", height: "auto" };
+    const finalStyle = { ...defaultStyle, ...style };
     return (
       <div
         className={`inline-block bg-gray-200 animate-pulse rounded ${className}`}
-        style={{ width: "200px", height: "150px", ...style }}
+        style={finalStyle}
       >
         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
           読み込み中...
@@ -82,10 +84,12 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
   }
 
   if (error) {
+    const defaultStyle = { width: "100px", height: "auto" };
+    const finalStyle = { ...defaultStyle, ...style };
     return (
       <div
         className={`inline-block bg-red-50 border border-red-200 rounded p-2 ${className}`}
-        style={{ width: "200px", height: "150px", ...style }}
+        style={finalStyle}
       >
         <div className="flex items-center justify-center h-full text-red-500 text-sm text-center">
           {error}
@@ -95,10 +99,12 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
   }
 
   if (!thumbnailUrl) {
+    const defaultStyle = { width: "100px", height: "auto" };
+    const finalStyle = { ...defaultStyle, ...style };
     return (
       <div
         className={`inline-block bg-gray-100 border border-gray-200 rounded p-2 ${className}`}
-        style={{ width: "200px", height: "150px", ...style }}
+        style={finalStyle}
       >
         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
           サムネイルなし
@@ -107,17 +113,16 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
     );
   }
 
+  const defaultStyle = { maxWidth: "100px", maxHeight: "auto" };
+  const finalStyle = { ...defaultStyle, ...style, pointerEvents: "none" };
+
   return (
     <img
       src={thumbnailUrl}
       alt={alt || `${boardName}のサムネイル`}
       className={`inline-block rounded shadow-sm ${className}`}
-      style={{
-        maxWidth: "200px",
-        maxHeight: "150px",
-        ...style,
-        pointerEvents: "none",
-      }}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      style={finalStyle as any}
       onError={() => setError("画像の読み込みに失敗しました")}
     />
   );
