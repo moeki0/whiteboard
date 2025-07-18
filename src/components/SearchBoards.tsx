@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { User } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 import {
@@ -15,6 +15,8 @@ interface SearchBoardsProps {
 
 export function SearchBoards({ user }: SearchBoardsProps) {
   const { currentProjectId } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<AlgoliaBoard[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -69,6 +71,25 @@ export function SearchBoards({ user }: SearchBoardsProps) {
   };
 
 
+  // Initialize search query from URL params on component mount
+  useEffect(() => {
+    const queryParam = searchParams.get('q');
+    if (queryParam) {
+      setSearchQuery(queryParam);
+    }
+  }, [searchParams]);
+
+  // Update URL when search query changes
+  const updateSearchQuery = (query: string) => {
+    setSearchQuery(query);
+    
+    if (query.trim()) {
+      setSearchParams({ q: query });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -91,8 +112,9 @@ export function SearchBoards({ user }: SearchBoardsProps) {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => updateSearchQuery(e.target.value)}
               className="search-input"
+              placeholder="Search boards..."
             />
           </div>
         )}
