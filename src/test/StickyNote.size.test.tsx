@@ -74,9 +74,10 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     const stickyNote = container.querySelector(".sticky-note");
     expect(stickyNote).toBeInTheDocument();
     
-    // デフォルトのフォントサイズ（13px）が適用されることを確認
+    // デフォルトのフォントサイズ（13px）とpadding（10px）が適用されることを確認
     const computedStyle = window.getComputedStyle(stickyNote as Element);
     expect(computedStyle.fontSize).toBe("13px");
+    expect(computedStyle.padding).toBe("10px");
   });
 
   it("末尾に*1つで少し小さくなる", () => {
@@ -86,6 +87,8 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     const computedStyle = window.getComputedStyle(stickyNote as Element);
     // 13px → 11px (標準より2px小さい)
     expect(computedStyle.fontSize).toBe("11px");
+    // padding も調整される（11pxなので6pxになる）
+    expect(computedStyle.padding).toBe("6px");
     
     // line-heightも調整される（11pxなので1.2になる）
     const contentDiv = container.querySelector("div[style*='lineHeight']");
@@ -123,6 +126,8 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     const computedStyle = window.getComputedStyle(stickyNote as Element);
     // 最小5pxまで
     expect(computedStyle.fontSize).toBe("5px");
+    // 極小サイズでは最小padding（4px）が適用される
+    expect(computedStyle.padding).toBe("4px");
     
     // 極小サイズでは小さなline-height（1.1）が適用される
     const contentDiv = container.querySelector("div[style*='lineHeight']");

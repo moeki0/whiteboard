@@ -1387,6 +1387,20 @@ export function StickyNote({
   };
   
   const actualLineHeight = calculateLineHeight(actualFontSize);
+  
+  // フォントサイズに応じてpaddingを調整
+  const calculatePadding = (fontSize: number) => {
+    // 小さなフォントサイズでは小さなpaddingを使用してコンパクトに
+    if (fontSize <= 7) {
+      return 4; // 極小サイズ
+    } else if (fontSize <= 11) { // 11pxまでを小サイズに含める
+      return 6; // 小サイズ
+    } else {
+      return 10; // 通常サイズ
+    }
+  };
+  
+  const actualPadding = calculatePadding(actualFontSize);
 
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
@@ -1409,6 +1423,7 @@ export function StickyNote({
         zIndex: note.zIndex || 1,
         opacity: 1,
         fontSize: `${actualFontSize}px`,
+        padding: `${actualPadding}px`,
         ...(interactionBorderColor && {
           borderColor: interactionBorderColor,
           borderWidth: "1px",
