@@ -1,10 +1,10 @@
 // Simple migration script without module complications
-import dotenv from 'dotenv';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, get, set } from 'firebase/database';
+import dotenv from "dotenv";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, get, set } from "firebase/database";
 
 // Load environment variables
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: ".env.local" });
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,7 +14,9 @@ const firebaseConfig = {
   storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.VITE_FIREBASE_APP_ID,
-  databaseURL: process.env.VITE_FIREBASE_DATABASE_URL || `https://${process.env.VITE_FIREBASE_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app/`
+  databaseURL:
+    process.env.VITE_FIREBASE_DATABASE_URL ||
+    `https://${process.env.VITE_FIREBASE_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app/`,
 };
 
 // Initialize Firebase
@@ -25,8 +27,8 @@ const rtdb = getDatabase(app);
 function normalizeTitle(title) {
   return title
     .toLowerCase()
-    .replace(/\s+/g, '') // 空白を削除
-    .replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ''); // 英数字・ひらがな・カタカナ・漢字のみ
+    .replace(/\s+/g, "") // 空白を削除
+    .replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ""); // 英数字・ひらがな・カタカナ・漢字のみ
 }
 
 // Add board title index function
@@ -40,39 +42,29 @@ async function addBoardTitleIndex(projectId, boardId, title) {
 
 // Migration function
 async function migrateBoardTitleIndex() {
-  console.log('Starting board title index migration...');
-  
   try {
     // 全ボードを取得
-    const boardsRef = ref(rtdb, 'boards');
+    const boardsRef = ref(rtdb, "boards");
     const boardsSnapshot = await get(boardsRef);
     const allBoards = boardsSnapshot.val() || {};
-    
+
     let processedCount = 0;
     let errorCount = 0;
-    
+
     // 各ボードのインデックスを作成
     for (const [boardId, boardData] of Object.entries(allBoards)) {
       try {
         const board = boardData;
-        
+
         if (board.projectId && board.name) {
           await addBoardTitleIndex(board.projectId, boardId, board.name);
           processedCount++;
-          
-          if (processedCount % 50 === 0) {
-            console.log(`Processed ${processedCount} boards...`);
-          }
         }
       } catch (error) {
-        console.error(`Error processing board ${boardId}:`, error);
         errorCount++;
       }
     }
-    
-    console.log(`Migration completed. Processed: ${processedCount}, Errors: ${errorCount}`);
   } catch (error) {
-    console.error('Migration failed:', error);
     throw error;
   }
 }
@@ -80,10 +72,9 @@ async function migrateBoardTitleIndex() {
 // Run migration
 migrateBoardTitleIndex()
   .then(() => {
-    console.log('Migration completed successfully!');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Migration failed:', error);
+    console.error("Migration failed:", error);
     process.exit(1);
   });

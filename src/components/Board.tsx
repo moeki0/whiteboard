@@ -27,10 +27,8 @@ interface BoardProps {
 }
 
 export function Board({ user }: BoardProps) {
-  console.log('[Board] Component rendering at:', new Date().toISOString());
   const navigate = useNavigate();
   const slugContext = useSlugContext();
-  console.log('[Board] SlugContext:', slugContext);
   // activeNoteIdを削除 - selectedNoteIdsで管理
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()

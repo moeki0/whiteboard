@@ -38,18 +38,9 @@ function highlightText(text: string, searchText: string): React.ReactNode {
 export function BoardSuggestions({
   boards,
   searchText,
-  position,
   isVisible,
   selectedIndex = 0,
 }: BoardSuggestionsProps) {
-  console.log("BoardSuggestions render:", {
-    boards,
-    searchText,
-    position,
-    isVisible,
-    selectedIndex,
-  });
-
   if (!isVisible || boards.length === 0) {
     return null;
   }

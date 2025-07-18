@@ -29,11 +29,9 @@ export function useBoard(
   navigate: (path: string) => void,
   sessionId: string
 ): UseBoardReturn {
-  console.log('[useBoard] Hook called at:', new Date().toISOString());
   const { boardId: urlBoardId } = useParams<{ boardId: string }>();
   const { resolvedBoardId } = useSlug();
   const boardId = resolvedBoardId || urlBoardId;
-  console.log('[useBoard] boardId:', boardId, 'resolvedBoardId:', resolvedBoardId, 'urlBoardId:', urlBoardId);
   const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});

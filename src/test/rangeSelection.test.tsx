@@ -35,29 +35,28 @@ describe("Range Selection", () => {
 
     // 範囲選択のテストロジックを検証
     const selectionBounds = { minX: 80, minY: 80, maxX: 220, maxY: 170 };
-    
-    // 新しい isNoteInSelection 関数を使用
-    const selectedNotes = notes.filter(note => isNoteInSelection(note, selectionBounds));
 
-    // 選択されたノートを確認
-    console.log("Selected notes:", selectedNotes.map(n => ({ id: n.id, x: n.x, y: n.y })));
-    
+    // 新しい isNoteInSelection 関数を使用
+    const selectedNotes = notes.filter((note) =>
+      isNoteInSelection(note, selectionBounds)
+    );
+
     // note1 (100,100) と note2 (200,150) が選択されるはず
     // note4 (50,50) も選択範囲に含まれる可能性がある
     expect(selectedNotes.length).toBeGreaterThanOrEqual(2);
-    expect(selectedNotes.map(n => n.id)).toContain("note1");
-    expect(selectedNotes.map(n => n.id)).toContain("note2");
+    expect(selectedNotes.map((n) => n.id)).toContain("note1");
+    expect(selectedNotes.map((n) => n.id)).toContain("note2");
   });
 
   test("should accurately calculate note bounds for selection", () => {
     const note = createMockNote("test", 100, 100);
-    
+
     // 新しい calculateNoteDimensions 関数をテスト
     const dimensions = calculateNoteDimensions(note);
-    
+
     // 基本的な付箋の幅は160px
     expect(dimensions.width).toBe(160);
-    
+
     // 高さは最低でも41.5px
     expect(dimensions.height).toBeGreaterThanOrEqual(41.5);
   });
@@ -65,21 +64,21 @@ describe("Range Selection", () => {
   test("should handle multi-line content in dimension calculation", () => {
     const noteWithMultilineContent = createMockNote("multiline", 100, 100);
     noteWithMultilineContent.content = "Line 1\nLine 2\nLine 3";
-    
+
     const dimensions = calculateNoteDimensions(noteWithMultilineContent);
-    
+
     // 複数行のコンテンツの場合、高さが増加する
     expect(dimensions.height).toBeGreaterThan(41.5);
   });
 
   test("should handle edge cases in range selection", () => {
     const noteAtBoundary = createMockNote("boundary", 100, 100);
-    
+
     // 境界ギリギリの選択範囲
     const selectionBounds = { minX: 100, minY: 100, maxX: 260, maxY: 200 };
-    
+
     const isSelected = isNoteInSelection(noteAtBoundary, selectionBounds);
-    
+
     // 境界に接している場合も選択されるべき
     expect(isSelected).toBe(true);
   });

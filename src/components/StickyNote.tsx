@@ -633,26 +633,10 @@ export function StickyNote({
       }, 0);
     }
 
-    // カーソル位置を更新
     const newCursorPosition = e.target.selectionStart || 0;
     setCursorPosition(newCursorPosition);
 
-    console.log(
-      "handleContentChange called, cursor position:",
-      newCursorPosition,
-      "text:",
-      newContent
-    );
-
-    // リンク記法の候補を分析
     const result = analyzeBoardTitleSuggestion(newContent, newCursorPosition);
-
-    console.log(
-      "analyzeBoardTitleSuggestion result in handleContentChange:",
-      result,
-      "shouldShow:",
-      result.shouldShow
-    );
 
     if (result.shouldShow) {
       setBoardSuggestionInfo({
@@ -674,24 +658,6 @@ export function StickyNote({
       isEditing: true,
       editedBy: currentUserId,
     });
-  };
-
-  // 付箋の下部に候補を表示する座標を取得する関数
-  const getSuggestionPosition = (element: HTMLTextAreaElement) => {
-    // 付箋全体の要素を取得
-    const noteElement = noteRef.current;
-    if (!noteElement) return { x: 0, y: 0 };
-
-    const rect = noteElement.getBoundingClientRect();
-    console.log("noteElement rect:", rect);
-
-    // 付箋の真下に表示（fixed positionなのでスクロールは考慮不要）
-    const x = rect.left;
-    const y = rect.bottom + 2; // 付箋の真下に表示
-
-    console.log("Final position:", { x, y });
-
-    return { x, y };
   };
 
   // キーボードイベントやカーソル移動を監視
@@ -747,17 +713,8 @@ export function StickyNote({
     const newCursorPosition = target.selectionStart || 0;
     setCursorPosition(newCursorPosition);
 
-    console.log(
-      "handleSelectionChange called, cursor position:",
-      newCursorPosition,
-      "text:",
-      target.value
-    );
-
     // リンク記法の候補を分析
     const result = analyzeBoardTitleSuggestion(target.value, newCursorPosition);
-
-    console.log("analyzeBoardTitleSuggestion result:", result);
 
     if (result.shouldShow) {
       setBoardSuggestionInfo({
@@ -846,9 +803,7 @@ export function StickyNote({
 
   // GyazoのURLから画像URLを取得
   const getGyazoImageUrl = (url: string): string | null => {
-    console.log("getGyazoImageUrl called with:", url);
     const match = url.match(/https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/);
-    console.log("getGyazoImageUrl match:", match);
     if (!match) return null;
 
     const id = match[1];
@@ -964,7 +919,6 @@ export function StickyNote({
       let processedLine = line.replace(
         /\[([^\]]+?)\s+(https?:\/\/[^\s\]]+)\]/g,
         (match, linkText, url) => {
-          console.log("Scrapbox記法マッチ:", { match, linkText, url });
           return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
         }
       );
@@ -1009,20 +963,16 @@ export function StickyNote({
           if (match[1]) {
             // Gyazo URLを通常の画像として追加
             const gyazoUrl = match[1];
-            console.log("Processing Gyazo URL:", gyazoUrl);
             const imageUrl = getGyazoImageUrl(gyazoUrl);
-            console.log("Generated image URL:", imageUrl);
             if (imageUrl) {
               parts.push({
                 type: "image",
                 url: imageUrl,
-                size: "medium", // デフォルトサイズ
+                size: 100,
                 originalUrl: gyazoUrl,
               });
-              console.log("Added image part");
             } else {
               parts.push({ type: "text", content: `[${gyazoUrl}]` });
-              console.log("Added text part (fallback)");
             }
           } else if (match[2]) {
             // [name.icon]記法をボードサムネイルとして処理

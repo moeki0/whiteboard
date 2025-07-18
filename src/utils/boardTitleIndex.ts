@@ -1,5 +1,5 @@
-import { ref, set, remove, get } from 'firebase/database';
-import { rtdb } from '../config/firebase';
+import { ref, set, remove, get } from "firebase/database";
+import { rtdb } from "../config/firebase";
 
 /**
  * ボードタイトルを正規化（検索用）
@@ -7,8 +7,8 @@ import { rtdb } from '../config/firebase';
 export function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
-    .replace(/\s+/g, '') // 空白を削除
-    .replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ''); // 英数字・ひらがな・カタカナ・漢字のみ
+    .replace(/\s+/g, "") // 空白を削除
+    .replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, ""); // 英数字・ひらがな・カタカナ・漢字のみ
 }
 
 /**
@@ -53,7 +53,6 @@ export async function getBoardIdByTitle(
   const startTime = performance.now();
   const indexRef = ref(rtdb, `boardTitleIndex/${projectId}/${normalizedTitle}`);
   const snapshot = await get(indexRef);
-  console.log('[BoardTitleIndex] Lookup took:', performance.now() - startTime, 'ms');
   return snapshot.val() || null;
 }
 
@@ -68,7 +67,7 @@ export async function updateBoardTitleIndex(
 ): Promise<void> {
   // 古いインデックスを削除
   await removeBoardTitleIndex(projectId, oldTitle);
-  
+
   // 新しいインデックスを追加
   await addBoardTitleIndex(projectId, boardId, newTitle);
 }
