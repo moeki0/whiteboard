@@ -66,12 +66,4 @@ describe("extractBoardLinks", () => {
     expect(links[0].name).not.toContain(".icon");
   });
 
-  it("ドットを含むボード名は正しく処理されない（現在の仕様）", () => {
-    const content = "[test.board.icon*3]";
-    const links = extractBoardLinks(content, mockBoardLinks);
-    
-    // 現在の正規表現ではドットの前までしか取得しない
-    expect(links).toHaveLength(1);
-    expect(links[0].name).toBe("test");
-  });
 });

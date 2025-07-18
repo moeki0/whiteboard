@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB_z4gypbs7LpYPY2fABwJRoPOpbyF1lx8",
@@ -20,3 +21,13 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, "us-central1");
+
+// Connect to emulator in development
+if (
+  process.env.NODE_ENV === "development" &&
+  !(globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED
+) {
+  connectFunctionsEmulator(functions, "localhost", 5001);
+  (globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
+}

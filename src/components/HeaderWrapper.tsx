@@ -1,5 +1,5 @@
 import { useEffect, useState, memo } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { Header } from "./Header";
 import { User } from "../types";
 import { useProject } from "../contexts/ProjectContext";
@@ -24,6 +24,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
 }: HeaderWrapperProps) {
   const location = useLocation();
   const params = useParams();
+  const navigate = useNavigate();
   const path = location.pathname;
   const { currentProjectId } = useProject();
   const { resolvedProjectId, resolvedBoardId } = useSlug();
@@ -225,6 +226,12 @@ export const HeaderWrapper = memo(function HeaderWrapper({
 
           setBoardTitle(finalName);
           setEditingBoardTitle(finalName);
+
+          // Update URL if this is a slug-based route
+          if (projectSlug && boardTitle !== finalName) {
+            const newUrl = `/${projectSlug}/${encodeURIComponent(finalName)}`;
+            navigate(newUrl, { replace: true });
+          }
         } else {
           // プロジェクトIDがない場合はそのまま保存
           await set(boardRef, {
@@ -246,6 +253,12 @@ export const HeaderWrapper = memo(function HeaderWrapper({
           await updateBoardTitle(boardId, editingBoardTitle.trim());
 
           setBoardTitle(editingBoardTitle.trim());
+
+          // Update URL if this is a slug-based route (for cases without projectId)
+          if (projectSlug && boardTitle !== editingBoardTitle.trim()) {
+            const newUrl = `/${projectSlug}/${encodeURIComponent(editingBoardTitle.trim())}`;
+            navigate(newUrl, { replace: true });
+          }
         }
 
         setIsEditingBoardTitle(false);

@@ -9,3 +9,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+declare global {
+  var FIREBASE_FUNCTIONS_EMULATOR_CONNECTED: boolean;
+}

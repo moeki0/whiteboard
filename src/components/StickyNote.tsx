@@ -467,9 +467,6 @@ export function StickyNote({
 
         // 既にキャッシュされている場合はスキップ
         if (boardThumbnails.has(boardName)) {
-          console.log(
-            `[StickyNote] 初回マウント時: ${boardName}はキャッシュ済み`
-          );
           continue;
         }
 
@@ -1431,7 +1428,6 @@ export function StickyNote({
 
     return [...new Set(links)];
   };
-
 
   const parsedContent = useMemo(() => parseContent(content), [content]);
 

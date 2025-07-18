@@ -11,11 +11,19 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "functions:build": "cd functions && npm run build",
+    "functions:serve": "cd functions && npm run serve",
+    "functions:deploy": "cd functions && npm run deploy",
+    "functions:logs": "cd functions && npm run logs",
+    "emulators": "firebase emulators:start --only functions",
+    "dev:full": "concurrently \"npm run dev\" \"npm run emulators\"",
+    "deploy": "npm run build && firebase deploy"
   },
   "dependencies": {
     "@types/html2canvas": "^0.5.35",
     "algoliasearch": "^4.25.2",
+    "cors": "^2.8.5",
     "firebase": "^11.10.0",
     "fuse.js": "^7.1.0",
     "html2canvas": "^1.4.1",
@@ -34,6 +42,7 @@
     "@eslint/js": "^9.30.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@types/cors": "^2.8.19",
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^24.0.13",
     "@types/react": "^19.1.8",

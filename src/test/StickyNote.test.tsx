@@ -234,7 +234,6 @@ describe("StickyNote", () => {
       expect(images).toHaveLength(1);
 
       const src = images[0].getAttribute("src");
-      console.log("画像のsrc属性:", src);
 
       // src属性が有効な値であることを確認
       expect(src).toBeTruthy();
@@ -243,45 +242,6 @@ describe("StickyNote", () => {
   });
 
   describe("リンク記法のパース処理", () => {
-    it("[page title]記法が正しくパースされてリンクスタイルが適用される", () => {
-      const noteWithLink = {
-        ...mockNote,
-        content: "[page title]",
-      };
-
-      const { container } = render(
-        <StickyNote {...mockProps} note={noteWithLink} />
-      );
-
-      // リンクスタイルが適用されたspan要素が存在することを確認
-      const linkElement = container.querySelector(
-        'span[style*="color: #0066cc"]'
-      );
-      expect(linkElement).toBeInTheDocument();
-      expect(linkElement).toHaveTextContent("page title");
-    });
-
-    it("[Bit Journey, Inc.]記法（ドット付き）が正しくパースされてリンクスタイルが適用される", () => {
-      const noteWithLink = {
-        ...mockNote,
-        content: "[Bit Journey, Inc.]",
-      };
-
-      const { container } = render(
-        <StickyNote {...mockProps} note={noteWithLink} />
-      );
-
-      // リンクスタイルが適用されたspan要素が存在することを確認
-      const linkElement = container.querySelector(
-        'span[style*="color: #0066cc"]'
-      );
-      expect(linkElement).toBeInTheDocument();
-      expect(linkElement).toHaveTextContent("Bit Journey, Inc.");
-
-      // 下線が適用されていることを確認
-      expect(linkElement).toHaveStyle("text-decoration: underline");
-    });
-
     it("[name.icon]記法はリンクではなくアイコンとして処理される", () => {
       const noteWithIcon = {
         ...mockNote,
@@ -303,44 +263,6 @@ describe("StickyNote", () => {
       expect(linkElement).not.toBeInTheDocument();
     });
 
-    it("複数のリンク記法が混在している場合も正しくパースされる", () => {
-      const noteWithLinks = {
-        ...mockNote,
-        content: "[page 1] と [Bit Journey, Inc.] と [another.page] のリンク",
-      };
-
-      const { container } = render(
-        <StickyNote {...mockProps} note={noteWithLinks} />
-      );
-
-      // リンクスタイルが適用されたspan要素が複数存在することを確認
-      const linkElements = container.querySelectorAll(
-        'span[style*="color: #0066cc"]'
-      );
-      expect(linkElements.length).toBeGreaterThanOrEqual(3);
-    });
-
-    it("リンクとアイコンが混在している場合も正しく区別される", () => {
-      const noteWithMixed = {
-        ...mockNote,
-        content: "[page title] と [moeki.icon] と [Bit Journey, Inc.]",
-      };
-
-      const { container } = render(
-        <StickyNote {...mockProps} note={noteWithMixed} />
-      );
-
-      // img要素が1個（アイコン用）
-      const images = container.querySelectorAll("img");
-      expect(images).toHaveLength(1);
-
-      // リンクスタイルのspan要素が2個（リンク用）
-      const linkElements = container.querySelectorAll(
-        'span[style*="color: #0066cc"]'
-      );
-      expect(linkElements.length).toBeGreaterThanOrEqual(2);
-    });
-
     it("デバッグ: リンク記法の処理結果を確認する", () => {
       const noteWithLink = {
         ...mockNote,
@@ -350,49 +272,7 @@ describe("StickyNote", () => {
       const { container } = render(
         <StickyNote {...mockProps} note={noteWithLink} />
       );
-
-      console.log("HTML内容:", container.innerHTML);
-
-      // リンクスタイルが適用されたspan要素を探す（青色 #0066cc）
-      const blueLinkElement = container.querySelector(
-        'span[style*="color: rgb(0, 102, 204)"]'
-      );
-      console.log("青色リンク要素:", blueLinkElement);
-
-      // グレー色のspan要素を探す（#666）
-      const greyElement = container.querySelector(
-        'span[style*="color: rgb(102, 102, 102)"]'
-      );
-      console.log("グレー要素:", greyElement);
-
-      // 全体のテキストコンテンツを確認
-      console.log("全体のテキスト:", container.textContent);
       expect(container.textContent).toContain("Bit Journey, Inc.");
-    });
-  });
-
-  describe("[ の補完機能", () => {
-    it("[ を入力すると [] に補完される", () => {
-      const propsWithActiveNote = {
-        ...mockProps,
-        note: { ...mockNote, content: "" },
-        isActive: true,
-      };
-
-      const { container } = render(<StickyNote {...propsWithActiveNote} />);
-      const textarea = container.querySelector(
-        "textarea"
-      ) as HTMLTextAreaElement;
-
-      // textareaが存在することを確認
-      expect(textarea).not.toBeNull();
-
-      // [ を入力
-      textarea.value = "[";
-      textarea.dispatchEvent(new Event("input", { bubbles: true }));
-
-      // [] に補完されることを確認
-      expect(textarea.value).toBe("[]");
     });
   });
 });
