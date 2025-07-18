@@ -169,7 +169,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     setDuplicateCheckTimeout(timeout);
   };
 
-  const handleBoardTitleSave = async () => {
+  const handleBoardTitleSave = () => {
     // タイマーをクリア
     if (duplicateCheckTimeout) {
       clearTimeout(duplicateCheckTimeout);
@@ -177,95 +177,92 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     }
 
     if (boardId && editingBoardTitle.trim()) {
-      try {
-        const boardRef = ref(rtdb, `boards/${boardId}`);
-        const boardData = (await get(boardRef)).val() || {};
+      // 即座にUI状態を更新してユーザーフィードバックを提供
+      setIsEditingBoardTitle(false);
+      setIsDuplicateName(false);
 
-        // 同じプロジェクト内で重複チェック
-        if (boardData.projectId) {
-          const isDuplicate = await checkBoardNameDuplicate(
-            boardData.projectId,
-            editingBoardTitle.trim(),
-            boardId
-          );
+      // 非同期でデータベース更新を実行
+      const updateBoardTitle = async () => {
+        try {
+          const boardRef = ref(rtdb, `boards/${boardId}`);
+          const boardData = (await get(boardRef)).val() || {};
 
-          let finalName = editingBoardTitle.trim();
-
-          if (isDuplicate) {
-            // 重複する場合、一意な名前を生成
-            finalName = await generateUniqueBoardName(
+          // 同じプロジェクト内で重複チェック
+          if (boardData.projectId) {
+            const isDuplicate = await checkBoardNameDuplicate(
               boardData.projectId,
               editingBoardTitle.trim(),
               boardId
             );
+
+            let finalName = editingBoardTitle.trim();
+
+            if (isDuplicate) {
+              // 重複する場合、一意な名前を生成
+              finalName = await generateUniqueBoardName(
+                boardData.projectId,
+                editingBoardTitle.trim(),
+                boardId
+              );
+            }
+
+            // 並列でデータベース更新を実行
+            await Promise.all([
+              set(boardRef, {
+                ...boardData,
+                name: finalName,
+              }),
+              set(ref(rtdb, `projectBoards/${boardData.projectId}/${boardId}`), {
+                ...boardData,
+                name: finalName,
+              }),
+            ]);
+
+            // バックグラウンドでメタデータ更新
+            Promise.all([
+              boardTitle !== finalName ? recordBoardNameChange(boardId, boardTitle, finalName) : Promise.resolve(),
+              import("../utils/boardMetadata").then(({ updateBoardTitle }) => updateBoardTitle(boardId, finalName)),
+            ]).catch(error => console.error("Error updating metadata:", error));
+
+            setBoardTitle(finalName);
+            setEditingBoardTitle(finalName);
+
+            // Update URL if this is a slug-based route
+            if (projectSlug && boardTitle !== finalName) {
+              const newUrl = `/${projectSlug}/${encodeURIComponent(finalName)}`;
+              navigate(newUrl, { replace: true });
+            }
+          } else {
+            // プロジェクトIDがない場合はそのまま保存
+            await set(boardRef, {
+              ...boardData,
+              name: editingBoardTitle.trim(),
+            });
+
+            // バックグラウンドでメタデータ更新
+            Promise.all([
+              boardTitle !== editingBoardTitle.trim() ? recordBoardNameChange(boardId, boardTitle, editingBoardTitle.trim()) : Promise.resolve(),
+              import("../utils/boardMetadata").then(({ updateBoardTitle }) => updateBoardTitle(boardId, editingBoardTitle.trim())),
+            ]).catch(error => console.error("Error updating metadata:", error));
+
+            setBoardTitle(editingBoardTitle.trim());
+
+            // Update URL if this is a slug-based route (for cases without projectId)
+            if (projectSlug && boardTitle !== editingBoardTitle.trim()) {
+              const newUrl = `/${projectSlug}/${encodeURIComponent(editingBoardTitle.trim())}`;
+              navigate(newUrl, { replace: true });
+            }
           }
-
-          await set(boardRef, {
-            ...boardData,
-            name: finalName,
-          });
-
-          // プロジェクトボードの参照も更新
-          const projectBoardRef = ref(
-            rtdb,
-            `projectBoards/${boardData.projectId}/${boardId}`
-          );
-          await set(projectBoardRef, {
-            ...boardData,
-            name: finalName,
-          });
-
-          // Record the name change in history
-          if (boardTitle !== finalName) {
-            await recordBoardNameChange(boardId, boardTitle, finalName);
-          }
-
-          // Update board metadata title
-          const { updateBoardTitle } = await import("../utils/boardMetadata");
-          await updateBoardTitle(boardId, finalName);
-
-          setBoardTitle(finalName);
-          setEditingBoardTitle(finalName);
-
-          // Update URL if this is a slug-based route
-          if (projectSlug && boardTitle !== finalName) {
-            const newUrl = `/${projectSlug}/${encodeURIComponent(finalName)}`;
-            navigate(newUrl, { replace: true });
-          }
-        } else {
-          // プロジェクトIDがない場合はそのまま保存
-          await set(boardRef, {
-            ...boardData,
-            name: editingBoardTitle.trim(),
-          });
-
-          // Record the name change in history
-          if (boardTitle !== editingBoardTitle.trim()) {
-            await recordBoardNameChange(
-              boardId,
-              boardTitle,
-              editingBoardTitle.trim()
-            );
-          }
-
-          // Update board metadata title
-          const { updateBoardTitle } = await import("../utils/boardMetadata");
-          await updateBoardTitle(boardId, editingBoardTitle.trim());
-
-          setBoardTitle(editingBoardTitle.trim());
-
-          // Update URL if this is a slug-based route (for cases without projectId)
-          if (projectSlug && boardTitle !== editingBoardTitle.trim()) {
-            const newUrl = `/${projectSlug}/${encodeURIComponent(editingBoardTitle.trim())}`;
-            navigate(newUrl, { replace: true });
-          }
+        } catch (error) {
+          console.error("Error updating board title:", error);
+          // エラーが発生した場合、元の状態に戻す
+          setEditingBoardTitle(boardTitle);
+          setBoardTitle(boardTitle);
         }
+      };
 
-        setIsEditingBoardTitle(false);
-        setIsDuplicateName(false);
-      } catch (error) {
-        console.error("Error updating board title:", error);
-      }
+      // 非同期実行（UIをブロックしない）
+      updateBoardTitle();
     } else {
       setIsEditingBoardTitle(false);
       setIsDuplicateName(false);
