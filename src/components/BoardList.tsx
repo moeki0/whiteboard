@@ -8,6 +8,7 @@ import { useSlug } from "../contexts/SlugContext";
 import { User, Board, Cursor, Project } from "../types";
 import { LuPlus } from "react-icons/lu";
 import { generateNewBoardName } from "../utils/boardNaming";
+import { syncBoardToAlgolia } from "../utils/algoliaSync";
 
 interface BoardListProps {
   user: User | null;
@@ -199,6 +200,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
     const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
     await set(projectBoardRef, board);
+
+    // Sync to Algolia
+    try {
+      await syncBoardToAlgolia(boardId, board);
+    } catch (error) {
+      console.error("Error syncing new board to Algolia:", error);
+    }
 
     // Navigate to the new board using slug-based URL
     try {

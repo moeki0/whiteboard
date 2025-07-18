@@ -2,6 +2,7 @@ import { rtdb } from "../config/firebase";
 import { ref, get, update } from "firebase/database";
 import { Note } from "../types";
 import { getBoardThumbnail } from "./thumbnailGenerator";
+import { syncBoardToAlgolia } from "./algoliaSync";
 
 export interface BoardMetadata {
   title: string;
@@ -96,6 +97,17 @@ export async function updateBoardMetadata(
       updatedAt: Date.now(),
       metadata,
     });
+
+    // Sync to Algolia
+    try {
+      const updatedBoardSnapshot = await get(boardRef);
+      if (updatedBoardSnapshot.exists()) {
+        const updatedBoard = updatedBoardSnapshot.val();
+        await syncBoardToAlgolia(boardId, updatedBoard);
+      }
+    } catch (algoliaError) {
+      console.error("Error syncing board metadata to Algolia:", algoliaError);
+    }
   } catch (error) {
     console.error("Error updating board metadata:", error);
   }
@@ -120,6 +132,17 @@ export async function updateBoardTitle(
     await update(boardRootRef, {
       updatedAt: Date.now(),
     });
+
+    // Sync to Algolia
+    try {
+      const updatedBoardSnapshot = await get(boardRootRef);
+      if (updatedBoardSnapshot.exists()) {
+        const updatedBoard = updatedBoardSnapshot.val();
+        await syncBoardToAlgolia(boardId, updatedBoard);
+      }
+    } catch (algoliaError) {
+      console.error("Error syncing board title to Algolia:", algoliaError);
+    }
   } catch (error) {
     console.error("Error updating board title:", error);
   }

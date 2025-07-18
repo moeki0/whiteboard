@@ -4,6 +4,7 @@ import { rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
 import { User, Board, Cursor, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
+import { boardsSearchIndex, boardsAdminIndex, searchConfig, AlgoliaBoard } from "../config/algolia";
 
 interface SearchBoardsProps {
   user: User;
@@ -12,107 +13,71 @@ interface SearchBoardsProps {
 export function SearchBoards({ user }: SearchBoardsProps) {
   const { currentProjectId } = useProject();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Board[]>([]);
-  const [boardThumbnails, setBoardThumbnails] = useState<Record<string, string>>({});
-  const [boardTitles, setBoardTitles] = useState<Record<string, string>>({});
-  const [boardDescriptions, setBoardDescriptions] = useState<Record<string, string>>({});
+  const [searchResults, setSearchResults] = useState<AlgoliaBoard[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Get boards in current project
+  // Search boards using Algolia
   const searchBoards = async (query: string) => {
     if (!query.trim() || !currentProjectId) {
       setSearchResults([]);
+      setSearchError(null);
       return;
     }
 
     setIsSearching(true);
+    setSearchError(null);
+    
     try {
-      const results: Board[] = [];
-      const thumbnailMap: Record<string, string> = {};
-      const titleMap: Record<string, string> = {};
-      const descriptionMap: Record<string, string> = {};
-
-      // Get current project data
-      const projectRef = ref(rtdb, `projects/${currentProjectId}`);
-      const projectSnapshot = await get(projectRef);
-      if (projectSnapshot.exists()) {
-        const projectData = projectSnapshot.val();
-        setProject(projectData);
-
-        // Get boards in current project
-        const projectBoardsRef = ref(rtdb, `projectBoards/${currentProjectId}`);
-        const projectBoardsSnapshot = await get(projectBoardsRef);
-        const projectBoardsData = projectBoardsSnapshot.val();
-
-        if (projectBoardsData) {
-          const boardIds = Object.keys(projectBoardsData);
-
-          for (const boardId of boardIds) {
-            const boardRef = ref(rtdb, `boards/${boardId}`);
-            const boardSnapshot = await get(boardRef);
-            if (boardSnapshot.exists()) {
-              const board = {
-                id: boardId,
-                ...boardSnapshot.val(),
-              };
-
-              // Search in board name, title, and description
-              const boardTitle = board.metadata?.title || board.name || "";
-              const boardDescription = board.metadata?.description || "";
-              
-              const lowercaseQuery = query.toLowerCase();
-              const titleMatch = boardTitle.toLowerCase().includes(lowercaseQuery);
-              const descriptionMatch = boardDescription.toLowerCase().includes(lowercaseQuery);
-
-              if (titleMatch || descriptionMatch) {
-                results.push(board);
-
-                // Store metadata
-                if (board.metadata) {
-                  if (board.metadata.title) {
-                    titleMap[board.id] = board.metadata.title;
-                  }
-                  if (board.metadata.description) {
-                    descriptionMap[board.id] = board.metadata.description;
-                  }
-                  if (board.metadata.thumbnailUrl) {
-                    thumbnailMap[board.id] = board.metadata.thumbnailUrl;
-                  }
-                } else {
-                  titleMap[board.id] = board.name || "";
-                }
-              }
-            }
-          }
-        }
+      // Configure facets for filtering (one-time setup)
+      try {
+        await boardsAdminIndex.setSettings({
+          attributesForFaceting: ['projectId', 'projectName'],
+          searchableAttributes: ['title', 'description', 'name', 'searchableText'],
+          attributesToHighlight: ['title', 'description', 'name']
+        });
+      } catch (settingsError) {
+        // Ignore settings errors (likely using search-only key)
       }
 
-      // Sort results by relevance (title matches first, then by updated date)
-      const sortedResults = results.sort((a, b) => {
-        const aTitle = titleMap[a.id] || "";
-        const bTitle = titleMap[b.id] || "";
-        const lowercaseQuery = query.toLowerCase();
-        
-        const aTitleMatch = aTitle.toLowerCase().includes(lowercaseQuery);
-        const bTitleMatch = bTitle.toLowerCase().includes(lowercaseQuery);
-        
-        if (aTitleMatch && !bTitleMatch) return -1;
-        if (!aTitleMatch && bTitleMatch) return 1;
-        
-        return (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt);
+      // Search with Algolia using project filter
+      const result = await boardsSearchIndex.search<AlgoliaBoard>(query, {
+        ...searchConfig,
+        filters: `projectId:"${currentProjectId}"`
       });
-
-      setSearchResults(sortedResults);
-      setBoardThumbnails(thumbnailMap);
-      setBoardTitles(titleMap);
-      setBoardDescriptions(descriptionMap);
+      
+      setSearchResults(result.hits || []);
     } catch (error) {
-      console.error("Error searching boards:", error);
+      console.error("Error searching boards with Algolia:", error);
+      setSearchError("Search is currently unavailable. Please try again later.");
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
   };
+
+  // Get current project information
+  useEffect(() => {
+    if (!currentProjectId) {
+      setProject(null);
+      return;
+    }
+
+    const getProjectInfo = async () => {
+      try {
+        const projectRef = ref(rtdb, `projects/${currentProjectId}`);
+        const projectSnapshot = await get(projectRef);
+        if (projectSnapshot.exists()) {
+          setProject(projectSnapshot.val());
+        }
+      } catch (error) {
+        console.error("Error getting project info:", error);
+      }
+    };
+
+    getProjectInfo();
+  }, [currentProjectId]);
 
   // Debounced search
   useEffect(() => {
@@ -143,46 +108,52 @@ export function SearchBoards({ user }: SearchBoardsProps) {
         )}
       </div>
 
+      {searchError && (
+        <div className="search-error">
+          {searchError}
+        </div>
+      )}
+
       {currentProjectId && isSearching && (
         <div className="search-loading">Searching...</div>
       )}
 
-      {currentProjectId && searchQuery && !isSearching && searchResults.length === 0 && (
+      {currentProjectId && searchQuery && !isSearching && !searchError && searchResults.length === 0 && (
         <div className="no-results">
           No boards found for "{searchQuery}"
         </div>
       )}
 
-      {currentProjectId && searchResults.length > 0 && (
+      {currentProjectId && searchResults.length > 0 && !searchError && (
         <div className="search-results">
           <div className="results-count">
             {searchResults.length} board{searchResults.length === 1 ? '' : 's'} found
           </div>
           <div className="boards-grid">
             {searchResults.map((board) => (
-              <div key={board.id} className="board-card-wrapper">
+              <div key={board.objectID} className="board-card-wrapper">
                 <Link
                   to={
-                    project?.slug
-                      ? `/${project.slug}/${encodeURIComponent(board.name)}`
-                      : `/${board.id}`
+                    board.projectSlug
+                      ? `/${board.projectSlug}/${encodeURIComponent(board.name)}`
+                      : `/board/${board.boardId}`
                   }
                   className="board-card"
                 >
-                  <p className="board-name">{boardTitles[board.id] || ""}</p>
-                  {boardThumbnails[board.id] ? (
+                  <p className="board-name">{board.title || board.name}</p>
+                  {board.thumbnailUrl ? (
                     <div className="board-thumbnail">
                       <img
-                        src={boardThumbnails[board.id]}
+                        src={board.thumbnailUrl}
                         alt={`${board.name} thumbnail`}
                         className="thumbnail-image"
                       />
                     </div>
                   ) : (
                     <div className="board-card-content">
-                      {boardDescriptions[board.id] && (
+                      {board.description && (
                         <p className="board-description">
-                          {boardDescriptions[board.id]}
+                          {board.description}
                         </p>
                       )}
                     </div>

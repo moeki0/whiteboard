@@ -6,6 +6,7 @@ import { User, Note, Board, Project } from "../types";
 import { useHistory } from "./useHistory";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { generateNewBoardName } from "../utils/boardNaming";
+import { syncBoardToAlgolia } from "../utils/algoliaSync";
 
 interface UseBoardActionsProps {
   user: User | null;
@@ -65,6 +66,16 @@ export function useBoardActions({
     }
   }, [boardId, user?.uid]);
 
+  // Algolia同期をトリガーする関数
+  const syncToAlgolia = useCallback(async () => {
+    if (!boardId || !board) return;
+    try {
+      await syncBoardToAlgolia(boardId, board);
+    } catch (error) {
+      console.error("Error syncing board to Algolia:", error);
+    }
+  }, [boardId, board]);
+
   // 付箋を追加
   const addNote = useCallback((x?: number, y?: number): string => {
     if (!user?.uid) return "";
@@ -118,6 +129,7 @@ export function useBoardActions({
     setTimeout(() => {
       try {
         updateBoardTimestamp();
+        syncToAlgolia();
       } catch (error) {
         console.error("Error updating board timestamp after adding note:", error);
       }
@@ -131,6 +143,7 @@ export function useBoardActions({
     boardId,
     nextZIndex,
     updateBoardTimestamp,
+    syncToAlgolia,
     addToHistory,
     isUndoRedoOperation,
     nanoid,
@@ -171,6 +184,7 @@ export function useBoardActions({
         setTimeout(() => {
           try {
             updateBoardTimestamp();
+            syncToAlgolia();
           } catch (error) {
             console.error("Error updating board timestamp after updating note:", error);
           }
@@ -183,6 +197,7 @@ export function useBoardActions({
     notes,
     addToHistory,
     updateBoardTimestamp,
+    syncToAlgolia,
     currentUndoRedoNoteId,
     isUndoRedoOperation,
   ]);
@@ -208,6 +223,7 @@ export function useBoardActions({
     setTimeout(() => {
       try {
         updateBoardTimestamp();
+        syncToAlgolia();
       } catch (error) {
         console.error("Error updating board timestamp after deleting note:", error);
       }
@@ -225,6 +241,7 @@ export function useBoardActions({
     notes,
     boardId,
     updateBoardTimestamp,
+    syncToAlgolia,
     selectedNoteIds,
     addToHistory,
     isUndoRedoOperation,
@@ -259,6 +276,7 @@ export function useBoardActions({
     setTimeout(() => {
       try {
         updateBoardTimestamp();
+        syncToAlgolia();
       } catch (error) {
         console.error("Error updating board timestamp after deleting notes:", error);
       }
@@ -269,6 +287,7 @@ export function useBoardActions({
     notes,
     boardId,
     updateBoardTimestamp,
+    syncToAlgolia,
     addToHistory,
     isUndoRedoOperation,
     setSelectedNoteIds,

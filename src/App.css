@@ -1324,3 +1324,15 @@ div.user-avatar-small {
   border-radius: 4px;
   border-left: 4px solid #f44336;
 }
+
+.search-error {
+  text-align: center;
+  padding: 20px;
+  margin: 20px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  border-left: 4px solid #f44336;
+  color: #f44336;
+  font-size: 14px;
+}
+
