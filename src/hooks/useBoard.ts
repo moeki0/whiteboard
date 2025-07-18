@@ -47,6 +47,10 @@ export function useBoard(
   const checkAccess = async (boardData: Record<string, unknown>) => {
     const currentBoard: Board = {
       id: boardId || "",
+      name: (boardData.name as string) || "",
+      createdBy: (boardData.createdBy as string) || "",
+      createdAt: (boardData.createdAt as number) || Date.now(),
+      projectId: (boardData.projectId as string) || "",
       ...boardData,
     };
 
@@ -205,9 +209,10 @@ export function useBoard(
         const now = Date.now();
         const CURSOR_TIMEOUT = 30000; // 30 seconds timeout
 
-        Object.entries(data).forEach(([cursorId, cursor]: [string, Cursor]) => {
+        Object.entries(data).forEach(([cursorId, cursor]: [string, unknown]) => {
+          const cursorData = cursor as Cursor;
           // Remove old cursors
-          if (now - cursor.timestamp > CURSOR_TIMEOUT) {
+          if (now - cursorData.timestamp > CURSOR_TIMEOUT) {
             const oldCursorRef = ref(
               rtdb,
               `boardCursors/${boardId}/${cursorId}`
@@ -218,7 +223,7 @@ export function useBoard(
 
           if (cursorId !== `${user?.uid || "anonymous"}-${sessionId}`) {
             // Don't show own session cursor
-            cursorsObj[cursorId] = cursor;
+            cursorsObj[cursorId] = cursorData;
           }
         });
         setCursors(cursorsObj);

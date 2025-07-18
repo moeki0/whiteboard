@@ -25,16 +25,19 @@ export async function boardToAlgoliaObject(boardId: string, board: Board): Promi
     if (notesSnapshot.exists()) {
       const notes = notesSnapshot.val();
       const notesContent = Object.values(notes)
-        .filter((note: any) => note && note.content)
-        .map((note: any) => note.content.trim())
+        .filter((note: unknown): note is { content: string } => 
+          typeof note === 'object' && note !== null && 'content' in note && typeof (note as { content: unknown }).content === 'string'
+        )
+        .map((note) => note.content.trim())
         .filter(content => content.length > 0);
       
       notesText = notesContent.join(' ');
     }
     
     // Extract searchable content
-    const title = board.metadata?.title || board.name || '';
-    const description = board.metadata?.description || '';
+    const boardData = board as Board & { metadata?: { title?: string; description?: string; thumbnailUrl?: string } };
+    const title = boardData.metadata?.title || board.name || '';
+    const description = boardData.metadata?.description || '';
     const searchableText = [title, description, board.name, notesText].filter(Boolean).join(' ').toLowerCase();
     
     return {
@@ -48,7 +51,7 @@ export async function boardToAlgoliaObject(boardId: string, board: Board): Promi
       projectSlug: project.slug,
       createdAt: board.createdAt || 0,
       updatedAt: board.updatedAt || board.createdAt || 0,
-      thumbnailUrl: board.metadata?.thumbnailUrl,
+      thumbnailUrl: boardData.metadata?.thumbnailUrl,
       searchableText
     };
   } catch (error) {

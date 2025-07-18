@@ -187,6 +187,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     const uniqueName = await generateNewBoardName(projectId);
 
     const board = {
+      id: boardId,
       name: uniqueName,
       createdBy: user!.uid,
       createdAt: now,

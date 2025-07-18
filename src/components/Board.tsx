@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set, remove, get, update } from "firebase/database";
+import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
@@ -446,6 +446,7 @@ export function Board({ user }: BoardProps) {
       const notePromises = selectedNotes.map((note) => {
         const newNoteId = nanoid();
         const newNote: Note = {
+          id: newNoteId,
           content: note.content || "",
           x: note.x + offsetX,
           y: note.y + offsetY,

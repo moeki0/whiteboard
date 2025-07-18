@@ -1249,7 +1249,7 @@ div.user-avatar-small {
 
 /* Search Page Styles */
 .search-header {
-  padding: 20px;
+  padding: 10px;
   background-color: white;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -1267,9 +1267,9 @@ div.user-avatar-small {
 
 .search-input {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
   font-size: 16px;
   outline: none;
   transition: border-color 0.2s;

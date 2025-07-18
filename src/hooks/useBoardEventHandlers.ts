@@ -51,7 +51,7 @@ export function useBoardEventHandlers({
   setIsSelecting,
   selectionStart,
   setSelectionStart,
-  selectionEnd: _,
+  selectionEnd: _selectionEnd,
   setSelectionEnd,
   isDraggingMultiple,
   justFinishedBulkDrag,

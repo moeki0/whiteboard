@@ -53,7 +53,7 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
         let targetBoard = null;
         for (const board of projectBoards) {
           const boardInfo = await getBoardInfo(board.id);
-          const boardTitle = boardInfo.title || board.name || "";
+          const boardTitle = boardInfo.title || (board as { name?: string }).name || "";
 
           if (boardTitle.toLowerCase() === boardName.toLowerCase()) {
             targetBoard = board;

@@ -380,7 +380,7 @@ export function useBoardActions({
     if (selectedNotes.length === 0) return;
 
     const newBoardId = nanoid();
-    const newBoardName = generateNewBoardName();
+    const newBoardName = await generateNewBoardName(board?.projectId || "");
 
     const newBoard = {
       name: newBoardName,

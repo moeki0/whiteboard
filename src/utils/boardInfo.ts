@@ -82,10 +82,12 @@ export async function getBoardInfo(
             // 同じプロジェクト内のボードを検索
             const projectBoards = Object.entries(allBoards)
               .filter(
-                ([, board]: [string, any]) =>
-                  board.projectId === boardData.projectId
+                ([, board]: [string, unknown]) => {
+                  const boardObj = board as { projectId?: string };
+                  return boardObj.projectId === boardData.projectId;
+                }
               )
-              .map(([id, board]: [string, any]) => ({ ...board, id }));
+              .map(([id, board]: [string, unknown]) => ({ ...(board as object), id }));
 
             // ボード名またはパースしたタイトルがpageNameと一致するボードを探す
             for (const targetBoard of projectBoards) {
@@ -96,7 +98,7 @@ export async function getBoardInfo(
                 _visitedBoards
               );
               const boardTitle =
-                targetBoardInfo.title || targetBoard.name || "";
+                targetBoardInfo.title || (targetBoard as any).name || "";
 
               if (boardTitle.toLowerCase() === pageName.toLowerCase()) {
                 // 対象ボードの手動保存サムネイルを取得
@@ -128,10 +130,12 @@ export async function getBoardInfo(
               // 同じプロジェクト内のボードを検索
               const projectBoards = Object.entries(allBoards)
                 .filter(
-                  ([, board]: [string, any]) =>
-                    board.projectId === boardData.projectId
+                  ([, board]: [string, unknown]) => {
+                    const boardObj = board as { projectId?: string };
+                    return boardObj.projectId === boardData.projectId;
+                  }
                 )
-                .map(([id, board]: [string, any]) => ({ ...board, id }));
+                .map(([id, board]: [string, unknown]) => ({ ...(board as object), id }));
 
               // ボード名またはパースしたタイトルがiconNameと一致するボードを探す
               for (const targetBoard of projectBoards) {
@@ -142,7 +146,7 @@ export async function getBoardInfo(
                   _visitedBoards
                 );
                 const boardTitle =
-                  targetBoardInfo.title || targetBoard.name || "";
+                  targetBoardInfo.title || (targetBoard as any).name || "";
 
                 if (boardTitle.toLowerCase() === iconName.toLowerCase()) {
                   if (targetBoardInfo.thumbnailUrl) {
