@@ -91,8 +91,26 @@ export async function syncBoardToAlgolia(
 
     const algoliaBoard = await boardToAlgoliaObject(boardId, board);
     if (algoliaBoard) {
-      const syncBoard = httpsCallable(functions, "syncBoard");
-      const result = await syncBoard({ board: algoliaBoard });
+      // HTTPリクエストとしてFunctionsを呼び出し（CORS対応）
+      const idToken = await auth.currentUser.getIdToken();
+      const functionUrl = import.meta.env.DEV 
+        ? 'http://localhost:5002/maplap-41b08/us-central1/syncBoardHttp'
+        : 'https://us-central1-maplap-41b08.cloudfunctions.net/syncBoardHttp';
+
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ board: algoliaBoard })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
       console.log("Board synced to Algolia:", result.data);
     }
   } catch (error) {
@@ -118,8 +136,26 @@ export async function removeBoardFromAlgolia(boardId: string): Promise<void> {
       return;
     }
 
-    const removeBoard = httpsCallable(functions, "removeBoard");
-    const result = await removeBoard({ objectID: boardId });
+    // HTTPリクエストとしてFunctionsを呼び出し（CORS対応）
+    const idToken = await auth.currentUser.getIdToken();
+    const functionUrl = import.meta.env.DEV 
+      ? 'http://localhost:5002/maplap-41b08/us-central1/removeBoardHttp'
+      : 'https://us-central1-maplap-41b08.cloudfunctions.net/removeBoardHttp';
+
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({ objectID: boardId })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
     console.log("Board removed from Algolia:", result.data);
   } catch (error) {
     console.error(`Error removing board ${boardId} from Algolia:`, error);

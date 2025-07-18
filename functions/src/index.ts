@@ -155,3 +155,42 @@ export const syncBoardHttp = functions.https.onRequest(async (req, res) => {
     }
   });
 });
+
+export const removeBoardHttp = functions.https.onRequest(async (req, res) => {
+  return corsHandler(req, res, async () => {
+    try {
+      if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+      }
+
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      const authorization = req.headers.authorization;
+      if (!authorization || !authorization.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const idToken = authorization.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      
+      const { objectID } = req.body;
+      
+      if (!objectID) {
+        res.status(400).json({ error: 'ObjectID is required' });
+        return;
+      }
+
+      await boardsIndex.deleteObject(objectID);
+      
+      res.json({ data: { success: true, objectID } });
+    } catch (error) {
+      console.error('Algolia remove error:', error);
+      res.status(500).json({ error: 'Failed to remove board' });
+    }
+  });
+});
