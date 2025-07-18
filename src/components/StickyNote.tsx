@@ -751,22 +751,8 @@ export function StickyNote({
 
     console.log("analyzeBoardTitleSuggestion result:", result);
 
-    if (result.shouldShow) {
-      // 付箋の上部に候補を表示する座標を取得
-      const coordinates = getSuggestionPosition(target);
-      console.log("Suggestion position:", coordinates);
-
-      setBoardSuggestionInfo({
-        searchText: result.searchText,
-        bracketStart: result.bracketStart,
-        bracketEnd: result.bracketEnd,
-        position: coordinates,
-      });
-      setShowBoardSuggestions(true);
-      setSelectedSuggestionIndex(0);
-    } else {
-      setShowBoardSuggestions(false);
-    }
+    // 補完機能を無効化
+    setShowBoardSuggestions(false);
   };
 
   const handleBlur = () => {
@@ -964,7 +950,7 @@ export function StickyNote({
 
       // 次に通常のURLを処理（既に処理済みのScrapbox記法は除外）
       processedLine = processedLine.replace(
-        /(https?:\/\/[^\s\]]+?)(?!__SCRAPBOX__)/g,
+        /(https?:\/\/[^\s\]]+)(?!__SCRAPBOX__)/g,
         (match) => {
           if (isUrl(match)) {
             return `__LINK__${match}__LINK__`;
