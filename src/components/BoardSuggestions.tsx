@@ -42,6 +42,14 @@ export function BoardSuggestions({
   isVisible,
   selectedIndex = 0,
 }: BoardSuggestionsProps) {
+  console.log("BoardSuggestions render:", {
+    boards,
+    searchText,
+    position,
+    isVisible,
+    selectedIndex,
+  });
+
   if (!isVisible || boards.length === 0) {
     return null;
   }
@@ -52,15 +60,18 @@ export function BoardSuggestions({
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed",
         left: position.x,
-        top: position.y + 20,
+        top: position.y,
         borderRadius: "4px",
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
         display: "flex",
         color: "white",
-        zIndex: 1000,
-        fontSize: "10px",
+        zIndex: 9999,
+        fontSize: "12px",
+        height: "auto",
+        backgroundColor: "rgba(0,0,0,0.9)",
+        border: "1px solid #ccc",
       }}
     >
       {displayBoards.map((board, index) => (

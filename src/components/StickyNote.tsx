@@ -138,6 +138,7 @@ export function StickyNote({
     searchText: "",
     bracketStart: -1,
     bracketEnd: -1,
+    position: { x: 0, y: 0 },
   });
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
@@ -619,19 +620,84 @@ export function StickyNote({
       return;
     }
 
-    setContent(newContent);
+    // 改行を削除
+    const contentWithoutNewlines = newContent.replace(/\n/g, "");
+    setContent(contentWithoutNewlines);
+
+    // もし改行が含まれていた場合、改行を削除した内容をセット
+    if (newContent !== contentWithoutNewlines) {
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.value = contentWithoutNewlines;
+        }
+      }, 0);
+    }
 
     // カーソル位置を更新
     const newCursorPosition = e.target.selectionStart || 0;
     setCursorPosition(newCursorPosition);
 
+    console.log(
+      "handleContentChange called, cursor position:",
+      newCursorPosition,
+      "text:",
+      newContent
+    );
+
+    // リンク記法の候補を分析
+    const result = analyzeBoardTitleSuggestion(newContent, newCursorPosition);
+
+    console.log(
+      "analyzeBoardTitleSuggestion result in handleContentChange:",
+      result
+    );
+
+    if (result.shouldShow) {
+      // 付箋の上部に候補を表示する座標を取得
+      const coordinates = getSuggestionPosition(e.target);
+      console.log("Suggestion position in handleContentChange:", coordinates);
+
+      setBoardSuggestionInfo({
+        searchText: result.searchText,
+        bracketStart: result.bracketStart,
+        bracketEnd: result.bracketEnd,
+        position: coordinates,
+      });
+      setShowBoardSuggestions(true);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setShowBoardSuggestions(false);
+    }
+
     // 固定幅なので幅の計算は不要、コンテンツのみ更新
     throttledContentUpdate(note.id, {
-      content: newContent,
+      content: contentWithoutNewlines,
       width: dimensions.width,
       isEditing: true,
       editedBy: currentUserId,
     });
+  };
+
+  // 付箋の下部に候補を表示する座標を取得する関数
+  const getSuggestionPosition = (element: HTMLTextAreaElement) => {
+    // 付箋全体の要素を取得
+    const noteElement = noteRef.current;
+    if (!noteElement) return { x: 0, y: 0 };
+
+    const rect = noteElement.getBoundingClientRect();
+    console.log("noteElement rect:", rect);
+    console.log("window scroll:", {
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    });
+
+    // 付箋の下部、左側に表示（fixed positionなのでスクロールは考慮不要）
+    const x = rect.left;
+    const y = rect.bottom - 40; // 付箋のもう少し上に表示
+
+    console.log("Final position:", { x, y });
+
+    return { x, y };
   };
 
   // キーボードイベントやカーソル移動を監視
@@ -662,30 +728,6 @@ export function StickyNote({
           );
         }
       }
-    } else if (e.key === "ArrowDown") {
-      // 下矢印キーで次の候補を選択
-      if (showBoardSuggestions) {
-        e.preventDefault();
-        const filteredBoards = filterBoardSuggestions(
-          projectBoards,
-          boardSuggestionInfo.searchText
-        );
-        setSelectedSuggestionIndex((prev) =>
-          prev < filteredBoards.length - 1 ? prev + 1 : 0
-        );
-      }
-    } else if (e.key === "ArrowUp") {
-      // 上矢印キーで前の候補を選択
-      if (showBoardSuggestions) {
-        e.preventDefault();
-        const filteredBoards = filterBoardSuggestions(
-          projectBoards,
-          boardSuggestionInfo.searchText
-        );
-        setSelectedSuggestionIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredBoards.length - 1
-        );
-      }
     } else if (e.key === "Enter") {
       // Enterキーで選択された候補を確定
       if (showBoardSuggestions) {
@@ -710,6 +752,35 @@ export function StickyNote({
     const target = e.target as HTMLTextAreaElement;
     const newCursorPosition = target.selectionStart || 0;
     setCursorPosition(newCursorPosition);
+
+    console.log(
+      "handleSelectionChange called, cursor position:",
+      newCursorPosition,
+      "text:",
+      target.value
+    );
+
+    // リンク記法の候補を分析
+    const result = analyzeBoardTitleSuggestion(target.value, newCursorPosition);
+
+    console.log("analyzeBoardTitleSuggestion result:", result);
+
+    if (result.shouldShow) {
+      // 付箋の上部に候補を表示する座標を取得
+      const coordinates = getSuggestionPosition(target);
+      console.log("Suggestion position:", coordinates);
+
+      setBoardSuggestionInfo({
+        searchText: result.searchText,
+        bracketStart: result.bracketStart,
+        bracketEnd: result.bracketEnd,
+        position: coordinates,
+      });
+      setShowBoardSuggestions(true);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setShowBoardSuggestions(false);
+    }
   };
 
   const handleBlur = () => {
@@ -728,28 +799,12 @@ export function StickyNote({
     }
   };
 
-  // カーソル位置の変化を監視してボード候補を表示・非表示
+  // 編集モードが終了したときは候補を非表示
   useEffect(() => {
     if (!isEditing) {
       setShowBoardSuggestions(false);
-      return;
     }
-
-    const suggestion = analyzeBoardTitleSuggestion(content, cursorPosition);
-
-    if (suggestion.shouldShow) {
-      setBoardSuggestionInfo({
-        searchText: suggestion.searchText,
-        bracketStart: suggestion.bracketStart,
-        bracketEnd: suggestion.bracketEnd,
-      });
-      setShowBoardSuggestions(true);
-      setSelectedSuggestionIndex(0); // 候補が表示されるときは最初の項目を選択
-    } else {
-      setShowBoardSuggestions(false);
-      setSelectedSuggestionIndex(0);
-    }
-  }, [content, cursorPosition, isEditing]);
+  }, [isEditing]);
 
   // ボード候補を選択したときの処理
   const handleSelectBoard = (boardName: string) => {
@@ -869,11 +924,13 @@ export function StickyNote({
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
     // 末尾のアスタリスクを除去（縮小記法なので表示しない）
-    const contentWithoutTrailingAsterisks = text.replace(/\*+$/, '');
-    
+    const contentWithoutTrailingAsterisks = text.replace(/\*+$/, "");
+
     // 付箋全体がGyazoのURLのみの場合は画像として処理
     if (isContentOnlyGyazoUrl(contentWithoutTrailingAsterisks)) {
-      const lines = contentWithoutTrailingAsterisks.split("\n").filter((line) => line.trim() !== "");
+      const lines = contentWithoutTrailingAsterisks
+        .split("\n")
+        .filter((line) => line.trim() !== "");
       const line = lines[0].trim();
       const asteriskMatch = line.match(/^(\*+)(.*)/);
 
@@ -913,20 +970,20 @@ export function StickyNote({
     for (const line of lines) {
       // まずScrapbox記法を処理
       let processedLine = line.replace(
-        /\[([^\]]+)\s+(https?:\/\/[^\s\]]+)\]/g,
+        /\[([^\]]+?)\s+(https?:\/\/[^\s\]]+?)\]/g,
         (match, linkText, url) => {
           return `__SCRAPBOX__${linkText}__URL__${url}__SCRAPBOX__`;
         }
       );
 
-      // 次に通常のURLを処理（Scrapbox記法内のURLとインライン画像記法内のURLは除外）
+      // 次に通常のURLを処理（既に処理済みのScrapbox記法は除外）
       processedLine = processedLine.replace(
-        /(https?:\/\/[^\s\]]+)(?!__SCRAPBOX__)(?![^[]*\])/g,
-        (url) => {
-          if (isUrl(url)) {
-            return `__LINK__${url}__LINK__`;
+        /(https?:\/\/[^\s\]]+?)(?!__SCRAPBOX__)/g,
+        (match) => {
+          if (isUrl(match)) {
+            return `__LINK__${match}__LINK__`;
           }
-          return url;
+          return match;
         }
       );
 
@@ -1364,7 +1421,7 @@ export function StickyNote({
     if (!trailingAsteriskMatch) {
       return null;
     }
-    
+
     const asteriskCount = trailingAsteriskMatch[0].length;
     const baseSize = getTextSizeStyle(textSize);
     const shrinkSize = Math.max(5, baseSize - asteriskCount * 2); // 最小5px
@@ -1373,7 +1430,7 @@ export function StickyNote({
 
   const shrinkSize = calculateShrinkSize(content);
   const actualFontSize = shrinkSize || getTextSizeStyle(textSize);
-  
+
   // フォントサイズに応じてline-heightを調整
   const calculateLineHeight = (fontSize: number) => {
     // 小さなフォントサイズでは小さなline-heightを使用してコンパクトに
@@ -1385,21 +1442,22 @@ export function StickyNote({
       return 1.3; // 通常サイズ
     }
   };
-  
+
   const actualLineHeight = calculateLineHeight(actualFontSize);
-  
+
   // フォントサイズに応じてpaddingを調整
   const calculatePadding = (fontSize: number) => {
     // 小さなフォントサイズでは小さなpaddingを使用してコンパクトに
     if (fontSize <= 7) {
       return 4; // 極小サイズ
-    } else if (fontSize <= 11) { // 11pxまでを小サイズに含める
+    } else if (fontSize <= 11) {
+      // 11pxまでを小サイズに含める
       return 6; // 小サイズ
     } else {
       return 10; // 通常サイズ
     }
   };
-  
+
   const actualPadding = calculatePadding(actualFontSize);
 
   const backgroundColor = getColorStyle(noteColor);
@@ -1586,9 +1644,10 @@ export function StickyNote({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             onSelect={handleSelectionChange}
+            onWheel={(e) => e.stopPropagation()}
             autoFocus
             minRows={1}
-            maxRows={20}
+            maxRows={10}
           />
         ) : (
           <div
@@ -1753,19 +1812,27 @@ export function StickyNote({
             </div>
           </div>
         )}
-
-        <BoardSuggestions
-          boards={filterBoardSuggestions(
-            projectBoards,
-            boardSuggestionInfo.searchText
-          )}
-          searchText={boardSuggestionInfo.searchText}
-          onSelectBoard={handleSelectBoard}
-          position={{ x: 0, y: 0 }}
-          isVisible={showBoardSuggestions && isEditing}
-          selectedIndex={selectedSuggestionIndex}
-        />
       </div>
+      {(() => {
+        console.log("BoardSuggestions条件チェック:", {
+          showBoardSuggestions,
+          isEditing,
+          shouldRender: showBoardSuggestions && isEditing,
+        });
+        return showBoardSuggestions && isEditing ? (
+          <BoardSuggestions
+            boards={filterBoardSuggestions(
+              projectBoards,
+              boardSuggestionInfo.searchText
+            )}
+            searchText={boardSuggestionInfo.searchText}
+            onSelectBoard={handleSelectBoard}
+            position={boardSuggestionInfo.position}
+            isVisible={true}
+            selectedIndex={selectedSuggestionIndex}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }
