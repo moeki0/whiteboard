@@ -652,22 +652,8 @@ export function StickyNote({
       result
     );
 
-    if (result.shouldShow) {
-      // 付箋の上部に候補を表示する座標を取得
-      const coordinates = getSuggestionPosition(e.target);
-      console.log("Suggestion position in handleContentChange:", coordinates);
-
-      setBoardSuggestionInfo({
-        searchText: result.searchText,
-        bracketStart: result.bracketStart,
-        bracketEnd: result.bracketEnd,
-        position: coordinates,
-      });
-      setShowBoardSuggestions(true);
-      setSelectedSuggestionIndex(0);
-    } else {
-      setShowBoardSuggestions(false);
-    }
+    // 補完機能を無効化
+    setShowBoardSuggestions(false);
 
     // 固定幅なので幅の計算は不要、コンテンツのみ更新
     throttledContentUpdate(note.id, {
