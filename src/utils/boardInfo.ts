@@ -96,43 +96,22 @@ export async function getBoardInfo(
             }
           }
         } else {
-          // [name.icon]記法を探す（ボードサムネイル用）
-          const iconMatch = note.content.match(/\[([^\]]+)\.icon\]/);
-          if (iconMatch) {
-            const iconName = iconMatch[1];
-
-            if (boardData?.projectId) {
-              // インデックスから効率的に検索
-              const { getBoardIdByTitle } = await import('./boardTitleIndex');
-              const targetBoardId = await getBoardIdByTitle(boardData.projectId, iconName);
-              
-              if (targetBoardId && targetBoardId !== boardId) {
-                const targetBoardInfo = await getBoardInfo(
-                  targetBoardId,
-                  _visitedBoards
-                );
-                
-                if (targetBoardInfo.thumbnailUrl) {
-                  thumbnailUrl = targetBoardInfo.thumbnailUrl;
-                }
-              }
-            }
+          // [name.icon]記法はアイコン表示専用のため、サムネイル選定から除外
+          // 直接画像URLを探す
+          // Gyazo URLを探す
+          const gyazoMatch = note.content.match(
+            /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
+          );
+          if (gyazoMatch) {
+            const id = gyazoMatch[1];
+            thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
           } else {
-            // Gyazo URLを探す
-            const gyazoMatch = note.content.match(
-              /https:\/\/gyazo\.com\/([a-zA-Z0-9]+)/
+            // その他の画像URLを探す
+            const imageMatch = note.content.match(
+              /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i
             );
-            if (gyazoMatch) {
-              const id = gyazoMatch[1];
-              thumbnailUrl = `https://gyazo.com/${id}/max_size/300`;
-            } else {
-              // その他の画像URLを探す
-              const imageMatch = note.content.match(
-                /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i
-              );
-              if (imageMatch) {
-                thumbnailUrl = imageMatch[1];
-              }
+            if (imageMatch) {
+              thumbnailUrl = imageMatch[1];
             }
           }
         }
