@@ -1373,6 +1373,20 @@ export function StickyNote({
 
   const shrinkSize = calculateShrinkSize(content);
   const actualFontSize = shrinkSize || getTextSizeStyle(textSize);
+  
+  // フォントサイズに応じてline-heightを調整
+  const calculateLineHeight = (fontSize: number) => {
+    // 小さなフォントサイズでは小さなline-heightを使用してコンパクトに
+    if (fontSize <= 7) {
+      return 1.1;
+    } else if (fontSize <= 10) {
+      return 1.2;
+    } else {
+      return 1.3; // 通常サイズ
+    }
+  };
+  
+  const actualLineHeight = calculateLineHeight(actualFontSize);
 
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
@@ -1571,7 +1585,7 @@ export function StickyNote({
           >
             <div
               style={{
-                lineHeight: 1.3,
+                lineHeight: actualLineHeight,
                 overflowWrap: "break-word",
                 whiteSpace: "pre-wrap",
                 width: "auto",

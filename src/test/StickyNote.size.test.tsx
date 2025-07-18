@@ -86,6 +86,16 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     const computedStyle = window.getComputedStyle(stickyNote as Element);
     // 13px → 11px (標準より2px小さい)
     expect(computedStyle.fontSize).toBe("11px");
+    
+    // line-heightも調整される（11pxなので1.2になる）
+    const contentDiv = container.querySelector("div[style*='lineHeight']");
+    if (contentDiv) {
+      const contentStyle = window.getComputedStyle(contentDiv as Element);
+      // line-heightは数値で返される場合があるため、範囲チェック
+      const lineHeight = parseFloat(contentStyle.lineHeight);
+      expect(lineHeight).toBeGreaterThanOrEqual(1.2);
+      expect(lineHeight).toBeLessThan(1.3);
+    }
   });
 
   it("末尾に**2つでさらに小さくなる", () => {
@@ -113,6 +123,15 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     const computedStyle = window.getComputedStyle(stickyNote as Element);
     // 最小5pxまで
     expect(computedStyle.fontSize).toBe("5px");
+    
+    // 極小サイズでは小さなline-height（1.1）が適用される
+    const contentDiv = container.querySelector("div[style*='lineHeight']");
+    if (contentDiv) {
+      const contentStyle = window.getComputedStyle(contentDiv as Element);
+      const lineHeight = parseFloat(contentStyle.lineHeight);
+      expect(lineHeight).toBeGreaterThanOrEqual(1.1);
+      expect(lineHeight).toBeLessThan(1.2);
+    }
   });
 
   it("末尾以外のアスタリスクは影響しない", () => {
