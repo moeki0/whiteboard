@@ -5,6 +5,7 @@ import { ref, onValue, get } from "firebase/database";
 import { User, Project } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
+import { isProjectAdmin } from "../utils/permissions";
 import "./UnifiedMenu.css";
 import { signOut } from "firebase/auth";
 
@@ -22,6 +23,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [canEditBoard, setCanEditBoard] = useState(false);
+  const [canManageProject, setCanManageProject] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if we're on a board page - memoized to avoid recalculation
@@ -65,10 +67,20 @@ export const UnifiedMenu = memo(function UnifiedMenu({
         if (currentProjectId) {
           const currentProj = validProjects.find(p => p.id === currentProjectId);
           setCurrentProject(currentProj || null);
+          
+          // Check if user has project management permissions
+          if (currentProj) {
+            setCanManageProject(isProjectAdmin(currentProj, user.uid));
+          } else {
+            setCanManageProject(false);
+          }
+        } else {
+          setCanManageProject(false);
         }
       } else {
         setProjects([]);
         setCurrentProject(null);
+        setCanManageProject(false);
       }
     });
 
@@ -189,7 +201,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
 
           {/* Project Section */}
           <div className="menu-section project-section">
-            {currentProjectId && (
+            {currentProjectId && canManageProject && (
               <Link to={`/project/${currentProjectId}/settings`} className="menu-item" onClick={handleCloseMenu}>
                 Project Settings
               </Link>
