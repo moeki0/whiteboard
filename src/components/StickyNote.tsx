@@ -1553,7 +1553,11 @@ export function StickyNote({
                 overflowWrap: "break-word",
                 whiteSpace: "pre-wrap",
                 width: "auto",
-                maxWidth: "160px",
+                maxWidth: parsedContent.find(
+                  (c) => c.type === "image" || c.type === "boardthumbnailimage"
+                )
+                  ? "none"
+                  : "160px",
               }}
             >
               {parsedContent.map((item, index) => {
