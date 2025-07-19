@@ -500,6 +500,11 @@ export function StickyNote({
       return;
     }
 
+    // 透明色の付箋はドラッグを無効化
+    if (noteColor === "transparent") {
+      return;
+    }
+
     // 移動権限がない場合はドラッグを無効化
     if (!canMoveNote) {
       return;
@@ -1430,7 +1435,7 @@ export function StickyNote({
           noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.04)",
         border:
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
-        zIndex: note.zIndex || 1,
+        zIndex: noteColor === "transparent" ? -1 : (note.zIndex || 1),
         opacity: 1,
         fontSize: `${actualFontSize}px`,
         padding: `${actualPadding}px`,

@@ -357,4 +357,117 @@ describe("StickyNote", () => {
       expect(container.textContent).toContain("Bit Journey, Inc.");
     });
   });
+
+  describe("透明付箋の背面固定機能", () => {
+    it("透明色の付箋がzIndex: -1で背面に固定される", () => {
+      const transparentNote = {
+        ...mockNote,
+        color: "transparent",
+        zIndex: 5,
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={transparentNote} />
+      );
+
+      const noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      expect(noteElement.style.zIndex).toBe("-1");
+    });
+
+    it("透明色以外の付箋は元のzIndexを保持する", () => {
+      const normalNote = {
+        ...mockNote,
+        color: "white",
+        zIndex: 5,
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={normalNote} />
+      );
+
+      const noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      expect(noteElement.style.zIndex).toBe("5");
+    });
+
+    it("透明色の付箋が色変更で通常色になった場合、元のzIndexに戻る", () => {
+      const transparentNote = {
+        ...mockNote,
+        color: "transparent",
+        zIndex: 3,
+      };
+
+      const { container, rerender } = render(
+        <StickyNote {...mockProps} note={transparentNote} />
+      );
+
+      // 最初は透明色でzIndex: -1
+      let noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      expect(noteElement.style.zIndex).toBe("-1");
+
+      // 色を白に変更
+      const whiteNote = {
+        ...transparentNote,
+        color: "white",
+      };
+
+      rerender(<StickyNote {...mockProps} note={whiteNote} />);
+
+      // 元のzIndexに戻る
+      noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      expect(noteElement.style.zIndex).toBe("3");
+    });
+
+    it("透明色の付箋はドラッグできない", () => {
+      const transparentNote = {
+        ...mockNote,
+        color: "transparent",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={transparentNote} />
+      );
+
+      const noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      
+      // mousedownイベントを発火
+      const mouseDownEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 100,
+        clientY: 100,
+      });
+      
+      noteElement.dispatchEvent(mouseDownEvent);
+      
+      // onUpdateがisDragging: trueで呼ばれないことを確認
+      expect(mockProps.onUpdate).not.toHaveBeenCalledWith(
+        transparentNote.id,
+        expect.objectContaining({ isDragging: true })
+      );
+    });
+
+    it("透明色の付箋はクリックでアクティブにできる", () => {
+      const transparentNote = {
+        ...mockNote,
+        color: "transparent",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={transparentNote} />
+      );
+
+      const noteElement = container.querySelector(".sticky-note") as HTMLElement;
+      
+      // クリックイベントを発火
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      });
+      
+      noteElement.dispatchEvent(clickEvent);
+      
+      // onActivateが呼ばれることを確認
+      expect(mockProps.onActivate).toHaveBeenCalledWith(transparentNote.id, false);
+    });
+  });
 });
