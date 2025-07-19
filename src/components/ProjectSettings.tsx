@@ -311,26 +311,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
-  const generateBookmarklet = () => {
-    if (!project?.cosenseProjectName) {
-      return "";
-    }
-
-    const bookmarkletCode = `javascript:(function(){const boardTitle=document.querySelector('.header-subtitle')?.textContent?.trim()||'Untitled Board';const notes=Array.from(document.querySelectorAll('.sticky-note[data-note-content]')).map(el=>el.getAttribute('data-note-content')?.trim()||'').filter(text=>text.includes('[')&&text.includes(']'));const boardUrl=window.location.href;const content='Source: ['+boardTitle+' '+boardUrl+']\\n\\n'+notes.join('\\n');const projectName='${project.cosenseProjectName}';const url='https://scrapbox.io/'+encodeURIComponent(projectName)+'/'+encodeURIComponent(boardTitle)+'?body='+encodeURIComponent(content);window.open(url,'_blank');})();`;
-
-    return bookmarkletCode;
-  };
-
-  const openBookmarkletPage = () => {
-    const bookmarkletCode = generateBookmarklet();
-    const html = `<a href="${bookmarkletCode}">${project?.name} Turtle to Cosense</a>`;
-
-    const newWindow = window.open("", "_blank");
-    if (newWindow) {
-      newWindow.document.write(html);
-      newWindow.document.close();
-    }
-  };
 
   const copyInviteLink = async () => {
     if (!project?.inviteCode) {
@@ -596,19 +576,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           </div>
         </div>
 
-        {/* Cosense Integration */}
-        {project.cosenseProjectName && (
-          <div className="settings-section">
-            <h2>Cosense Integration</h2>
-            <div className="setting-item">
-              <div>
-                <button onClick={openBookmarkletPage} className="save-btn">
-                  📝 Get Bookmarklet
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Members Management */}
         <div className="settings-section">
