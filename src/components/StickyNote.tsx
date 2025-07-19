@@ -1859,6 +1859,7 @@ export function StickyNote({
                         height: "1em",
                         verticalAlign: "middle",
                         display: "inline-block",
+                        userSelect: "none",
                       }}
                       onError={(e) => {
                         // 画像が読み込めなかった場合のフォールバック
@@ -1883,6 +1884,7 @@ export function StickyNote({
                         verticalAlign: "middle",
                         display: "inline-block",
                         borderRadius: "2px",
+                        userSelect: "none",
                       }}
                       onError={(e) => {
                         // 画像が読み込めなかった場合のフォールバック
@@ -1909,6 +1911,7 @@ export function StickyNote({
                         verticalAlign: "middle",
                         maxWidth: `${maxWidth}px`,
                         width: `${maxWidth}px`,
+                        userSelect: "none",
                       }}
                     />
                   );
