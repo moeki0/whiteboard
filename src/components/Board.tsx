@@ -392,17 +392,29 @@ export function Board({ user }: BoardProps) {
     }
   };
 
+  // 付箋を最前面に移動する関数
+  const bringNoteToFront = (noteId: string) => {
+    updateNote(noteId, { zIndex: nextZIndex });
+    setNextZIndex((prev) => prev + 1);
+  };
+
   const handleActivateNote = (
     noteId: string,
-    isMultiSelect: boolean = false
+    isMultiSelect: boolean = false,
+    isShiftSelect: boolean = false
   ) => {
     // 一括ドラッグ直後や範囲選択直後はアクティベートを無視
     if (isDraggingMultiple || justFinishedBulkDrag || justFinishedSelection) {
       return;
     }
 
-    if (isMultiSelect) {
-      // Ctrl/Cmdキーが押されている場合は複数選択
+    if (isMultiSelect && !isShiftSelect) {
+      // Ctrl/Cmdキーが押されている場合は最前面に移動
+      bringNoteToFront(noteId);
+      // 単一選択に設定
+      setSelectedNoteIds(new Set([noteId]));
+    } else if (isShiftSelect) {
+      // Shiftキーが押されている場合は複数選択
       const newSelectedIds = new Set(selectedNoteIds);
       if (newSelectedIds.has(noteId)) {
         newSelectedIds.delete(noteId);
@@ -411,15 +423,8 @@ export function Board({ user }: BoardProps) {
       }
       setSelectedNoteIds(newSelectedIds);
     } else {
-      // 通常の単一選択
+      // 通常の単一選択（zIndexは変更しない）
       setSelectedNoteIds(new Set([noteId]));
-    }
-
-    // Bring to front by updating zIndex
-    const note = notes.find((n) => n.id === noteId);
-    if (note) {
-      updateNote(noteId, { zIndex: nextZIndex });
-      setNextZIndex((prev) => prev + 1);
     }
   };
 

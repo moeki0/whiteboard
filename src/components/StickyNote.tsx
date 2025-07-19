@@ -81,7 +81,7 @@ interface StickyNoteProps {
   onDelete: (noteId: string) => void;
   isActive: boolean;
   isSelected: boolean;
-  onActivate: (noteId: string, isMultiSelect?: boolean) => void;
+  onActivate: (noteId: string, isMultiSelect?: boolean, isShiftSelect?: boolean) => void;
   onStartBulkDrag: (
     noteId: string,
     e: React.MouseEvent<HTMLDivElement>
@@ -1127,8 +1127,10 @@ export function StickyNote({
     }
 
     e.stopPropagation();
-    const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-    onActivate(note.id, isMultiSelect);
+    const isCommandClick = e.ctrlKey || e.metaKey;
+    const isShiftClick = e.shiftKey;
+    const isMultiSelect = isCommandClick && !isShiftClick;
+    onActivate(note.id, isMultiSelect, isShiftClick);
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
