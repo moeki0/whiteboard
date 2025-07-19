@@ -176,7 +176,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
 
   const openBookmarkletPage = useCallback(() => {
     const bookmarkletCode = generateBookmarklet();
-    const html = `<a href="${bookmarkletCode}">Create Cosense Page</a>`;
+    const html = `<a href="${bookmarkletCode}">${currentProject?.name} Turtle to Cosense</a>`;
 
     const newWindow = window.open("", "_blank");
     if (newWindow) {
@@ -184,7 +184,7 @@ export const UnifiedMenu = memo(function UnifiedMenu({
       newWindow.document.close();
     }
     setIsOpen(false);
-  }, [generateBookmarklet]);
+  }, [generateBookmarklet, currentProject?.name]);
 
   return (
     <div className="unified-menu" ref={dropdownRef}>
