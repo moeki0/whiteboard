@@ -57,6 +57,26 @@ export function isNoteNewerThanLastView(
 }
 
 /**
+ * ボードに未読コンテンツがあるかチェック
+ * 最後の更新時刻が閲覧時刻より新しい場合、またはまだ閲覧されていない場合にtrueを返す
+ */
+export function hasBoardUnreadContent(
+  boardId: string,
+  boardUpdatedAt?: number
+): boolean {
+  const lastViewTime = getLastBoardViewTime(boardId);
+  
+  // 閲覧履歴がない場合は未読とみなす
+  if (!lastViewTime) return true;
+  
+  // ボードの更新時刻がない場合は既読とみなす
+  if (!boardUpdatedAt) return false;
+  
+  // ボードの更新時刻が最後の閲覧時刻より新しい場合は未読
+  return boardUpdatedAt > lastViewTime;
+}
+
+/**
  * 閲覧履歴をクリア（デバッグ用）
  */
 export function clearBoardViewHistory(): void {

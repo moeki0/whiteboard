@@ -10,6 +10,7 @@ import { LuPlus } from "react-icons/lu";
 import { generateNewBoardName, addToRecentlyCreated } from "../utils/boardNaming";
 import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
 import { normalizeTitle } from "../utils/boardTitleIndex";
+import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 
 interface BoardListProps {
   user: User | null;
@@ -292,17 +293,38 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       </div>
 
       <div className="boards-grid">
-        {boards.map((board) => (
-          <div key={board.id} className="board-card-wrapper">
-            <Link
-              to={
-                project?.slug
-                  ? `/${project.slug}/${encodeURIComponent(board.name)}`
-                  : `/${board.id}`
-              }
-              className="board-card"
-            >
-              <p className="board-name">{boardTitles[board.id] || ""}</p>
+        {boards.map((board) => {
+          const hasUnread = hasBoardUnreadContent(board.id, board.updatedAt);
+          
+          return (
+            <div key={board.id} className="board-card-wrapper">
+              <Link
+                to={
+                  project?.slug
+                    ? `/${project.slug}/${encodeURIComponent(board.name)}`
+                    : `/${board.id}`
+                }
+                className="board-card"
+                style={{ position: 'relative' }}
+              >
+                {/* 未読ラベル（三角） */}
+                {hasUnread && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '0px',
+                      right: '0px',
+                      width: '0',
+                      height: '0',
+                      borderLeft: '12px solid transparent',
+                      borderTop: '12px solid #96cc95',
+                      zIndex: 10,
+                      pointerEvents: 'none',
+                    }}
+                    title="未読"
+                  />
+                )}
+                <p className="board-name">{boardTitles[board.id] || ""}</p>
               {boardThumbnails[board.id] ? (
                 <div className="board-thumbnail">
                   {boardThumbnails[board.id] ? (
@@ -327,7 +349,8 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
               <ActiveMembers boardId={board.id} />
             </Link>
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );
