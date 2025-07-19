@@ -273,6 +273,11 @@ export function Board({ user }: BoardProps) {
     set(noteRef, newNote);
     setNextZIndex((prev) => prev + 1);
 
+    // 新しい付箋にフォーカスを設定
+    setNoteToFocus(noteId);
+    // 新しい付箋を選択状態にする
+    setSelectedNoteIds(new Set([noteId]));
+
     // ボードの更新時刻を更新（非同期で実行、エラーがあってもメイン処理に影響しない）
     setTimeout(() => {
       try {
@@ -1756,6 +1761,7 @@ export function Board({ user }: BoardProps) {
               onFocused={() => setNoteToFocus(null)}
               board={board!}
               project={project}
+              onAddNote={addNote}
               onBlur={() => {
                 // 付箋の編集が完了したときに確実にメタデータを更新
                 setTimeout(() => {

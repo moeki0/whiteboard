@@ -102,6 +102,7 @@ interface StickyNoteProps {
   board: Board;
   project: Project | null;
   user?: { displayName: string | null; photoURL: string | null } | null;
+  onAddNote?: (x: number, y: number) => string;
 }
 
 export function StickyNote({
@@ -123,6 +124,7 @@ export function StickyNote({
   board,
   project,
   onBlur,
+  onAddNote,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -132,6 +134,8 @@ export function StickyNote({
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // ボード候補関連の状態
   const [showBoardSuggestions, setShowBoardSuggestions] = useState(false);
@@ -1130,6 +1134,14 @@ export function StickyNote({
     e.stopPropagation();
     const isCommandClick = e.ctrlKey || e.metaKey;
     const isShiftClick = e.shiftKey;
+
+    // 透明な付箋でCmd/Ctrlクリックの場合は編集モードに入る
+    if (noteColor === "transparent" && isCommandClick && !isShiftClick && canEditNote) {
+      setIsEditing(true);
+      setShowToolbar(true);
+      return;
+    }
+
     const isMultiSelect = isCommandClick && !isShiftClick;
     onActivate(note.id, isMultiSelect, isShiftClick);
   };
@@ -1141,7 +1153,15 @@ export function StickyNote({
 
     e.stopPropagation();
 
-    // 編集権限がある場合
+    // 透明な付箋の場合はコンテキストメニューを表示
+    if (noteColor === "transparent") {
+      // メニューを上に表示（マウスカーソルに被らないように）
+      setContextMenuPosition({ x: e.clientX, y: e.clientY - 20 });
+      setShowContextMenu(true);
+      return;
+    }
+
+    // 通常の付箋の場合は編集モードに入る
     if (canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
@@ -1149,6 +1169,35 @@ export function StickyNote({
       // 編集権限がない場合は何もしない
       return;
     }
+  };
+
+  const handleContextMenuAddNote = () => {
+    if (onAddNote) {
+      // ダブルクリックした位置に新しい付箋を追加
+      const noteElement = noteRef.current;
+      if (noteElement) {
+        const rect = noteElement.getBoundingClientRect();
+        // 付箋内のクリック位置を計算
+        const relativeX = (contextMenuPosition.x - rect.left) / zoom;
+        const relativeY = (contextMenuPosition.y - rect.top) / zoom;
+        // 付箋の座標に相対位置を加算
+        const x = note.x + relativeX;
+        const y = note.y + relativeY;
+        const newNoteId = onAddNote(x, y);
+        if (newNoteId) {
+          onActivate(newNoteId, false, false);
+        }
+      }
+    }
+    setShowContextMenu(false);
+  };
+
+  const handleContextMenuEdit = () => {
+    if (canEditNote) {
+      setIsEditing(true);
+      setShowToolbar(true);
+    }
+    setShowContextMenu(false);
   };
 
   useEffect(() => {
@@ -1186,6 +1235,23 @@ export function StickyNote({
       }
     }
   }, [shouldFocus, isEditing, onFocused, canEditNote]);
+
+  // コンテキストメニューを閉じる処理
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.context-menu')) {
+        setShowContextMenu(false);
+      }
+    };
+
+    if (showContextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showContextMenu]);
 
   // ユーザープロファイルを取得する関数（プロジェクトメンバーのみ）
   const loadUserProfile = useCallback(
@@ -1899,6 +1965,60 @@ export function StickyNote({
             isVisible={true}
             selectedIndex={selectedSuggestionIndex}
           />
+        </div>
+      )}
+      {showContextMenu && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            left: contextMenuPosition.x,
+            top: contextMenuPosition.y,
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            zIndex: 10000,
+            overflow: 'hidden'
+          }}
+        >
+          <button
+            onClick={handleContextMenuAddNote}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '8px 16px',
+              border: 'none',
+              background: 'none',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            Add sticky note
+          </button>
+          {canEditNote && (
+            <button
+              onClick={handleContextMenuEdit}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '8px 16px',
+                border: 'none',
+                borderTop: '1px solid #eee',
+                background: 'none',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              Edit
+            </button>
+          )}
         </div>
       )}
     </div>
