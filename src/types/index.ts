@@ -24,6 +24,7 @@ export interface Note {
   textSize?: string;
   userId: string;
   createdAt: number;
+  updatedAt?: number;
   zIndex: number;
   width: string;
   isDragging?: boolean;

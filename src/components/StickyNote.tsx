@@ -21,6 +21,7 @@ import {
 import { useProjectBoards } from "../hooks/useProjectBoards";
 import { BoardSuggestions } from "./BoardSuggestions";
 import { extractBoardLinks } from "../utils/extractBoardLinks";
+import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
 
 interface ImageContent {
   type: "image";
@@ -159,6 +160,7 @@ export function StickyNote({
     start: number;
     end: number;
   } | null>(null);
+  const [, forceUpdate] = useState({});
 
   // 権限チェック
   const { canEdit: canEditBoard } = checkBoardEditPermission(
@@ -493,6 +495,38 @@ export function StickyNote({
   }, []);
 
   // 固定幅なので自動リサイズは不要
+
+  // 影の更新のために定期的に再レンダリング
+  useEffect(() => {
+    const lastUpdate = note.updatedAt || note.createdAt;
+    const now = Date.now();
+    const timeDiff = now - lastUpdate;
+
+    // 更新からの経過時間に応じて再レンダリング間隔を設定
+    let interval: number;
+    if (timeDiff < 60 * 1000) {
+      // 1分以内: 10秒ごと
+      interval = 10 * 1000;
+    } else if (timeDiff < 5 * 60 * 1000) {
+      // 5分以内: 30秒ごと
+      interval = 30 * 1000;
+    } else if (timeDiff < 30 * 60 * 1000) {
+      // 30分以内: 1分ごと
+      interval = 60 * 1000;
+    } else if (timeDiff < 60 * 60 * 1000) {
+      // 1時間以内: 5分ごと
+      interval = 5 * 60 * 1000;
+    } else {
+      // それ以上: 更新不要
+      return;
+    }
+
+    const timer = setInterval(() => {
+      forceUpdate({});
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [note.updatedAt, note.createdAt]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 編集中はドラッグを無効化
@@ -1420,6 +1454,50 @@ export function StickyNote({
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
+  // 新着チェック
+  const isNewNote = isNoteNewerThanLastView(
+    board.id,
+    note.createdAt,
+    note.updatedAt
+  );
+
+  // 更新時間に基づいて影のサイズを計算
+  const calculateShadowByRecency = () => {
+    if (noteColor === "transparent") return "none";
+
+    const now = Date.now();
+    const lastUpdate = note.updatedAt || note.createdAt;
+    const timeDiff = now - lastUpdate;
+
+    // 時間の閾値（ミリ秒）
+    const oneMinute = 60 * 1000;
+    const fiveMinutes = 5 * 60 * 1000;
+    const thirtyMinutes = 30 * 60 * 1000;
+    const oneHour = 60 * 60 * 1000;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    // 時間差に応じて影のサイズを決定
+    if (timeDiff < oneMinute) {
+      // 1分以内: 大きな影
+      return "0 4px 20px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)";
+    } else if (timeDiff < fiveMinutes) {
+      // 5分以内: やや大きな影
+      return "0 3px 15px rgba(0, 0, 0, 0.12), 0 1px 6px rgba(0, 0, 0, 0.08)";
+    } else if (timeDiff < thirtyMinutes) {
+      // 30分以内: 中程度の影
+      return "0 2px 10px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06)";
+    } else if (timeDiff < oneHour) {
+      // 1時間以内: 小さめの影
+      return "0 1px 6px rgba(0, 0, 0, 0.06), 0 0px 3px rgba(0, 0, 0, 0.04)";
+    } else if (timeDiff < oneDay) {
+      // 1日以内: 小さな影
+      return "0 0px 4px rgba(0, 0, 0, 0.04)";
+    } else {
+      // 1日以上: 最小の影
+      return "0 0px 2px rgba(0, 0, 0, 0.02)";
+    }
+  };
+
   return (
     <div
       ref={noteRef}
@@ -1431,11 +1509,11 @@ export function StickyNote({
         left: `${position.x}px`,
         top: `${position.y}px`,
         backgroundColor: backgroundColor,
-        boxShadow:
-          noteColor === "transparent" ? "none" : "0 0 10px rgba(0, 0, 0, 0.04)",
+        boxShadow: calculateShadowByRecency(),
+        overflow: "hidden",
         border:
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
-        zIndex: noteColor === "transparent" ? -1 : (note.zIndex || 1),
+        zIndex: noteColor === "transparent" ? -1 : note.zIndex || 1,
         opacity: 1,
         fontSize: `${actualFontSize}px`,
         padding: `${actualPadding}px`,
@@ -1591,6 +1669,23 @@ export function StickyNote({
           </div>
         </div>
       ) : null}
+
+      {/* 新着マーク */}
+      {isNewNote && noteColor !== "transparent" && (
+        <div
+          style={{
+            position: "absolute",
+            top: "-8px",
+            right: "-8px",
+            width: "14px",
+            height: "14px",
+            transform: "rotate(45deg)",
+            backgroundColor: "#96cc95",
+            zIndex: 1000,
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       <div className="note-content" style={{ position: "relative" }}>
         {isEditing && canEditNote ? (

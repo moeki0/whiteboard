@@ -21,6 +21,7 @@ import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note } from "../types";
 import { generateNewBoardName } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
+import { updateBoardViewTime } from "../utils/boardViewHistory";
 
 interface BoardProps {
   user: User | null;
@@ -115,6 +116,32 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // ボードの閲覧時刻を記録（ページを離れる時のみ）
+  useEffect(() => {
+    if (!boardId) return;
+
+    const handleBeforeUnload = () => {
+      updateBoardViewTime(boardId);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        updateBoardViewTime(boardId);
+      }
+    };
+
+    // ページを離れる時、タブを切り替える時に閲覧時刻を更新
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      // クリーンアップ時（コンポーネントがアンマウントされる時）にも更新
+      updateBoardViewTime(boardId);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [boardId]);
 
   // ボードの情報とタイムスタンプを更新する関数
   const updateBoardMetadata = async () => {
@@ -268,7 +295,19 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     const note = notes.find((n) => n.id === noteId);
     if (note) {
-      const updatedNote = { ...note, ...updates };
+      // updatedAtを追加（content, x, y, color, textSizeが変更された場合のみ）
+      const shouldUpdateTimestamp = 
+        updates.content !== undefined || 
+        updates.x !== undefined || 
+        updates.y !== undefined || 
+        updates.color !== undefined || 
+        updates.textSize !== undefined;
+      
+      const updatedNote = { 
+        ...note, 
+        ...updates,
+        ...(shouldUpdateTimestamp && { updatedAt: Date.now() })
+      };
 
       // Add to history only for significant changes by the current user
       // Skip history tracking if this is an undo/redo operation for this specific note
