@@ -601,50 +601,10 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           <div className="settings-section">
             <h2>Cosense Integration</h2>
             <div className="setting-item">
-              <label>Create Cosense Page Bookmarklet</label>
-              <p style={{ marginBottom: "10px", color: "#666" }}>
-                Drag the button below to your bookmarks bar. Click it on any
-                board page to create a Cosense page with notes containing []
-                links.
-              </p>
-              <div
-                style={{
-                  padding: "15px",
-                  backgroundColor: "#f5f5f5",
-                  borderRadius: "5px",
-                  marginBottom: "15px",
-                }}
-              >
-                <p style={{ marginBottom: "10px", fontWeight: "bold" }}>
-                  📝 Click to open bookmarklet page:
-                </p>
-                <div style={{ textAlign: "center" }}>
-                  <button onClick={openBookmarkletPage} className="save-btn">
-                    📝 Get Bookmarklet
-                  </button>
-                </div>
-              </div>
-              <div
-                style={{
-                  marginTop: "15px",
-                  padding: "15px",
-                  backgroundColor: "#e3f2fd",
-                  borderRadius: "5px",
-                }}
-              >
-                <h4 style={{ margin: "0 0 10px 0" }}>How to use:</h4>
-                <ol style={{ margin: 0, paddingLeft: "20px" }}>
-                  <li>Click the "Get Bookmarklet" button above</li>
-                  <li>A new page will open with the bookmarklet</li>
-                  <li>
-                    Drag the green button from that page to your bookmarks bar
-                  </li>
-                  <li>Navigate to any board page and click the bookmark</li>
-                  <li>
-                    A new Cosense page will be created with the board title and
-                    all notes containing [] links
-                  </li>
-                </ol>
+              <div>
+                <button onClick={openBookmarkletPage} className="save-btn">
+                  📝 Get Bookmarklet
+                </button>
               </div>
             </div>
           </div>
