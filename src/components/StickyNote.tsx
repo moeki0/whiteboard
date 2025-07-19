@@ -81,7 +81,11 @@ interface StickyNoteProps {
   onDelete: (noteId: string) => void;
   isActive: boolean;
   isSelected: boolean;
-  onActivate: (noteId: string, isMultiSelect?: boolean, isShiftSelect?: boolean) => void;
+  onActivate: (
+    noteId: string,
+    isMultiSelect?: boolean,
+    isShiftSelect?: boolean
+  ) => void;
   onStartBulkDrag: (
     noteId: string,
     e: React.MouseEvent<HTMLDivElement>
@@ -135,7 +139,10 @@ export function StickyNote({
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [contextMenuPosition, setContextMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
 
   // ボード候補関連の状態
   const [showBoardSuggestions, setShowBoardSuggestions] = useState(false);
@@ -1136,7 +1143,12 @@ export function StickyNote({
     const isShiftClick = e.shiftKey;
 
     // 透明な付箋でCmd/Ctrlクリックの場合は編集モードに入る
-    if (noteColor === "transparent" && isCommandClick && !isShiftClick && canEditNote) {
+    if (
+      noteColor === "transparent" &&
+      isCommandClick &&
+      !isShiftClick &&
+      canEditNote
+    ) {
       setIsEditing(true);
       setShowToolbar(true);
       return;
@@ -1240,15 +1252,15 @@ export function StickyNote({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.context-menu')) {
+      if (!target.closest(".context-menu")) {
         setShowContextMenu(false);
       }
     };
 
     if (showContextMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }
   }, [showContextMenu]);
@@ -1971,31 +1983,36 @@ export function StickyNote({
         <div
           className="context-menu"
           style={{
-            position: 'fixed',
+            position: "fixed",
             left: contextMenuPosition.x,
             top: contextMenuPosition.y,
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            backgroundColor: "#222",
+            border: "1px solid #777",
+            borderRadius: "4px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
             zIndex: 10000,
-            overflow: 'hidden'
+            overflow: "hidden",
           }}
         >
           <button
             onClick={handleContextMenuAddNote}
             style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 16px',
-              border: 'none',
-              background: 'none',
-              textAlign: 'left',
-              cursor: 'pointer',
-              fontSize: '14px'
+              display: "block",
+              width: "100%",
+              padding: "4px 8px",
+              border: "none",
+              background: "none",
+              textAlign: "left",
+              color: "white",
+              cursor: "pointer",
+              borderRadius: "0",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#333")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "transparent")
+            }
           >
             Add sticky note
           </button>
@@ -2003,18 +2020,23 @@ export function StickyNote({
             <button
               onClick={handleContextMenuEdit}
               style={{
-                display: 'block',
-                width: '100%',
-                padding: '8px 16px',
-                border: 'none',
-                borderTop: '1px solid #eee',
-                background: 'none',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontSize: '14px'
+                display: "block",
+                width: "100%",
+                padding: "4px 8px",
+                border: "none",
+                borderTop: "1px solid #777",
+                background: "none",
+                textAlign: "left",
+                cursor: "pointer",
+                color: "white",
+                borderRadius: "0",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#333")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
             >
               Edit
             </button>
