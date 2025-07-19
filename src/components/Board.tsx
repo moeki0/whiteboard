@@ -574,10 +574,21 @@ export function Board({ user }: BoardProps) {
 
   // パンまたは範囲選択の開始
   const handleBoardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // 付箋やボタンをクリックした場合は何もしない
+    // ボタンをクリックした場合は何もしない
     const target = e.target as HTMLElement;
-    if (target.closest(".sticky-note") || target.closest("button")) {
+    if (target.closest("button")) {
       return;
+    }
+
+    // 透明な付箋以外の付箋をクリックした場合は何もしない
+    const stickyNote = target.closest(".sticky-note");
+    if (stickyNote) {
+      const noteElement = stickyNote as HTMLElement;
+      const isTransparent = noteElement.style.backgroundColor === "transparent" || 
+                           noteElement.style.background === "transparent";
+      if (!isTransparent) {
+        return;
+      }
     }
 
     // Shiftキーで範囲選択、それ以外でパン

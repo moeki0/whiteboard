@@ -534,8 +534,9 @@ export function StickyNote({
       return;
     }
 
-    // 透明色の付箋はドラッグを無効化
+    // 透明色の付箋はドラッグを無効化し、イベントを親に伝播させる
     if (noteColor === "transparent") {
+      // イベントの伝播を許可してボードのパン機能を有効にする
       return;
     }
 
