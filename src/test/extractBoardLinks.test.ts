@@ -66,4 +66,63 @@ describe("extractBoardLinks", () => {
     expect(links[0].name).not.toContain(".icon");
   });
 
+  it("URLパターンを含む[]はボードリンクとして判定しない", () => {
+    const content = "[https://example.com] [http://test.org] [ftp://files.com]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // URLパターンはボードリンクとして抽出されない
+    expect(links).toHaveLength(0);
+  });
+
+  it("URLとボード名が混在している場合、ボード名のみ抽出する", () => {
+    const content = "[moeki] [https://example.com] [test]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // URLは除外され、ボード名のみ抽出される
+    expect(links).toHaveLength(2);
+    expect(links.map(l => l.name)).toContain("moeki");
+    expect(links.map(l => l.name)).toContain("test");
+    expect(links.map(l => l.name)).not.toContain("https://example.com");
+  });
+
+  it("メール形式のURLも除外する", () => {
+    const content = "[mailto:test@example.com] [moeki]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // メールURLは除外され、ボード名のみ抽出される
+    expect(links).toHaveLength(1);
+    expect(links[0].name).toBe("moeki");
+  });
+
+  it("文字列の途中にURLが含まれる場合も除外する", () => {
+    const content = "[title https://example.com] [moeki]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // URLが含まれる文字列は除外され、ボード名のみ抽出される
+    expect(links).toHaveLength(1);
+    expect(links[0].name).toBe("moeki");
+    expect(links.map(l => l.name)).not.toContain("title https://example.com");
+  });
+
+  it("様々なURLパターンが含まれる文字列を除外する", () => {
+    const content = "[参照 http://example.org/path] [詳細は https://docs.example.com を見て] [moeki]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // URLが含まれる文字列は全て除外され、ボード名のみ抽出される
+    expect(links).toHaveLength(1);
+    expect(links[0].name).toBe("moeki");
+  });
+
+  it("URLと類似した文字列は正常にボードリンクとして認識する", () => {
+    const content = "[http-client] [https-proxy] [ftp-server] [moeki]";
+    const links = extractBoardLinks(content, mockBoardLinks);
+    
+    // URL形式ではない類似文字列は通常のボードリンクとして認識される
+    expect(links).toHaveLength(4);
+    expect(links.map(l => l.name)).toContain("http-client");
+    expect(links.map(l => l.name)).toContain("https-proxy");
+    expect(links.map(l => l.name)).toContain("ftp-server");
+    expect(links.map(l => l.name)).toContain("moeki");
+  });
+
 });
