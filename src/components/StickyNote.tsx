@@ -1167,8 +1167,11 @@ export function StickyNote({
 
     // 透明な付箋の場合はコンテキストメニューを表示
     if (noteColor === "transparent") {
-      // メニューを上に表示（マウスカーソルに被らないように）
-      setContextMenuPosition({ x: e.clientX, y: e.clientY - 20 });
+      // 付箋内の相対位置を計算
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const relativeY = e.clientY - rect.top;
+      setContextMenuPosition({ x: relativeX, y: relativeY });
       setShowContextMenu(true);
       return;
     }
@@ -1983,7 +1986,7 @@ export function StickyNote({
         <div
           className="context-menu"
           style={{
-            position: "fixed",
+            position: "absolute",
             left: contextMenuPosition.x,
             top: contextMenuPosition.y,
             backgroundColor: "#222",
