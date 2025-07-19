@@ -1189,19 +1189,15 @@ export function StickyNote({
   const handleContextMenuAddNote = () => {
     if (onAddNote) {
       // ダブルクリックした位置に新しい付箋を追加
-      const noteElement = noteRef.current;
-      if (noteElement) {
-        const rect = noteElement.getBoundingClientRect();
-        // 付箋内のクリック位置を計算
-        const relativeX = (contextMenuPosition.x - rect.left) / zoom;
-        const relativeY = (contextMenuPosition.y - rect.top) / zoom;
-        // 付箋の座標に相対位置を加算
-        const x = note.x + relativeX;
-        const y = note.y + relativeY;
-        const newNoteId = onAddNote(x, y);
-        if (newNoteId) {
-          onActivate(newNoteId, false, false);
-        }
+      // contextMenuPositionは既に付箋内の相対位置として保存されている
+      const relativeX = contextMenuPosition.x / (zoom || 1);
+      const relativeY = contextMenuPosition.y / (zoom || 1);
+      // 付箋の座標に相対位置を加算
+      const x = note.x + relativeX;
+      const y = note.y + relativeY;
+      const newNoteId = onAddNote(x, y);
+      if (newNoteId) {
+        onActivate(newNoteId, false, false);
       }
     }
     setShowContextMenu(false);
