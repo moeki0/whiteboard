@@ -1598,6 +1598,7 @@ export function StickyNote({
     <div
       ref={noteRef}
       data-note-id={note.id}
+      data-note-content={content}
       className={`sticky-note ${isActive ? "active" : ""} ${
         isSelected ? "selected" : ""
       } ${interactionBorderColor ? "being-used" : ""}`}

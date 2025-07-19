@@ -69,6 +69,7 @@ export interface Project {
   inviteCode?: string;
   members: Record<string, ProjectMember>;
   isPublic: boolean;
+  cosenseProjectName?: string;
 }
 
 export interface ProjectMember {

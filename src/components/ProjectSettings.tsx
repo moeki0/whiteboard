@@ -27,6 +27,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const [loading, setLoading] = useState(true);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectSlug, setNewProjectSlug] = useState("");
+  const [newCosenseProjectName, setNewCosenseProjectName] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -43,6 +44,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           setProject(projectData);
           setNewProjectName(projectData.name);
           setNewProjectSlug(projectData.slug || "");
+          setNewCosenseProjectName(projectData.cosenseProjectName || "");
 
           // Check user role
           const userMember = projectData.members?.[user.uid];
@@ -133,6 +135,35 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
+  const updateCosenseProjectName = async () => {
+    if (!isAdmin) {
+      alert("Admin privileges required to modify project settings");
+      return;
+    }
+
+    if (newCosenseProjectName === project?.cosenseProjectName) {
+      return;
+    }
+
+    try {
+      const projectRef = ref(rtdb, `projects/${projectId}/cosenseProjectName`);
+      if (newCosenseProjectName.trim()) {
+        await set(projectRef, newCosenseProjectName);
+        setProject((prev) =>
+          prev ? { ...prev, cosenseProjectName: newCosenseProjectName } : null
+        );
+      } else {
+        await remove(projectRef);
+        setProject((prev) =>
+          prev ? { ...prev, cosenseProjectName: undefined } : null
+        );
+      }
+    } catch (error) {
+      console.error("Error updating cosense project name:", error);
+      alert("Failed to update cosense project name");
+    }
+  };
+
   const updateProjectPrivacy = async (isPublic: boolean) => {
     if (!isAdmin) {
       alert("Admin privileges required to modify project settings");
@@ -191,20 +222,23 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       return;
     }
 
-    if (!window.confirm("Are you sure you want to promote this member to admin?")) {
+    if (
+      !window.confirm("Are you sure you want to promote this member to admin?")
+    ) {
       return;
     }
 
     try {
-      const memberRef = ref(rtdb, `projects/${projectId}/members/${memberUid}/role`);
+      const memberRef = ref(
+        rtdb,
+        `projects/${projectId}/members/${memberUid}/role`
+      );
       await set(memberRef, "admin");
 
       // Update local state
-      setMembers((prev) => 
-        prev.map((member) => 
-          member.uid === memberUid 
-            ? { ...member, role: "admin" }
-            : member
+      setMembers((prev) =>
+        prev.map((member) =>
+          member.uid === memberUid ? { ...member, role: "admin" } : member
         )
       );
     } catch (error) {
@@ -219,20 +253,23 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
       return;
     }
 
-    if (!window.confirm("Are you sure you want to demote this admin to member?")) {
+    if (
+      !window.confirm("Are you sure you want to demote this admin to member?")
+    ) {
       return;
     }
 
     try {
-      const memberRef = ref(rtdb, `projects/${projectId}/members/${memberUid}/role`);
+      const memberRef = ref(
+        rtdb,
+        `projects/${projectId}/members/${memberUid}/role`
+      );
       await set(memberRef, "member");
 
       // Update local state
-      setMembers((prev) => 
-        prev.map((member) => 
-          member.uid === memberUid 
-            ? { ...member, role: "member" }
-            : member
+      setMembers((prev) =>
+        prev.map((member) =>
+          member.uid === memberUid ? { ...member, role: "member" } : member
         )
       );
     } catch (error) {
@@ -271,6 +308,27 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     } catch (error) {
       console.error("Error generating invite code:", error);
       alert("Failed to generate invite code");
+    }
+  };
+
+  const generateBookmarklet = () => {
+    if (!project?.cosenseProjectName) {
+      return "";
+    }
+
+    const bookmarkletCode = `javascript:(function(){const boardTitle=document.querySelector('.header-subtitle')?.textContent?.trim()||'Untitled Board';const notes=Array.from(document.querySelectorAll('.sticky-note[data-note-content]')).map(el=>el.getAttribute('data-note-content')?.trim()||'').filter(text=>text.includes('[')&&text.includes(']'));const boardUrl=window.location.href;const content='Source: ['+boardTitle+' '+boardUrl+']\\n\\n'+notes.join('\\n');const projectName='${project.cosenseProjectName}';const url='https://scrapbox.io/'+encodeURIComponent(projectName)+'/'+encodeURIComponent(boardTitle)+'?body='+encodeURIComponent(content);window.open(url,'_blank');})();`;
+
+    return bookmarkletCode;
+  };
+
+  const openBookmarkletPage = () => {
+    const bookmarkletCode = generateBookmarklet();
+    const html = `<a href="${bookmarkletCode}">Create Cosense Page</a>`;
+
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write(html);
+      newWindow.document.close();
     }
   };
 
@@ -414,7 +472,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
               </button>
             </div>
           </div>
-          
+
           <div className="setting-item">
             <label htmlFor="project-slug">Project Slug</label>
             <div className="edit-name-container">
@@ -430,7 +488,37 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
               />
             </div>
             <div>
-              <button onClick={updateProjectSlug} className="save-btn" disabled={!isAdmin}>
+              <button
+                onClick={updateProjectSlug}
+                className="save-btn"
+                disabled={!isAdmin}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          <div className="setting-item">
+            <label htmlFor="cosense-project-name">Cosense Project Name</label>
+            <div className="edit-name-container">
+              <input
+                id="cosense-project-name"
+                type="text"
+                value={newCosenseProjectName}
+                onChange={(e) => setNewCosenseProjectName(e.target.value)}
+                onKeyPress={(e) =>
+                  e.key === "Enter" && updateCosenseProjectName()
+                }
+                placeholder="cosense-project-name"
+                disabled={!isAdmin}
+              />
+            </div>
+            <div>
+              <button
+                onClick={updateCosenseProjectName}
+                className="save-btn"
+                disabled={!isAdmin}
+              >
                 Save
               </button>
             </div>
@@ -508,6 +596,60 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           </div>
         </div>
 
+        {/* Cosense Integration */}
+        {project.cosenseProjectName && (
+          <div className="settings-section">
+            <h2>Cosense Integration</h2>
+            <div className="setting-item">
+              <label>Create Cosense Page Bookmarklet</label>
+              <p style={{ marginBottom: "10px", color: "#666" }}>
+                Drag the button below to your bookmarks bar. Click it on any
+                board page to create a Cosense page with notes containing []
+                links.
+              </p>
+              <div
+                style={{
+                  padding: "15px",
+                  backgroundColor: "#f5f5f5",
+                  borderRadius: "5px",
+                  marginBottom: "15px",
+                }}
+              >
+                <p style={{ marginBottom: "10px", fontWeight: "bold" }}>
+                  📝 Click to open bookmarklet page:
+                </p>
+                <div style={{ textAlign: "center" }}>
+                  <button onClick={openBookmarkletPage} className="save-btn">
+                    📝 Get Bookmarklet
+                  </button>
+                </div>
+              </div>
+              <div
+                style={{
+                  marginTop: "15px",
+                  padding: "15px",
+                  backgroundColor: "#e3f2fd",
+                  borderRadius: "5px",
+                }}
+              >
+                <h4 style={{ margin: "0 0 10px 0" }}>How to use:</h4>
+                <ol style={{ margin: 0, paddingLeft: "20px" }}>
+                  <li>Click the "Get Bookmarklet" button above</li>
+                  <li>A new page will open with the bookmarklet</li>
+                  <li>
+                    Drag the green button from that page to your bookmarks bar
+                  </li>
+                  <li>Navigate to any board page and click the bookmark</li>
+                  <li>
+                    A new Cosense page will be created with the board title and
+                    all notes containing [] links
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Members Management */}
         <div className="settings-section">
           <h2>Members ({members.length})</h2>
@@ -524,32 +666,36 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
                     </div>
                     <div className="member-email">{member.email}</div>
                     <div className="member-role">
-                      {member.role === "owner" 
-                        ? "Owner" 
-                        : member.role === "admin" 
-                        ? "Admin" 
+                      {member.role === "owner"
+                        ? "Owner"
+                        : member.role === "admin"
+                        ? "Admin"
                         : "Member"}
                       {member.uid === user.uid && " (You)"}
                     </div>
                   </div>
                 </div>
                 <div className="member-actions">
-                  {canManageAdminsFlag && member.uid !== user.uid && member.role === "member" && (
-                    <button
-                      onClick={() => promoteToAdmin(member.uid)}
-                      className="promote-btn"
-                    >
-                      Promote to Admin
-                    </button>
-                  )}
-                  {canManageAdminsFlag && member.uid !== user.uid && member.role === "admin" && (
-                    <button
-                      onClick={() => demoteFromAdmin(member.uid)}
-                      className="demote-btn"
-                    >
-                      Demote to Member
-                    </button>
-                  )}
+                  {canManageAdminsFlag &&
+                    member.uid !== user.uid &&
+                    member.role === "member" && (
+                      <button
+                        onClick={() => promoteToAdmin(member.uid)}
+                        className="promote-btn"
+                      >
+                        Promote to Admin
+                      </button>
+                    )}
+                  {canManageAdminsFlag &&
+                    member.uid !== user.uid &&
+                    member.role === "admin" && (
+                      <button
+                        onClick={() => demoteFromAdmin(member.uid)}
+                        className="demote-btn"
+                      >
+                        Demote to Member
+                      </button>
+                    )}
                   {isAdmin && member.uid !== user.uid && (
                     <button
                       onClick={() => removeMember(member.uid)}

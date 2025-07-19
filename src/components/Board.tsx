@@ -126,20 +126,20 @@ export function Board({ user }: BoardProps) {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
+      if (document.visibilityState === "hidden") {
         updateBoardViewTime(boardId);
       }
     };
 
     // ページを離れる時、タブを切り替える時に閲覧時刻を更新
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       // クリーンアップ時（コンポーネントがアンマウントされる時）にも更新
       updateBoardViewTime(boardId);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [boardId]);
 
@@ -301,17 +301,17 @@ export function Board({ user }: BoardProps) {
     const note = notes.find((n) => n.id === noteId);
     if (note) {
       // updatedAtを追加（content, x, y, color, textSizeが変更された場合のみ）
-      const shouldUpdateTimestamp = 
-        updates.content !== undefined || 
-        updates.x !== undefined || 
-        updates.y !== undefined || 
-        updates.color !== undefined || 
+      const shouldUpdateTimestamp =
+        updates.content !== undefined ||
+        updates.x !== undefined ||
+        updates.y !== undefined ||
+        updates.color !== undefined ||
         updates.textSize !== undefined;
-      
-      const updatedNote = { 
-        ...note, 
+
+      const updatedNote = {
+        ...note,
         ...updates,
-        ...(shouldUpdateTimestamp && { updatedAt: Date.now() })
+        ...(shouldUpdateTimestamp && { updatedAt: Date.now() }),
       };
 
       // Add to history only for significant changes by the current user
@@ -589,8 +589,9 @@ export function Board({ user }: BoardProps) {
     const stickyNote = target.closest(".sticky-note");
     if (stickyNote) {
       const noteElement = stickyNote as HTMLElement;
-      const isTransparent = noteElement.style.backgroundColor === "transparent" || 
-                           noteElement.style.background === "transparent";
+      const isTransparent =
+        noteElement.style.backgroundColor === "transparent" ||
+        noteElement.style.background === "transparent";
       if (!isTransparent) {
         return;
       }
@@ -1783,11 +1784,14 @@ export function Board({ user }: BoardProps) {
       </div>
       {board &&
         checkBoardEditPermission(board, project, user?.uid || null).canEdit && (
-          <button onClick={() => {
-            const newNoteId = addNote();
-            setNoteToFocus(newNoteId);
-            setSelectedNoteIds(new Set([newNoteId]));
-          }} className="fab-add-btn">
+          <button
+            onClick={() => {
+              const newNoteId = addNote();
+              setNoteToFocus(newNoteId);
+              setSelectedNoteIds(new Set([newNoteId]));
+            }}
+            className="fab-add-btn"
+          >
             <LuPlus />
           </button>
         )}
@@ -1801,6 +1805,40 @@ export function Board({ user }: BoardProps) {
           <MdContentCopy />
           <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
         </button>
+      )}
+      {/* Cosense Link */}
+      {board && project?.cosenseProjectName && (
+        <a
+          href={`https://scrapbox.io/${encodeURIComponent(
+            project.cosenseProjectName
+          )}/${encodeURIComponent(board.name)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            position: "fixed",
+            top: "40px",
+            right: "0px",
+            fontSize: "10px",
+            color: "#666",
+            textDecoration: "none",
+            padding: "1px 4px",
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            border: "1px solid #ddd",
+            zIndex: 1000,
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLAnchorElement).style.color = "#333";
+            (e.target as HTMLAnchorElement).style.backgroundColor =
+              "rgba(255, 255, 255, 1)";
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLAnchorElement).style.color = "#666";
+            (e.target as HTMLAnchorElement).style.backgroundColor =
+              "rgba(255, 255, 255, 0.9)";
+          }}
+        >
+          Open Cosense page
+        </a>
       )}
     </div>
   );
