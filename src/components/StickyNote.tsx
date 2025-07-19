@@ -1510,7 +1510,6 @@ export function StickyNote({
         top: `${position.y}px`,
         backgroundColor: backgroundColor,
         boxShadow: calculateShadowByRecency(),
-        overflow: "hidden",
         border:
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: noteColor === "transparent" ? -1 : note.zIndex || 1,
@@ -1674,17 +1673,28 @@ export function StickyNote({
       {isNewNote && noteColor !== "transparent" && (
         <div
           style={{
+            overflow: "hidden",
             position: "absolute",
-            top: "-8px",
-            right: "-8px",
+            top: "0px",
+            right: "0px",
             width: "14px",
             height: "14px",
-            transform: "rotate(45deg)",
-            backgroundColor: "#96cc95",
-            zIndex: 1000,
-            pointerEvents: "none",
           }}
-        />
+        >
+          <div
+            style={{
+              width: "14px",
+              height: "14px",
+              position: "absolute",
+              top: "-8px",
+              right: "-8px",
+              transform: "rotate(45deg)",
+              backgroundColor: "#96cc95",
+              zIndex: 1000,
+              pointerEvents: "none",
+            }}
+          />
+        </div>
       )}
 
       <div className="note-content" style={{ position: "relative" }}>
