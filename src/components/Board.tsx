@@ -1505,6 +1505,12 @@ export function Board({ user }: BoardProps) {
             e.preventDefault();
             addNote();
           }
+        } else if (e.key === "j") {
+          // Ctrl+J: 新しい付箋を追加
+          e.preventDefault();
+          const newNoteId = addNote();
+          setNoteToFocus(newNoteId);
+          setSelectedNoteIds(new Set([newNoteId]));
         }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&

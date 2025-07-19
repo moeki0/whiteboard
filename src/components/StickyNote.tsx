@@ -753,6 +753,22 @@ export function StickyNote({
         ) {
           handleSelectBoard(filteredBoards[selectedSuggestionIndex].name);
         }
+      } else if (e.shiftKey) {
+        // Shift+Enter: 下に新しい付箋を作成
+        e.preventDefault();
+        if (onAddNote) {
+          const x = note.x;
+          const y = note.y + 60; // 下に120px離れた位置
+          const newNoteId = onAddNote(x, y);
+          if (newNoteId) {
+            handleBlur(); // 現在の付箋の編集を終了
+            onActivate(newNoteId, false, false);
+          }
+        }
+      } else {
+        // Enter: 編集を確定
+        e.preventDefault();
+        handleBlur();
       }
     }
   };
