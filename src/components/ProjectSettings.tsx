@@ -323,7 +323,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
 
   const openBookmarkletPage = () => {
     const bookmarkletCode = generateBookmarklet();
-    const html = `<a href="${bookmarkletCode}">Create Cosense Page</a>`;
+    const html = `<a href="${bookmarkletCode}">${project?.name} Turtle to Cosense</a>`;
 
     const newWindow = window.open("", "_blank");
     if (newWindow) {
