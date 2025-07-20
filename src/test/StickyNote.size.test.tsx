@@ -119,24 +119,13 @@ describe("StickyNote - 末尾アスタリスクによるサイズ縮小記法", 
     expect(computedStyle.fontSize).toBe("7px");
   });
 
-  it("最小サイズ制限がある（5px以下にはならない）", () => {
-    const { container } = renderStickyNote("極小テキスト********");
+  it("制限なく極小サイズまで縮小される", () => {
+    const { container } = renderStickyNote("極小テキスト*****");
     
     const stickyNote = container.querySelector(".sticky-note");
     const computedStyle = window.getComputedStyle(stickyNote as Element);
-    // 最小5pxまで
-    expect(computedStyle.fontSize).toBe("5px");
-    // 極小サイズでは最小padding（4px）が適用される
-    expect(computedStyle.padding).toBe("4px");
-    
-    // 極小サイズでは小さなline-height（1.1）が適用される
-    const contentDiv = container.querySelector("div[style*='lineHeight']");
-    if (contentDiv) {
-      const contentStyle = window.getComputedStyle(contentDiv as Element);
-      const lineHeight = parseFloat(contentStyle.lineHeight);
-      expect(lineHeight).toBeGreaterThanOrEqual(1.1);
-      expect(lineHeight).toBeLessThan(1.2);
-    }
+    // 13px - (5 * 2) = 3px となる（制限なし）
+    expect(computedStyle.fontSize).toBe("3px");
   });
 
   it("末尾以外のアスタリスクは影響しない", () => {

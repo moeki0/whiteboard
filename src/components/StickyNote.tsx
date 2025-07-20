@@ -907,7 +907,7 @@ export function StickyNote({
       sizeMultiplier = Math.max(1, asteriskCount);
     }
 
-    return Math.min(2000, baseSize * sizeMultiplier);
+    return baseSize * sizeMultiplier;
   };
 
   // 付箋全体がGyazoのURLのみかどうかをチェック
@@ -1511,7 +1511,7 @@ export function StickyNote({
 
     const asteriskCount = trailingAsteriskMatch[0].length;
     const baseSize = getTextSizeStyle(textSize);
-    const shrinkSize = Math.max(5, baseSize - asteriskCount * 2); // 最小5px
+    const shrinkSize = baseSize - asteriskCount * 2;
     return shrinkSize;
   };
 
@@ -1952,7 +1952,7 @@ export function StickyNote({
                     if (asteriskOnlyMatch) {
                       // *のみの場合
                       const asteriskCount = asteriskOnlyMatch[1].length;
-                      fontSize = Math.min(30, 13 + asteriskCount * 2);
+                      fontSize = 13 + asteriskCount * 2;
                       displayContent = asteriskOnlyMatch[2];
                     }
                   }
