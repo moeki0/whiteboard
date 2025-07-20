@@ -48,7 +48,8 @@ div.user-avatar {
   min-width: 280px;
   max-width: 320px;
   z-index: 1000;
-  overflow: hidden;
+  max-height: 300px;
+  overflow: scroll;
 }
 
 .menu-section {
