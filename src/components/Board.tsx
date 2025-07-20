@@ -7,7 +7,7 @@ import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
-import { Arrow } from "./Arrow";
+import { ArrowSVG } from "./ArrowSVG";
 import { CursorDisplay } from "./CursorDisplay";
 import { useHistory } from "../hooks/useHistory";
 import { useBoard } from "../hooks/useBoard";
@@ -1156,6 +1156,7 @@ export function Board({ user }: BoardProps) {
     }
   }, [zoomVelocity, zoomTarget]);
 
+
   // マウスイベントのリスナー設定
   useEffect(() => {
     if (isSelecting) {
@@ -1995,18 +1996,33 @@ export function Board({ user }: BoardProps) {
             />
           ))}
 
-          {arrows.map((arrow) => (
-            <Arrow
-              key={arrow.id}
-              arrow={arrow}
-              onUpdate={updateArrow}
-              isSelected={selectedItemIds.has(arrow.id)}
-              onSelect={handleSelectArrow}
-              zoom={zoom}
-              notes={notes}
-            />
-          ))}
-
+          {/* SVGコンテナで矢印を描画 */}
+          <svg
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              overflow: "visible",
+            }}
+          >
+            <g style={{ pointerEvents: "auto" }}>
+              {arrows.map((arrow) => (
+                <ArrowSVG
+                  key={arrow.id}
+                  arrow={arrow}
+                  onUpdate={updateArrow}
+                  isSelected={selectedItemIds.has(arrow.id)}
+                  onSelect={handleSelectArrow}
+                  zoom={zoom}
+                  notes={notes}
+                />
+              ))}
+            </g>
+          </svg>
+          
           <CursorDisplay cursors={cursors} />
           {renderSelectionBox()}
         </div>
