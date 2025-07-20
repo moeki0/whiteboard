@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Arrow as ArrowType, Note } from "../types";
 
 interface ArrowSVGProps {
@@ -17,12 +17,57 @@ export function ArrowSVG({
   zoom,
   notes,
 }: ArrowSVGProps) {
+  const [isReady, setIsReady] = useState(false);
+
   // 接続された付箋を取得
   const startNote = notes.find(n => n.id === arrow.startNoteId);
   const endNote = notes.find(n => n.id === arrow.endNoteId);
 
+  const startId = `note-${arrow.startNoteId}`;
+  const endId = `note-${arrow.endNoteId}`;
+
+  // 付箋のDOMが描画されるまで待機
+  useEffect(() => {
+    if (!startNote || !endNote) {
+      return;
+    }
+
+    const checkElements = () => {
+      const startElement = document.getElementById(startId);
+      const endElement = document.getElementById(endId);
+      
+      if (startElement && endElement) {
+        // 要素のサイズが確定するまで少し待つ
+        setTimeout(() => {
+          setIsReady(true);
+        }, 50);
+      }
+    };
+
+    // 初回チェック
+    checkElements();
+
+    // DOMの変更を監視
+    const observer = new MutationObserver(checkElements);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [startId, endId, startNote, endNote]);
+
   // 両方の付箋が存在しない場合は何も表示しない
   if (!startNote || !endNote) {
+    return null;
+  }
+
+  // 付箋のDOMが準備できていない場合は何も表示しない
+  if (!isReady) {
     return null;
   }
 
