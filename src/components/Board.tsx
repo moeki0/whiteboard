@@ -34,8 +34,6 @@ export function Board({ user }: BoardProps) {
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
   );
-  const [isInitialHashLoad, setIsInitialHashLoad] = useState<boolean>(false);
-  const [hasProcessedInitialHash, setHasProcessedInitialHash] = useState<boolean>(false);
   // selectedNoteIdsRefを削除 - 別のアプローチを使用
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
@@ -187,52 +185,64 @@ export function Board({ user }: BoardProps) {
     }
   }, []);
 
-  // URLハッシュで指定された付箋を中心に表示
+  // 初期ハッシュ処理（一回のみ実行）
+  const initialHashProcessed = useRef(false);
   useEffect(() => {
+    if (notes.length === 0) return;
+    if (initialHashProcessed.current) return;
+
     const hash = window.location.hash.slice(1);
-    if (!hash || notes.length === 0 || hasProcessedInitialHash) return;
-
-    const note = notes.find((n) => n.id === hash);
-    if (note && boardRef.current) {
-      // 画面の中央に付箋を配置
-      // pan値は「画面をどれだけ移動させるか」を表す
-      // 付箋を画面中央に持ってくるには、付箋の位置を画面中央から引く
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      setPanX(centerX - note.x * zoom);
-      setPanY(centerY - note.y * zoom);
-
-      // 初期ハッシュ処理完了フラグをセット
-      setHasProcessedInitialHash(true);
-      setIsInitialHashLoad(true);
-      setSelectedNoteIds(new Set([hash]));
-
-      // 次のレンダリング後にフラグをリセット
-      setTimeout(() => {
-        setIsInitialHashLoad(false);
-      }, 100);
-    }
-  }, [notes, zoom, hasProcessedInitialHash]);
-
-  // URLハッシュの変更を監視
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      if (hash && notes.length > 0) {
-        const note = notes.find((n) => n.id === hash);
-        if (note && boardRef.current) {
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
-          setPanX(centerX - note.x * zoom);
-          setPanY(centerY - note.y * zoom);
-          setSelectedNoteIds(new Set([hash]));
-        }
+    console.log("Debug: Initial hash processing:", hash, notes.length);
+    
+    if (hash) {
+      const note = notes.find((n) => n.id === hash);
+      console.log("Debug: Found note for hash:", note);
+      console.log("Debug: boardRef.current:", boardRef.current);
+      if (note) {
+        // 画面の中央に付箋の中心を配置
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        // 付箋のサイズを考慮（一般的な付箋サイズ: 幅200px, 高さ150px）
+        const noteWidth = 200;
+        const noteHeight = 150;
+        setPanX(centerX - note.x - noteWidth / 2);
+        setPanY(centerY - note.y - noteHeight / 2);
+        setSelectedNoteIds(new Set([hash]));
+        console.log("Debug: Applied initial hash processing");
       }
-    };
+    }
+    
+    initialHashProcessed.current = true;
+  }, [notes]);
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [notes, zoom]);
+  // 付箋選択時のURL更新（手動で呼び出す方式に変更）
+  const updateUrlForNote = useCallback((noteId: string | null) => {
+    if (noteId) {
+      window.history.replaceState(null, "", `#${noteId}`);
+    } else {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
+    }
+  }, []);
+
+  // URLハッシュの変更を監視（一時的に無効化してテスト）
+  // useEffect(() => {
+  //   const handleHashChange = () => {
+  //     const hash = window.location.hash.slice(1);
+  //     if (hash && notes.length > 0) {
+  //       const note = notes.find((n) => n.id === hash);
+  //       if (note) {
+  //         setSelectedNoteIds(new Set([hash]));
+  //       }
+  //     }
+  //   };
+
+  //   window.addEventListener("hashchange", handleHashChange);
+  //   return () => window.removeEventListener("hashchange", handleHashChange);
+  // }, [notes]);
 
   // Update maxZIndex when notes change
   useEffect(() => {
@@ -241,34 +251,6 @@ export function Board({ user }: BoardProps) {
       setNextZIndex(maxZ + 1);
     }
   }, [notes]);
-
-  // selectedNoteIdsが変更されたときにURLハッシュを更新
-  useEffect(() => {
-    // 初期ロード時はスキップ
-    if (isInitialHashLoad) {
-      console.log("Debug: Skipping URL update due to isInitialHashLoad");
-      return;
-    }
-
-    console.log("Debug: selectedNoteIds changed:", selectedNoteIds.size, Array.from(selectedNoteIds));
-    console.log("Debug: isInitialHashLoad:", isInitialHashLoad);
-
-    if (selectedNoteIds.size === 1) {
-      // 単一の付箋が選択されている場合はハッシュを設定
-      const noteId = Array.from(selectedNoteIds)[0];
-      console.log("Debug: Setting hash to:", noteId);
-      window.history.replaceState(null, "", `#${noteId}`);
-    } else if (selectedNoteIds.size === 0) {
-      // 選択が解除された場合はハッシュをクリア
-      console.log("Debug: Clearing hash");
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search
-      );
-    }
-    // 複数選択の場合はハッシュを変更しない
-  }, [selectedNoteIds, isInitialHashLoad]);
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
@@ -356,6 +338,7 @@ export function Board({ user }: BoardProps) {
     setNoteToFocus(noteId);
     // 新しい付箋を選択状態にする
     setSelectedNoteIds(new Set([noteId]));
+    updateUrlForNote(noteId);
 
     // ボードの更新時刻を更新（非同期で実行、エラーがあってもメイン処理に影響しない）
     setTimeout(() => {
@@ -497,6 +480,7 @@ export function Board({ user }: BoardProps) {
       bringNoteToFront(noteId);
       // 単一選択に設定
       setSelectedNoteIds(new Set([noteId]));
+      updateUrlForNote(noteId);
     } else if (isShiftSelect) {
       // Shiftキーが押されている場合は複数選択
       const newSelectedIds = new Set(selectedNoteIds);
@@ -506,9 +490,11 @@ export function Board({ user }: BoardProps) {
         newSelectedIds.add(noteId);
       }
       setSelectedNoteIds(newSelectedIds);
+      // 複数選択時はURL更新しない
     } else {
       // 通常の単一選択（zIndexは変更しない）
       setSelectedNoteIds(new Set([noteId]));
+      updateUrlForNote(noteId);
     }
   };
 
@@ -519,6 +505,7 @@ export function Board({ user }: BoardProps) {
     }
 
     setSelectedNoteIds(new Set());
+    updateUrlForNote(null);
   };
 
   // 選択された付箋から新しいボードを作成
@@ -654,6 +641,7 @@ export function Board({ user }: BoardProps) {
 
     // 作成した付箋を選択状態にする
     setSelectedNoteIds(new Set([newNoteId]));
+    updateUrlForNote(newNoteId);
   };
 
   // パンまたは範囲選択の開始
@@ -695,6 +683,7 @@ export function Board({ user }: BoardProps) {
 
       // 既存の選択をクリア
       setSelectedNoteIds(new Set());
+      updateUrlForNote(null);
     } else {
       // 通常のドラッグでパン
       handlePanStart(e);
@@ -1227,6 +1216,7 @@ export function Board({ user }: BoardProps) {
     });
 
     setSelectedNoteIds(new Set());
+    updateUrlForNote(null);
   };
 
   // コピーされた複数付箋を貼り付け
