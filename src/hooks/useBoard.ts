@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, onValue, set, remove, get } from "firebase/database";
-import { User, Note, Cursor, Board, Project } from "../types";
+import { User, Note, Cursor, Board, Project, Arrow } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { checkBoardAccess } from "../utils/permissions";
@@ -11,6 +11,7 @@ import { recordBoardNameChange } from "../utils/historyManager";
 interface UseBoardReturn {
   boardId: string | undefined;
   notes: Note[];
+  arrows: Arrow[];
   cursors: Record<string, Cursor>;
   boardName: string;
   projectId: string | null;
@@ -34,6 +35,7 @@ export function useBoard(
   const boardId = resolvedBoardId || urlBoardId;
   const { updateCurrentProject } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [arrows, setArrows] = useState<Arrow[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
   const [boardName, setBoardName] = useState<string>("");
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -185,6 +187,7 @@ export function useBoard(
     });
 
     const notesRef = ref(rtdb, `boards/${boardId}/notes`);
+    const arrowsRef = ref(rtdb, `boards/${boardId}/arrows`);
     const cursorsRef = ref(rtdb, `boardCursors/${boardId}`);
 
     // Listen to notes changes
@@ -193,11 +196,27 @@ export function useBoard(
       if (data) {
         const notesArray = Object.entries(data).map(([id, note]) => ({
           id,
+          type: 'note' as const,
           ...(note as Record<string, unknown>),
         })) as Note[];
         setNotes(notesArray);
       } else {
         setNotes([]);
+      }
+    });
+
+    // Listen to arrows changes
+    const unsubscribeArrows = onValue(arrowsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const arrowsArray = Object.entries(data).map(([id, arrow]) => ({
+          id,
+          type: 'arrow' as const,
+          ...(arrow as Record<string, unknown>),
+        })) as Arrow[];
+        setArrows(arrowsArray);
+      } else {
+        setArrows([]);
       }
     });
 
@@ -235,6 +254,7 @@ export function useBoard(
     return () => {
       unsubscribeBoard();
       unsubscribeNotes();
+      unsubscribeArrows();
       unsubscribeCursors();
     };
   }, [boardId, user?.uid, sessionId, isCheckingAccess, navigate]);
@@ -242,6 +262,7 @@ export function useBoard(
   return {
     boardId,
     notes,
+    arrows,
     cursors,
     boardName,
     projectId,

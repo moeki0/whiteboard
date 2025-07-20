@@ -101,6 +101,7 @@ export function useBoardActions({
       }
 
       const newNote: Omit<Note, "id"> = {
+        type: "note",
         content: "",
         x: noteX,
         y: noteY,

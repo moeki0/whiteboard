@@ -5,6 +5,16 @@ export interface User {
   photoURL: string | null;
 }
 
+export interface BoardItem {
+  id: string;
+  type: 'note' | 'arrow';
+  userId: string;
+  createdAt: number;
+  zIndex: number;
+  isDragging?: boolean;
+  draggedBy?: string | null;
+}
+
 export interface UserProfile {
   uid: string;
   username: string;
@@ -15,20 +25,15 @@ export interface UserProfile {
   updatedAt: number;
 }
 
-export interface Note {
-  id: string;
+export interface Note extends BoardItem {
+  type: 'note';
   content: string;
   x: number;
   y: number;
   color?: string;
   textSize?: string;
-  userId: string;
-  createdAt: number;
   updatedAt?: number;
-  zIndex: number;
   width: string;
-  isDragging?: boolean;
-  draggedBy?: string | null;
   isEditing?: boolean;
   editedBy?: string | null;
   signedBy?: {
@@ -112,4 +117,14 @@ export interface NameHistory {
   oldName: string;
   newName: string;
   timestamp: number;
+}
+
+export interface Arrow extends BoardItem {
+  type: 'arrow';
+  startNoteId: string;
+  endNoteId: string;
+  startAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
+  endAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
+  startOffset?: { x: number; y: number };
+  endOffset?: { x: number; y: number };
 }

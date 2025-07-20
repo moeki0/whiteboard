@@ -1596,6 +1596,7 @@ export function StickyNote({
 
   return (
     <div
+      id={`note-${note.id}`}
       ref={noteRef}
       data-note-id={note.id}
       data-note-content={content}

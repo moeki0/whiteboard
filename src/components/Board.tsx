@@ -7,6 +7,7 @@ import { ref, onValue, set, remove, get } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
+import { Arrow } from "./Arrow";
 import { CursorDisplay } from "./CursorDisplay";
 import { useHistory } from "../hooks/useHistory";
 import { useBoard } from "../hooks/useBoard";
@@ -18,7 +19,7 @@ import {
 } from "../utils/clipboardUtils";
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
-import { User, Note } from "../types";
+import { User, Note, Arrow as ArrowType, BoardItem } from "../types";
 import { generateNewBoardName } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
@@ -47,6 +48,16 @@ export function Board({ user }: BoardProps) {
     string | null
   >(null);
   const [noteToFocus, setNoteToFocus] = useState<string | null>(null);
+
+  // 矢印関連の状態
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [isCreatingArrow, setIsCreatingArrow] = useState<boolean>(false);
+  const [arrowStartPoint, setArrowStartPoint] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // 範囲選択用の状態
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
@@ -107,6 +118,7 @@ export function Board({ user }: BoardProps) {
   const {
     boardId,
     notes,
+    arrows,
     cursors,
     projectId,
     isCheckingAccess,
@@ -305,6 +317,7 @@ export function Board({ user }: BoardProps) {
     }
 
     const newNote: Omit<Note, "id"> = {
+      type: "note",
       content: "",
       x: noteX,
       y: noteY,
@@ -353,6 +366,83 @@ export function Board({ user }: BoardProps) {
     }, 100);
 
     return noteId;
+  };
+
+  const addArrow = (): string => {
+    // 未ログインユーザーは矢印を作成できない
+    if (!user?.uid) return "";
+
+    // 権限チェック
+    if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
+      return "";
+    }
+
+    // 2つの付箋が選択されている必要がある
+    const selectedNoteArray = Array.from(selectedNoteIds);
+    if (selectedNoteArray.length !== 2) {
+      // ボタンからの呼び出しの場合はアラートを表示しない（条件分岐で制御）
+      console.warn("矢印を作成するには、ちょうど2つの付箋を選択してください。");
+      return "";
+    }
+
+    const [startNoteId, endNoteId] = selectedNoteArray;
+
+    const newArrow: Omit<ArrowType, "id"> = {
+      type: "arrow",
+      startNoteId,
+      endNoteId,
+      userId: user.uid,
+      createdAt: Date.now(),
+      zIndex: nextZIndex,
+      isDragging: false,
+      draggedBy: null,
+    };
+
+    const arrowId = nanoid();
+
+    const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrowId}`);
+    set(arrowRef, newArrow);
+    setNextZIndex((prev) => prev + 1);
+
+    // 矢印作成後、付箋の選択をクリア
+    setSelectedNoteIds(new Set());
+    // 新しい矢印を選択状態にする
+    setSelectedItemIds(new Set([arrowId]));
+
+    return arrowId;
+  };
+
+  const updateArrow = (arrowId: string, updates: Partial<ArrowType>) => {
+    // 未ログインユーザーは矢印を更新できない
+    if (!user?.uid) return;
+
+    const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrowId}`);
+    const arrow = arrows.find((a) => a.id === arrowId);
+    if (arrow) {
+      const updatedArrow = {
+        ...arrow,
+        ...updates,
+      };
+
+      set(arrowRef, updatedArrow);
+    }
+  };
+
+  const deleteArrow = (arrowId: string) => {
+    // 未ログインユーザーは矢印を削除できない
+    if (!user?.uid) return;
+
+    const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrowId}`);
+    remove(arrowRef);
+
+    // 選択状態も削除
+    if (selectedItemIds.has(arrowId)) {
+      setSelectedItemIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(arrowId);
+        return newSet;
+      });
+    }
   };
 
   const updateNote = (noteId: string, updates: Partial<Note>) => {
@@ -437,6 +527,13 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     remove(noteRef);
 
+    // 削除された付箋に接続された矢印を削除
+    arrows.forEach((arrow) => {
+      if (arrow.startNoteId === noteId || arrow.endNoteId === noteId) {
+        deleteArrow(arrow.id);
+      }
+    });
+
     // ボードの更新時刻を更新
     setTimeout(() => {
       try {
@@ -498,6 +595,28 @@ export function Board({ user }: BoardProps) {
     }
   };
 
+  const handleSelectArrow = (
+    arrowId: string,
+    isMultiSelect: boolean = false,
+    isShiftSelect: boolean = false
+  ) => {
+    if (isShiftSelect) {
+      // Shiftキーが押されている場合は複数選択
+      const newSelectedIds = new Set(selectedItemIds);
+      if (newSelectedIds.has(arrowId)) {
+        newSelectedIds.delete(arrowId);
+      } else {
+        newSelectedIds.add(arrowId);
+      }
+      setSelectedItemIds(newSelectedIds);
+    } else {
+      // 通常の単一選択
+      setSelectedItemIds(new Set([arrowId]));
+      // 付箋の選択をクリア
+      setSelectedNoteIds(new Set());
+    }
+  };
+
   const handleBoardClick = () => {
     // 範囲選択終了直後や一括ドラッグ終了直後はクリックを無視
     if (isSelecting || justFinishedSelection || justFinishedBulkDrag) {
@@ -505,6 +624,7 @@ export function Board({ user }: BoardProps) {
     }
 
     setSelectedNoteIds(new Set());
+    setSelectedItemIds(new Set());
     updateUrlForNote(null);
   };
 
@@ -565,6 +685,7 @@ export function Board({ user }: BoardProps) {
         const newNoteId = nanoid();
         const newNote: Note = {
           id: newNoteId,
+          type: "note",
           content: note.content || "",
           x: note.x + offsetX,
           y: note.y + offsetY,
@@ -1219,6 +1340,21 @@ export function Board({ user }: BoardProps) {
     updateUrlForNote(null);
   };
 
+  // 複数選択された矢印を削除
+  const deleteSelectedArrows = () => {
+    // 未ログインユーザーは矢印を削除できない
+    if (!user?.uid) return;
+
+    selectedItemIds.forEach((arrowId) => {
+      const arrow = arrows.find((a) => a.id === arrowId);
+      if (arrow && arrow.userId === user.uid) {
+        deleteArrow(arrowId);
+      }
+    });
+
+    setSelectedItemIds(new Set());
+  };
+
   // コピーされた複数付箋を貼り付け
   const pasteCopiedNotes = () => {
     // 未ログインユーザーは付箋を貼り付けできない
@@ -1236,6 +1372,7 @@ export function Board({ user }: BoardProps) {
       const noteId = nanoid();
       const newNote: Note = {
         id: noteId,
+        type: "note",
         content: noteData.content,
         color: noteData.color,
         width: "auto",
@@ -1284,6 +1421,7 @@ export function Board({ user }: BoardProps) {
 
       const newNote: Omit<Note, "id"> = {
         ...noteData,
+        type: "note",
         x: copiedNote.x + 20,
         y: copiedNote.y + 20,
         userId: user.uid,
@@ -1581,12 +1719,16 @@ export function Board({ user }: BoardProps) {
           const newNoteId = addNote();
           setNoteToFocus(newNoteId);
           setSelectedNoteIds(new Set([newNoteId]));
+        } else if (e.key === "k") {
+          // Ctrl+K: 矢印を挿入
+          e.preventDefault();
+          addArrow();
         }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        selectedNoteIds.size > 0
+        (selectedNoteIds.size > 0 || selectedItemIds.size > 0)
       ) {
-        // Delete selected notes if no input is focused
+        // Delete selected notes and arrows if no input is focused
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
@@ -1596,6 +1738,7 @@ export function Board({ user }: BoardProps) {
         if (!isInputFocused) {
           e.preventDefault();
           deleteSelectedNotes();
+          deleteSelectedArrows();
         }
       }
     };
@@ -1613,8 +1756,12 @@ export function Board({ user }: BoardProps) {
     performUndo,
     performRedo,
     selectedNoteIds,
+    selectedItemIds,
     notes,
+    arrows,
     deleteSelectedNotes,
+    deleteSelectedArrows,
+    addArrow,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
@@ -1686,6 +1833,7 @@ export function Board({ user }: BoardProps) {
         const noteId = nanoid();
         const newNote: Note = {
           id: noteId,
+          type: "note",
           content: line,
           x: noteX,
           y: noteY,
@@ -1847,6 +1995,18 @@ export function Board({ user }: BoardProps) {
             />
           ))}
 
+          {arrows.map((arrow) => (
+            <Arrow
+              key={arrow.id}
+              arrow={arrow}
+              onUpdate={updateArrow}
+              isSelected={selectedItemIds.has(arrow.id)}
+              onSelect={handleSelectArrow}
+              zoom={zoom}
+              notes={notes}
+            />
+          ))}
+
           <CursorDisplay cursors={cursors} />
           {renderSelectionBox()}
         </div>
@@ -1864,6 +2024,32 @@ export function Board({ user }: BoardProps) {
             <LuPlus />
           </button>
         )}
+      {selectedNoteIds.size === 2 && user && (
+        <button
+          onClick={() => addArrow()}
+          className="fab-add-arrow-btn"
+          style={{
+            position: "fixed",
+            bottom: "100px",
+            right: "30px",
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            backgroundColor: "#2196F3",
+            color: "white",
+            border: "none",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            cursor: "pointer",
+            fontSize: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          ↗
+        </button>
+      )}
       {selectedNoteIds.size > 1 && user && (
         <button
           onClick={createBoardFromSelection}
