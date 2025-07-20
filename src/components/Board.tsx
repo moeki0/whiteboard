@@ -34,7 +34,8 @@ export function Board({ user }: BoardProps) {
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
   );
-  const [isInitialHashLoad, setIsInitialHashLoad] = useState<boolean>(true);
+  const [isInitialHashLoad, setIsInitialHashLoad] = useState<boolean>(false);
+  const [hasProcessedInitialHash, setHasProcessedInitialHash] = useState<boolean>(false);
   // selectedNoteIdsRefを削除 - 別のアプローチを使用
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
@@ -189,7 +190,7 @@ export function Board({ user }: BoardProps) {
   // URLハッシュで指定された付箋を中心に表示
   useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (!hash || notes.length === 0) return;
+    if (!hash || notes.length === 0 || hasProcessedInitialHash) return;
 
     const note = notes.find((n) => n.id === hash);
     if (note && boardRef.current) {
@@ -201,14 +202,17 @@ export function Board({ user }: BoardProps) {
       setPanX(centerX - note.x * zoom);
       setPanY(centerY - note.y * zoom);
 
-      // 初期ロードフラグをセットしてから選択状態を変更
+      // 初期ハッシュ処理完了フラグをセット
+      setHasProcessedInitialHash(true);
       setIsInitialHashLoad(true);
       setSelectedNoteIds(new Set([hash]));
 
-      // 次のティックでフラグをリセット
-      setTimeout(() => setIsInitialHashLoad(false), 0);
+      // 次のレンダリング後にフラグをリセット
+      setTimeout(() => {
+        setIsInitialHashLoad(false);
+      }, 100);
     }
-  }, [notes, zoom]);
+  }, [notes, zoom, hasProcessedInitialHash]);
 
   // URLハッシュの変更を監視
   useEffect(() => {
@@ -242,16 +246,21 @@ export function Board({ user }: BoardProps) {
   useEffect(() => {
     // 初期ロード時はスキップ
     if (isInitialHashLoad) {
+      console.log("Debug: Skipping URL update due to isInitialHashLoad");
       return;
     }
 
+    console.log("Debug: selectedNoteIds changed:", selectedNoteIds.size, Array.from(selectedNoteIds));
+    console.log("Debug: isInitialHashLoad:", isInitialHashLoad);
 
     if (selectedNoteIds.size === 1) {
       // 単一の付箋が選択されている場合はハッシュを設定
       const noteId = Array.from(selectedNoteIds)[0];
+      console.log("Debug: Setting hash to:", noteId);
       window.history.replaceState(null, "", `#${noteId}`);
     } else if (selectedNoteIds.size === 0) {
       // 選択が解除された場合はハッシュをクリア
+      console.log("Debug: Clearing hash");
       window.history.replaceState(
         null,
         "",
