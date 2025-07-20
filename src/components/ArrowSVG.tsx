@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Arrow as ArrowType, Note } from "../types";
 
 interface ArrowSVGProps {
@@ -18,9 +18,6 @@ export function ArrowSVG({
   zoom,
   notes,
 }: ArrowSVGProps) {
-  const [isDraggingStart, setIsDraggingStart] = useState(false);
-  const [isDraggingEnd, setIsDraggingEnd] = useState(false);
-  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   // 接続された付箋を取得
   const startNote = notes.find(n => n.id === arrow.startNoteId);
   const endNote = notes.find(n => n.id === arrow.endNoteId);
@@ -48,22 +45,18 @@ export function ArrowSVG({
   const startNoteSize = getNoteSize(startNote.id);
   const endNoteSize = getNoteSize(endNote.id);
 
-  // オフセットの取得
-  const startOffset = arrow.startOffset || { x: 0, y: 0 };
-  const endOffset = arrow.endOffset || { x: 0, y: 0 };
-
   // アンカーポイントの計算
-  const getAnchorPoint = (note: Note, noteSize: { width: number; height: number }, anchor: string, offset: { x: number; y: number }, otherNote: Note) => {
+  const getAnchorPoint = (note: Note, noteSize: { width: number; height: number }, anchor: string, otherNote: Note) => {
     const centerX = note.x + noteSize.width / 2;
     const centerY = note.y + noteSize.height / 2;
     const otherCenterX = otherNote.x + getNoteSize(otherNote.id).width / 2;
     const otherCenterY = otherNote.y + getNoteSize(otherNote.id).height / 2;
 
-    // オフセットを適用した仮想ボックス
-    const boxX = note.x - offset.x;
-    const boxY = note.y - offset.y;
-    const boxWidth = noteSize.width + offset.x * 2;
-    const boxHeight = noteSize.height + offset.y * 2;
+    // 付箋の実際のボックス
+    const boxX = note.x;
+    const boxY = note.y;
+    const boxWidth = noteSize.width;
+    const boxHeight = noteSize.height;
     const boxCenterX = boxX + boxWidth / 2;
     const boxCenterY = boxY + boxHeight / 2;
 
@@ -155,8 +148,8 @@ export function ArrowSVG({
   const endAnchor = arrow.endAnchor || 'auto';
 
   // 開始点と終了点の計算
-  const startPoint = getAnchorPoint(startNote, startNoteSize, startAnchor, startOffset, endNote);
-  const endPoint = getAnchorPoint(endNote, endNoteSize, endAnchor, endOffset, startNote);
+  const startPoint = getAnchorPoint(startNote, startNoteSize, startAnchor, endNote);
+  const endPoint = getAnchorPoint(endNote, endNoteSize, endAnchor, startNote);
 
   const startX = startPoint.x;
   const startY = startPoint.y;
@@ -222,49 +215,6 @@ export function ArrowSVG({
     onSelect(arrow.id, e.metaKey || e.ctrlKey, e.shiftKey);
   };
 
-  // ドラッグ処理
-  useEffect(() => {
-    if ((!isDraggingStart && !isDraggingEnd) || !dragStartPos) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = (e.clientX - dragStartPos.x) / zoom;
-      const deltaY = (e.clientY - dragStartPos.y) / zoom;
-
-      if (isDraggingStart) {
-        const currentOffset = arrow.startOffset || { x: 0, y: 0 };
-        onUpdate(arrow.id, { 
-          startOffset: { 
-            x: currentOffset.x + deltaX, 
-            y: currentOffset.y + deltaY 
-          }
-        });
-      } else if (isDraggingEnd) {
-        const currentOffset = arrow.endOffset || { x: 0, y: 0 };
-        onUpdate(arrow.id, { 
-          endOffset: { 
-            x: currentOffset.x + deltaX, 
-            y: currentOffset.y + deltaY 
-          }
-        });
-      }
-
-      setDragStartPos({ x: e.clientX, y: e.clientY });
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingStart(false);
-      setIsDraggingEnd(false);
-      setDragStartPos(null);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDraggingStart, isDraggingEnd, dragStartPos, arrow.id, arrow.startOffset, arrow.endOffset, onUpdate, zoom]);
 
   return (
     <g style={{ cursor: "pointer" }}>

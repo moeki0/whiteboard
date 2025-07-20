@@ -125,6 +125,4 @@ export interface Arrow extends BoardItem {
   endNoteId: string;
   startAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
   endAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
-  startOffset?: { x: number; y: number };
-  endOffset?: { x: number; y: number };
 }
