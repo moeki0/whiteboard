@@ -51,7 +51,7 @@ export function useBoardState() {
 
   // nanoid generator
   const nanoid = customAlphabet(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    "abcdefghijklmnopqrstuvwxyz0123456789",
     21
   );
 

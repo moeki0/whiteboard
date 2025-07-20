@@ -34,6 +34,7 @@ export function Board({ user }: BoardProps) {
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
   );
+  const [isInitialHashLoad, setIsInitialHashLoad] = useState<boolean>(true);
   // selectedNoteIdsRefを削除 - 別のアプローチを使用
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
@@ -101,10 +102,7 @@ export function Board({ user }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
 
-  const nanoid = customAlphabet(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-    21
-  );
+  const nanoid = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 21);
 
   const { addToHistory, undo, redo } = useHistory();
   const {
@@ -174,14 +172,63 @@ export function Board({ user }: BoardProps) {
     zoom,
   });
 
-  // 初期位置を中央に設定
+  // ハッシュがない場合の初期位置を設定
   useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    // ハッシュがある場合は別のeffectで処理するのでスキップ
+    if (hash) return;
+
+    // ハッシュがない場合は画面中央を原点に
     if (boardRef.current) {
       const rect = boardRef.current.getBoundingClientRect();
       setPanX(rect.width / 2);
       setPanY(rect.height / 2);
     }
   }, []);
+
+  // URLハッシュで指定された付箋を中心に表示
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash || notes.length === 0) return;
+
+    const note = notes.find((n) => n.id === hash);
+    if (note && boardRef.current) {
+      // 画面の中央に付箋を配置
+      // pan値は「画面をどれだけ移動させるか」を表す
+      // 付箋を画面中央に持ってくるには、付箋の位置を画面中央から引く
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      setPanX(centerX - note.x * zoom);
+      setPanY(centerY - note.y * zoom);
+
+      // 初期ロードフラグをセットしてから選択状態を変更
+      setIsInitialHashLoad(true);
+      setSelectedNoteIds(new Set([hash]));
+
+      // 次のティックでフラグをリセット
+      setTimeout(() => setIsInitialHashLoad(false), 0);
+    }
+  }, [notes, zoom]);
+
+  // URLハッシュの変更を監視
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && notes.length > 0) {
+        const note = notes.find((n) => n.id === hash);
+        if (note && boardRef.current) {
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          setPanX(centerX - note.x * zoom);
+          setPanY(centerY - note.y * zoom);
+          setSelectedNoteIds(new Set([hash]));
+        }
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [notes, zoom]);
 
   // Update maxZIndex when notes change
   useEffect(() => {
@@ -190,6 +237,29 @@ export function Board({ user }: BoardProps) {
       setNextZIndex(maxZ + 1);
     }
   }, [notes]);
+
+  // selectedNoteIdsが変更されたときにURLハッシュを更新
+  useEffect(() => {
+    // 初期ロード時はスキップ
+    if (isInitialHashLoad) {
+      return;
+    }
+
+
+    if (selectedNoteIds.size === 1) {
+      // 単一の付箋が選択されている場合はハッシュを設定
+      const noteId = Array.from(selectedNoteIds)[0];
+      window.history.replaceState(null, "", `#${noteId}`);
+    } else if (selectedNoteIds.size === 0) {
+      // 選択が解除された場合はハッシュをクリア
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
+    }
+    // 複数選択の場合はハッシュを変更しない
+  }, [selectedNoteIds, isInitialHashLoad]);
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {
