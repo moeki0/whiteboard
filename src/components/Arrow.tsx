@@ -13,10 +13,8 @@ interface ArrowProps {
 
 export function Arrow({
   arrow,
-  onUpdate,
   isSelected,
   onSelect,
-  zoom,
   notes,
 }: ArrowProps) {
   // 接続された付箋が存在するかチェック

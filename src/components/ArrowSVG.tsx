@@ -12,7 +12,6 @@ interface ArrowSVGProps {
 
 export function ArrowSVG({
   arrow,
-  onUpdate,
   isSelected,
   onSelect,
   zoom,
@@ -245,43 +244,6 @@ export function ArrowSVG({
         strokeLinejoin="round"
         onClick={handleClick}
       />
-      
-      {/* 選択時のマージン調整ハンドル */}
-      {isSelected && (
-        <>
-          {/* 開始点のマージンハンドル */}
-          <circle
-            cx={startX}
-            cy={startY}
-            r={4}
-            fill="#4CAF50"
-            stroke="#fff"
-            strokeWidth={1}
-            style={{ cursor: "move" }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              setIsDraggingStart(true);
-              setDragStartPos({ x: e.clientX, y: e.clientY });
-            }}
-          />
-          
-          {/* 終了点のマージンハンドル */}
-          <circle
-            cx={endX}
-            cy={endY}
-            r={4}
-            fill="#FF9800"
-            stroke="#fff"
-            strokeWidth={1}
-            style={{ cursor: "move" }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              setIsDraggingEnd(true);
-              setDragStartPos({ x: e.clientX, y: e.clientY });
-            }}
-          />
-        </>
-      )}
     </g>
   );
 }
