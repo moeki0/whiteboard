@@ -88,7 +88,7 @@ describe('StickyNote iframe埋め込み機能', () => {
     expect(iframe).toHaveAttribute('src', googleDocUrl);
   });
 
-  it('Google DocumentのURLがiframeとして表示される', () => {
+  it('Google DocumentのURL直接貼り付けは通常のリンクとして表示される', () => {
     const googleDocUrl = 'https://docs.google.com/document/d/e/2PACX-1vR1ITGN8ZeGVM-oFb5NjwIvLHgrJB-6oEywORxx99E-z6oaChdLIP9Vz-NW6FCcBfgEQ8QF0PTwxp8V/pub?embedded=true';
     const noteWithGoogleDoc = {
       ...mockNote,
@@ -97,19 +97,20 @@ describe('StickyNote iframe埋め込み機能', () => {
 
     render(<StickyNote {...defaultProps} note={noteWithGoogleDoc} />);
 
-    const iframe = screen.getByTitle('Google Document');
-    expect(iframe).toBeInTheDocument();
-    expect(iframe).toHaveAttribute('src', googleDocUrl);
+    // iframeではなくリンクとして表示される
+    expect(screen.queryByTitle('Google Document')).not.toBeInTheDocument();
+    expect(screen.getByText(googleDocUrl)).toBeInTheDocument();
   });
 
   it('iframe に適切な属性が設定される', () => {
     const googleDocUrl = 'https://docs.google.com/document/d/e/2PACX-1vR1ITGN8ZeGVM-oFb5NjwIvLHgrJB-6oEywORxx99E-z6oaChdLIP9Vz-NW6FCcBfgEQ8QF0PTwxp8V/pub?embedded=true';
-    const noteWithGoogleDoc = {
+    const iframeTag = `<iframe src="${googleDocUrl}"></iframe>`;
+    const noteWithIframe = {
       ...mockNote,
-      content: googleDocUrl,
+      content: iframeTag,
     };
 
-    render(<StickyNote {...defaultProps} note={noteWithGoogleDoc} />);
+    render(<StickyNote {...defaultProps} note={noteWithIframe} />);
 
     const iframe = screen.getByTitle('Google Document');
     expect(iframe).toHaveStyle({
@@ -120,12 +121,13 @@ describe('StickyNote iframe埋め込み機能', () => {
 
   it('アスタリスクでiframeのサイズが調整される', () => {
     const googleDocUrl = 'https://docs.google.com/document/d/e/2PACX-1vR1ITGN8ZeGVM-oFb5NjwIvLHgrJB-6oEywORxx99E-z6oaChdLIP9Vz-NW6FCcBfgEQ8QF0PTwxp8V/pub?embedded=true';
-    const noteWithLargeGoogleDoc = {
+    const iframeTag = `<iframe src="${googleDocUrl}"></iframe>`;
+    const noteWithLargeIframe = {
       ...mockNote,
-      content: `**${googleDocUrl}`,
+      content: `**${iframeTag}`,
     };
 
-    render(<StickyNote {...defaultProps} note={noteWithLargeGoogleDoc} />);
+    render(<StickyNote {...defaultProps} note={noteWithLargeIframe} />);
 
     const iframe = screen.getByTitle('Google Document');
     expect(iframe).toHaveStyle({
@@ -147,11 +149,12 @@ describe('StickyNote iframe埋め込み機能', () => {
     expect(screen.getByText(regularGoogleDocUrl)).toBeInTheDocument();
   });
 
-  it('Google Spreadsheetsの埋め込みURLがiframeとして表示される', () => {
+  it('Google Spreadsheetsのiframeタグが埋め込みとして表示される', () => {
     const googleSheetsUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQQm8sJ9X7K2L1B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7A8B9C0D1E2F3G4H5I6/pubhtml?widget=true&headers=false';
+    const iframeTag = `<iframe src="${googleSheetsUrl}"></iframe>`;
     const noteWithGoogleSheets = {
       ...mockNote,
-      content: googleSheetsUrl,
+      content: iframeTag,
     };
 
     render(<StickyNote {...defaultProps} note={noteWithGoogleSheets} />);
@@ -161,11 +164,12 @@ describe('StickyNote iframe埋め込み機能', () => {
     expect(iframe).toHaveAttribute('src', googleSheetsUrl);
   });
 
-  it('Google Slidesの埋め込みURLがiframeとして表示される', () => {
+  it('Google Slidesのiframeタグが埋め込みとして表示される', () => {
     const googleSlidesUrl = 'https://docs.google.com/presentation/d/e/2PACX-1vQQm8sJ9X7K2L1B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7A8B9C0D1E2F3G4H5I6/embed?start=false&loop=false&delayms=3000';
+    const iframeTag = `<iframe src="${googleSlidesUrl}"></iframe>`;
     const noteWithGoogleSlides = {
       ...mockNote,
-      content: googleSlidesUrl,
+      content: iframeTag,
     };
 
     render(<StickyNote {...defaultProps} note={noteWithGoogleSlides} />);

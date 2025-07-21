@@ -1183,36 +1183,7 @@ export function StickyNote({
       }
     }
 
-    // 付箋全体がGoogle DocsのURLのみの場合は埋め込みとして処理
-    if (isContentOnlyGoogleDocUrl(contentWithoutTrailingAsterisks)) {
-      const lines = contentWithoutTrailingAsterisks
-        .split("\n")
-        .filter((line) => line.trim() !== "");
-      const line = lines[0].trim();
-      const asteriskMatch = line.match(/^(\*+)(.*)/);
-
-      if (asteriskMatch) {
-        const contentAfterAsterisks = asteriskMatch[2];
-        
-        return [
-          {
-            type: "googledocembed",
-            embedUrl: contentAfterAsterisks,
-            originalUrl: contentAfterAsterisks,
-            size: getGoogleDocSize(line),
-          },
-        ];
-      } else {
-        return [
-          {
-            type: "googledocembed",
-            embedUrl: line,
-            originalUrl: line,
-            size: getGoogleDocSize(line),
-          },
-        ];
-      }
-    }
+    // Google DocsのURLの直接貼り付けは通常のテキストとして処理（埋め込みにしない）
 
     // 付箋全体がYouTubeのURLのみの場合は埋め込みとして処理
     if (isContentOnlyYouTubeUrl(contentWithoutTrailingAsterisks)) {
@@ -2217,6 +2188,8 @@ export function StickyNote({
                           height: `${item.size.height}px`,
                           borderRadius: "4px",
                           border: "none",
+                          pointerEvents: "none",
+                          userSelect: "none",
                         }}
                       />
                     </div>
