@@ -94,8 +94,8 @@ export interface Cursor {
 }
 
 export interface HistoryAction {
-  type: "CREATE_NOTES" | "DELETE_NOTES" | "MOVE_NOTES" | "EDIT_NOTE";
-  noteId: string;
+  type: "CREATE_NOTES" | "DELETE_NOTES" | "MOVE_NOTES" | "EDIT_NOTE" | "CREATE_ARROW" | "DELETE_ARROW" | "CREATE_GROUP" | "DELETE_GROUP";
+  noteId?: string;
   userId: string;
   notes?: Note[];
   oldContent?: string;
@@ -105,6 +105,10 @@ export interface HistoryAction {
     oldPosition: { x: number; y: number };
     newPosition: { x: number; y: number };
   }>;
+  // 矢印関連
+  arrow?: Arrow;
+  // グループ関連
+  group?: Group;
 }
 
 export interface SlugHistory {

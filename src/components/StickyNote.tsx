@@ -24,6 +24,7 @@ import { useCombinedSuggestions } from "../hooks/useCombinedSuggestions";
 import { extractBoardLinks } from "../utils/extractBoardLinks";
 import { extractCosenseLinks } from "../utils/extractCosenseLinks";
 import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
+import { isYouTubeUrl, getYouTubeEmbedUrl } from "../utils/youtubeEmbed";
 
 interface ImageContent {
   type: "image";
@@ -68,6 +69,13 @@ interface BoardThumbnailImageContent {
   sizeMultiplier: number;
 }
 
+interface YouTubeEmbedContent {
+  type: "youtubeembed";
+  embedUrl: string;
+  originalUrl: string;
+  size: { width: number; height: number };
+}
+
 type ParsedContent =
   | ImageContent
   | TextContent
@@ -75,7 +83,8 @@ type ParsedContent =
   | InlineImageContent
   | BoardThumbnailContent
   | BoardLinkContent
-  | BoardThumbnailImageContent;
+  | BoardThumbnailImageContent
+  | YouTubeEmbedContent;
 
 interface StickyNoteProps {
   note: Note;
@@ -957,6 +966,36 @@ export function StickyNote({
     return baseSize * sizeMultiplier;
   };
 
+  // アスタリスクの数からYouTube動画サイズを計算
+  const getYouTubeSize = (line: string) => {
+    const baseWidth = 280;
+    const baseHeight = 157;
+    let sizeMultiplier = 1;
+
+    // *のみをチェック
+    const asteriskOnlyMatch = line.match(/^(\*+)(.*)/);
+
+    if (asteriskOnlyMatch) {
+      const asteriskCount = asteriskOnlyMatch[1].length;
+      // テストの期待値に合わせて計算
+      // * = 420x236, ** = 560x315, *** = 700x394
+      if (asteriskCount === 1) {
+        sizeMultiplier = 1.5; // 420/280 = 1.5
+      } else if (asteriskCount === 2) {
+        sizeMultiplier = 2.0; // 560/280 = 2.0
+      } else if (asteriskCount === 3) {
+        sizeMultiplier = 2.5; // 700/280 = 2.5
+      } else {
+        sizeMultiplier = 1 + asteriskCount * 0.5;
+      }
+    }
+
+    return {
+      width: Math.round(baseWidth * sizeMultiplier),
+      height: Math.round(baseHeight * sizeMultiplier),
+    };
+  };
+
   // 付箋全体がGyazoのURLのみかどうかをチェック
   const isContentOnlyGyazoUrl = (content: string) => {
     const lines = content.split("\n").filter((line) => line.trim() !== "");
@@ -982,10 +1021,72 @@ export function StickyNote({
     return isGyazoUrl(trimmedContent);
   };
 
+  // 付箋全体がYouTubeのURLのみかどうかをチェック
+  const isContentOnlyYouTubeUrl = (content: string) => {
+    const lines = content.split("\n").filter((line) => line.trim() !== "");
+    if (lines.length !== 1) return false;
+
+    const line = lines[0].trim();
+    const withoutAsterisks = line.replace(/^\*+/, "");
+    const trimmedContent = withoutAsterisks.trim();
+
+    // テキストが含まれている場合や、[]で囲まれている場合はテキストとして処理
+    if (trimmedContent.includes("[") || trimmedContent.includes("]")) {
+      return false;
+    }
+
+    // 他の文字が前後にある場合はテキストとして処理
+    if (
+      line.length >
+      trimmedContent.length + (line.length - line.replace(/^\*+/, "").length)
+    ) {
+      return false;
+    }
+
+    return isYouTubeUrl(trimmedContent);
+  };
+
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
     // 末尾のアスタリスクを除去（縮小記法なので表示しない）
     const contentWithoutTrailingAsterisks = text.replace(/\*+$/, "");
+
+    // 付箋全体がYouTubeのURLのみの場合は埋め込みとして処理
+    if (isContentOnlyYouTubeUrl(contentWithoutTrailingAsterisks)) {
+      const lines = contentWithoutTrailingAsterisks
+        .split("\n")
+        .filter((line) => line.trim() !== "");
+      const line = lines[0].trim();
+      const asteriskMatch = line.match(/^(\*+)(.*)/);
+
+      if (asteriskMatch) {
+        const contentAfterAsterisks = asteriskMatch[2];
+        const embedUrl = getYouTubeEmbedUrl(contentAfterAsterisks);
+
+        if (embedUrl) {
+          return [
+            {
+              type: "youtubeembed",
+              embedUrl: embedUrl,
+              originalUrl: contentAfterAsterisks,
+              size: getYouTubeSize(line),
+            },
+          ];
+        }
+      } else {
+        const embedUrl = getYouTubeEmbedUrl(line);
+        if (embedUrl) {
+          return [
+            {
+              type: "youtubeembed",
+              embedUrl: embedUrl,
+              originalUrl: line,
+              size: getYouTubeSize(line),
+            },
+          ];
+        }
+      }
+    }
 
     // 付箋全体がGyazoのURLのみの場合は画像として処理
     if (isContentOnlyGyazoUrl(contentWithoutTrailingAsterisks)) {
@@ -1900,7 +2001,7 @@ export function StickyNote({
                 whiteSpace: "pre-wrap",
                 width: "auto",
                 maxWidth: parsedContent.find(
-                  (c) => c.type === "image" || c.type === "boardthumbnailimage"
+                  (c) => c.type === "image" || c.type === "boardthumbnailimage" || c.type === "youtubeembed"
                 )
                   ? "none"
                   : "160px",
@@ -1922,6 +2023,23 @@ export function StickyNote({
                         }}
                         draggable={false}
                         onMouseDown={(e) => e.preventDefault()}
+                      />
+                    </div>
+                  );
+                } else if (item.type === "youtubeembed") {
+                  return (
+                    <div key={index} style={{ margin: "4px 0" }}>
+                      <iframe
+                        src={item.embedUrl}
+                        title="YouTube video"
+                        style={{
+                          width: `${item.size.width}px`,
+                          height: `${item.size.height}px`,
+                          borderRadius: "4px",
+                          border: "none",
+                        }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
                       />
                     </div>
                   );

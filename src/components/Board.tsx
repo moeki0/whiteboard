@@ -446,6 +446,13 @@ export function Board({ user }: BoardProps) {
     set(arrowRef, newArrow);
     setNextZIndex((prev) => prev + 1);
 
+    // 履歴に追加
+    addToHistory({
+      type: "CREATE_ARROW",
+      userId: user.uid,
+      arrow: { ...newArrow, id: arrowId }
+    });
+
     // 矢印作成後、付箋の選択をクリア
     setSelectedNoteIds(new Set());
     // 新しい矢印を選択状態にする
@@ -488,6 +495,13 @@ export function Board({ user }: BoardProps) {
     set(groupRef, newGroup);
     setNextZIndex((prev) => prev + 1);
 
+    // 履歴に追加
+    addToHistory({
+      type: "CREATE_GROUP",
+      userId: user.uid,
+      group: { ...newGroup, id: groupId }
+    });
+
     // グループ作成後、付箋の選択をクリア
     setSelectedNoteIds(new Set());
     // 新しいグループを選択状態にする
@@ -516,8 +530,19 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは矢印を削除できない
     if (!user?.uid) return;
 
+    // 削除前に矢印のデータを保存（履歴用）
+    const arrow = arrows.find((a) => a.id === arrowId);
+    if (!arrow) return;
+
     const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrowId}`);
     remove(arrowRef);
+
+    // 履歴に追加
+    addToHistory({
+      type: "DELETE_ARROW",
+      userId: user.uid,
+      arrow: arrow
+    });
 
     // 選択状態も削除
     if (selectedItemIds.has(arrowId)) {
@@ -1624,8 +1649,19 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーはグループを削除できない
     if (!user?.uid) return;
 
+    // 削除前にグループのデータを保存（履歴用）
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+
     const groupRef = ref(rtdb, `boards/${boardId}/groups/${groupId}`);
     remove(groupRef);
+
+    // 履歴に追加
+    addToHistory({
+      type: "DELETE_GROUP",
+      userId: user.uid,
+      group: group
+    });
 
     // 選択状態も削除
     if (selectedGroupIds.has(groupId)) {
@@ -1750,11 +1786,11 @@ export function Board({ user }: BoardProps) {
     }
 
     setIsUndoRedoOperation(true);
-    setCurrentUndoRedoNoteId(action.noteId);
+    setCurrentUndoRedoNoteId(action.noteId || null);
 
     try {
-      const noteRef = ref(rtdb, `boards/${boardId}/notes/${action.noteId}`);
-      const note = notes.find((n) => n.id === action.noteId);
+      const noteRef = action.noteId ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`) : null;
+      const note = action.noteId ? notes.find((n) => n.id === action.noteId) : null;
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1800,8 +1836,40 @@ export function Board({ user }: BoardProps) {
           break;
 
         case "EDIT_NOTE":
-          if (note) {
+          if (note && noteRef) {
             await set(noteRef, { ...note, content: action.oldContent });
+          }
+          break;
+
+        case "CREATE_ARROW":
+          // 矢印の作成をundo（削除）
+          if (action.arrow) {
+            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            remove(arrowRef);
+          }
+          break;
+
+        case "DELETE_ARROW":
+          // 矢印の削除をundo（復元）
+          if (action.arrow) {
+            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            set(arrowRef, action.arrow);
+          }
+          break;
+
+        case "CREATE_GROUP":
+          // グループの作成をundo（削除）
+          if (action.group) {
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            remove(groupRef);
+          }
+          break;
+
+        case "DELETE_GROUP":
+          // グループの削除をundo（復元）
+          if (action.group) {
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            set(groupRef, action.group);
           }
           break;
       }
@@ -1821,11 +1889,11 @@ export function Board({ user }: BoardProps) {
     if (!action || action.userId !== user.uid) return;
 
     setIsUndoRedoOperation(true);
-    setCurrentUndoRedoNoteId(action.noteId);
+    setCurrentUndoRedoNoteId(action.noteId || null);
 
     try {
-      const noteRef = ref(rtdb, `boards/${boardId}/notes/${action.noteId}`);
-      const note = notes.find((n) => n.id === action.noteId);
+      const noteRef = action.noteId ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`) : null;
+      const note = action.noteId ? notes.find((n) => n.id === action.noteId) : null;
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1868,8 +1936,40 @@ export function Board({ user }: BoardProps) {
           break;
 
         case "EDIT_NOTE":
-          if (note) {
+          if (note && noteRef) {
             set(noteRef, { ...note, content: action.newContent });
+          }
+          break;
+
+        case "CREATE_ARROW":
+          // 矢印の作成をredo（再作成）
+          if (action.arrow) {
+            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            set(arrowRef, action.arrow);
+          }
+          break;
+
+        case "DELETE_ARROW":
+          // 矢印の削除をredo（再削除）
+          if (action.arrow) {
+            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            remove(arrowRef);
+          }
+          break;
+
+        case "CREATE_GROUP":
+          // グループの作成をredo（再作成）
+          if (action.group) {
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            set(groupRef, action.group);
+          }
+          break;
+
+        case "DELETE_GROUP":
+          // グループの削除をredo（再削除）
+          if (action.group) {
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            remove(groupRef);
           }
           break;
       }
