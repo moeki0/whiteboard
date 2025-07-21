@@ -2188,8 +2188,6 @@ export function StickyNote({
                           height: `${item.size.height}px`,
                           borderRadius: "4px",
                           border: "none",
-                          pointerEvents: "none",
-                          userSelect: "none",
                         }}
                       />
                     </div>
