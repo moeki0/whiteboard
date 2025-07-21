@@ -16,10 +16,9 @@ import { ThumbnailImage } from "./ThumbnailImage";
 import {
   handleBracketCompletion,
   analyzeBoardTitleSuggestion,
-  filterBoardSuggestions,
 } from "../utils/textCompletion";
 import { useProjectBoards } from "../hooks/useProjectBoards";
-import { BoardSuggestions, CombinedSuggestions } from "./BoardSuggestions";
+import { CombinedSuggestions } from "./BoardSuggestions";
 import { useCombinedSuggestions } from "../hooks/useCombinedSuggestions";
 import { extractBoardLinks } from "../utils/extractBoardLinks";
 import { extractCosenseLinks } from "../utils/extractCosenseLinks";
@@ -76,6 +75,13 @@ interface YouTubeEmbedContent {
   size: { width: number; height: number };
 }
 
+interface GoogleDocEmbedContent {
+  type: "googledocembed";
+  embedUrl: string;
+  originalUrl: string;
+  size: { width: number; height: number };
+}
+
 type ParsedContent =
   | ImageContent
   | TextContent
@@ -84,7 +90,8 @@ type ParsedContent =
   | BoardThumbnailContent
   | BoardLinkContent
   | BoardThumbnailImageContent
-  | YouTubeEmbedContent;
+  | YouTubeEmbedContent
+  | GoogleDocEmbedContent;
 
 interface StickyNoteProps {
   note: Note;
@@ -163,7 +170,7 @@ export function StickyNote({
     bracketEnd: -1,
     position: { x: 0, y: 0 },
   });
-  const [cursorPosition, setCursorPosition] = useState(0);
+  const [, setCursorPosition] = useState(0);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const [userProfiles, setUserProfiles] = useState<
     Map<string, UserProfile | null>
@@ -996,6 +1003,27 @@ export function StickyNote({
     };
   };
 
+  // アスタリスクの数からGoogle Docサイズを計算
+  const getGoogleDocSize = (line: string) => {
+    const baseWidth = 240;  // より小さなベースサイズ
+    const baseHeight = 320;
+    let sizeMultiplier = 1;
+
+    // *のみをチェック
+    const asteriskOnlyMatch = line.match(/^(\*+)(.*)/);
+
+    if (asteriskOnlyMatch) {
+      const asteriskCount = asteriskOnlyMatch[1].length;
+      // 1つ星ごとに1.2倍（より緩やかな増加）
+      sizeMultiplier = Math.pow(1.2, asteriskCount);
+    }
+
+    return {
+      width: Math.round(baseWidth * sizeMultiplier),
+      height: Math.round(baseHeight * sizeMultiplier),
+    };
+  };
+
   // 付箋全体がGyazoのURLのみかどうかをチェック
   const isContentOnlyGyazoUrl = (content: string) => {
     const lines = content.split("\n").filter((line) => line.trim() !== "");
@@ -1046,10 +1074,145 @@ export function StickyNote({
     return isYouTubeUrl(trimmedContent);
   };
 
+  // Google DocsのURLかどうかをチェック
+  const isGoogleDocUrl = (text: string) => {
+    const url = text.trim();
+    // Google Docs, Sheets, Slides の埋め込み用URLをチェック
+    return (
+      url.includes('docs.google.com/document') && 
+      (url.includes('embedded=true') || url.includes('/pub') || url.includes('/embed'))
+    ) || (
+      url.includes('docs.google.com/spreadsheets') && 
+      (url.includes('pubhtml') || url.includes('embed'))
+    ) || (
+      url.includes('docs.google.com/presentation') && 
+      url.includes('/embed')
+    );
+  };
+
+  // iframe タグから src URL を抽出
+  const extractIframeSrc = (iframeTag: string): string | null => {
+    const srcMatch = iframeTag.match(/src=["']([^"']+)["']/);
+    if (!srcMatch) return null;
+    
+    const src = srcMatch[1];
+    // Google Document の埋め込みURLのみ許可
+    if (isGoogleDocUrl(src)) {
+      return src;
+    }
+    return null;
+  };
+
+  // コンテンツが iframe タグかどうかをチェック
+  const isIframeTag = (content: string): boolean => {
+    const trimmed = content.trim();
+    return trimmed.startsWith('<iframe') && trimmed.includes('</iframe>');
+  };
+
+  // 付箋全体がGoogle DocsのURLのみかどうかをチェック
+  const isContentOnlyGoogleDocUrl = (content: string) => {
+    const lines = content.split("\n").filter((line) => line.trim() !== "");
+    if (lines.length !== 1) return false;
+
+    const line = lines[0].trim();
+    const withoutAsterisks = line.replace(/^\*+/, "");
+    const trimmedContent = withoutAsterisks.trim();
+
+    // テキストが含まれている場合や、[]で囲まれている場合はテキストとして処理
+    if (trimmedContent.includes("[") || trimmedContent.includes("]")) {
+      return false;
+    }
+
+    // 他の文字が前後にある場合はテキストとして処理
+    if (
+      line.length >
+      trimmedContent.length + (line.length - line.replace(/^\*+/, "").length)
+    ) {
+      return false;
+    }
+
+    return isGoogleDocUrl(trimmedContent);
+  };
+
+  // 付箋全体がiframeタグのみかどうかをチェック
+  const isContentOnlyIframe = (content: string) => {
+    const lines = content.split("\n").filter((line) => line.trim() !== "");
+    if (lines.length !== 1) return false;
+
+    const line = lines[0].trim();
+    const withoutAsterisks = line.replace(/^\*+/, "");
+    const trimmedContent = withoutAsterisks.trim();
+
+    return isIframeTag(trimmedContent);
+  };
+
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
     // 末尾のアスタリスクを除去（縮小記法なので表示しない）
     const contentWithoutTrailingAsterisks = text.replace(/\*+$/, "");
+
+    // 付箋全体がiframeタグの場合は埋め込みとして処理
+    if (isContentOnlyIframe(contentWithoutTrailingAsterisks)) {
+      const lines = contentWithoutTrailingAsterisks
+        .split("\n")
+        .filter((line) => line.trim() !== "");
+      const line = lines[0].trim();
+      const asteriskMatch = line.match(/^(\*+)(.*)/);
+
+      let iframeContent: string;
+      let size: { width: number; height: number };
+
+      if (asteriskMatch) {
+        iframeContent = asteriskMatch[2].trim();
+        size = getGoogleDocSize(line);
+      } else {
+        iframeContent = line;
+        size = getGoogleDocSize(line);
+      }
+
+      const src = extractIframeSrc(iframeContent);
+      if (src) {
+        return [
+          {
+            type: "googledocembed",
+            embedUrl: src,
+            originalUrl: iframeContent,
+            size: size,
+          },
+        ];
+      }
+    }
+
+    // 付箋全体がGoogle DocsのURLのみの場合は埋め込みとして処理
+    if (isContentOnlyGoogleDocUrl(contentWithoutTrailingAsterisks)) {
+      const lines = contentWithoutTrailingAsterisks
+        .split("\n")
+        .filter((line) => line.trim() !== "");
+      const line = lines[0].trim();
+      const asteriskMatch = line.match(/^(\*+)(.*)/);
+
+      if (asteriskMatch) {
+        const contentAfterAsterisks = asteriskMatch[2];
+        
+        return [
+          {
+            type: "googledocembed",
+            embedUrl: contentAfterAsterisks,
+            originalUrl: contentAfterAsterisks,
+            size: getGoogleDocSize(line),
+          },
+        ];
+      } else {
+        return [
+          {
+            type: "googledocembed",
+            embedUrl: line,
+            originalUrl: line,
+            size: getGoogleDocSize(line),
+          },
+        ];
+      }
+    }
 
     // 付箋全体がYouTubeのURLのみの場合は埋め込みとして処理
     if (isContentOnlyYouTubeUrl(contentWithoutTrailingAsterisks)) {
@@ -2001,7 +2164,7 @@ export function StickyNote({
                 whiteSpace: "pre-wrap",
                 width: "auto",
                 maxWidth: parsedContent.find(
-                  (c) => c.type === "image" || c.type === "boardthumbnailimage" || c.type === "youtubeembed"
+                  (c) => c.type === "image" || c.type === "boardthumbnailimage" || c.type === "youtubeembed" || c.type === "googledocembed"
                 )
                   ? "none"
                   : "160px",
@@ -2040,6 +2203,21 @@ export function StickyNote({
                         }}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
+                      />
+                    </div>
+                  );
+                } else if (item.type === "googledocembed") {
+                  return (
+                    <div key={index} style={{ margin: "4px 0" }}>
+                      <iframe
+                        src={item.embedUrl}
+                        title="Google Document"
+                        style={{
+                          width: `${item.size.width}px`,
+                          height: `${item.size.height}px`,
+                          borderRadius: "4px",
+                          border: "none",
+                        }}
                       />
                     </div>
                   );
