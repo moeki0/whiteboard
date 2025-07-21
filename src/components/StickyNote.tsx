@@ -159,6 +159,19 @@ export function StickyNote({
   const [noteColor, setNoteColor] = useState(note.color || "white");
   const [textSize, setTextSize] = useState(note.textSize || "medium");
   const [isHovered, setIsHovered] = useState(false);
+
+  // ホバー状態の更新を制限するためのデバウンス処理
+  const setHoveredDebounced = useMemo(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    return (hovered: boolean) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        setIsHovered(hovered);
+      }, 50); // 50ms の遅延でホバー状態を更新
+    };
+  }, []);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
     x: 0,
@@ -285,16 +298,28 @@ export function StickyNote({
     };
 
     updateNotePosition();
-    
-    // ウィンドウリサイズ時も位置を更新
-    window.addEventListener('resize', updateNotePosition);
-    window.addEventListener('scroll', updateNotePosition);
-    
-    return () => {
-      window.removeEventListener('resize', updateNotePosition);
-      window.removeEventListener('scroll', updateNotePosition);
+  }, [position]); // 位置変更時のみ更新
+
+  // リサイズとスクロールの監視を別のuseEffectに分離
+  useEffect(() => {
+    const updateNotePosition = () => {
+      if (noteRef.current) {
+        const rect = noteRef.current.getBoundingClientRect();
+        setNotePosition({
+          left: rect.left + rect.width / 2,
+          top: rect.top - 22,
+        });
+      }
     };
-  }, [position, isHovered, isEditing, showToolbar, hintKey]);
+
+    window.addEventListener("resize", updateNotePosition);
+    window.addEventListener("scroll", updateNotePosition);
+
+    return () => {
+      window.removeEventListener("resize", updateNotePosition);
+      window.removeEventListener("scroll", updateNotePosition);
+    };
+  }, []); // 一度だけ監視を設定
 
   // ボードサムネイル取得
   useEffect(() => {
@@ -565,36 +590,29 @@ export function StickyNote({
 
   // 固定幅なので自動リサイズは不要
 
-  // 影の更新のために定期的に再レンダリング
-  useEffect(() => {
+  // 影のスタイルを計算する関数（強制再レンダリングではなく、必要時のみ計算）
+  const getShadowStyle = useMemo(() => {
     const lastUpdate = note.updatedAt || note.createdAt;
     const now = Date.now();
     const timeDiff = now - lastUpdate;
 
-    // 更新からの経過時間に応じて再レンダリング間隔を設定
-    let interval: number;
+    // 影の強度を時間経過に応じて調整（計算のみ、タイマー不要）
+    let shadowIntensity = 1;
     if (timeDiff < 60 * 1000) {
-      // 1分以内: 10秒ごと
-      interval = 10 * 1000;
+      shadowIntensity = 2;
     } else if (timeDiff < 5 * 60 * 1000) {
-      // 5分以内: 30秒ごと
-      interval = 30 * 1000;
+      shadowIntensity = 1;
     } else if (timeDiff < 30 * 60 * 1000) {
-      // 30分以内: 1分ごと
-      interval = 60 * 1000;
+      shadowIntensity = 0.5;
     } else if (timeDiff < 60 * 60 * 1000) {
-      // 1時間以内: 5分ごと
-      interval = 5 * 60 * 1000;
+      shadowIntensity = 0.3;
     } else {
-      // それ以上: 更新不要
-      return;
+      shadowIntensity = 0.05;
     }
 
-    const timer = setInterval(() => {
-      forceUpdate({});
-    }, interval);
-
-    return () => clearInterval(timer);
+    return {
+      boxShadow: `0 0px ${16 * shadowIntensity}px rgba(0, 0, 0, 0.15)`,
+    };
   }, [note.updatedAt, note.createdAt]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1033,7 +1051,7 @@ export function StickyNote({
 
   // アスタリスクの数からGoogle Docサイズを計算
   const getGoogleDocSize = (line: string) => {
-    const baseWidth = 240;  // より小さなベースサイズ
+    const baseWidth = 240; // より小さなベースサイズ
     const baseHeight = 320;
     let sizeMultiplier = 1;
 
@@ -1107,14 +1125,13 @@ export function StickyNote({
     const url = text.trim();
     // Google Docs, Sheets, Slides の埋め込み用URLをチェック
     return (
-      url.includes('docs.google.com/document') && 
-      (url.includes('embedded=true') || url.includes('/pub') || url.includes('/embed'))
-    ) || (
-      url.includes('docs.google.com/spreadsheets') && 
-      (url.includes('pubhtml') || url.includes('embed'))
-    ) || (
-      url.includes('docs.google.com/presentation') && 
-      url.includes('/embed')
+      (url.includes("docs.google.com/document") &&
+        (url.includes("embedded=true") ||
+          url.includes("/pub") ||
+          url.includes("/embed"))) ||
+      (url.includes("docs.google.com/spreadsheets") &&
+        (url.includes("pubhtml") || url.includes("embed"))) ||
+      (url.includes("docs.google.com/presentation") && url.includes("/embed"))
     );
   };
 
@@ -1122,7 +1139,7 @@ export function StickyNote({
   const extractIframeSrc = (iframeTag: string): string | null => {
     const srcMatch = iframeTag.match(/src=["']([^"']+)["']/);
     if (!srcMatch) return null;
-    
+
     const src = srcMatch[1];
     // Google Document の埋め込みURLのみ許可
     if (isGoogleDocUrl(src)) {
@@ -1134,7 +1151,7 @@ export function StickyNote({
   // コンテンツが iframe タグかどうかをチェック
   const isIframeTag = (content: string): boolean => {
     const trimmed = content.trim();
-    return trimmed.startsWith('<iframe') && trimmed.includes('</iframe>');
+    return trimmed.startsWith("<iframe") && trimmed.includes("</iframe>");
   };
 
   // 付箋全体がGoogle DocsのURLのみかどうかをチェック
@@ -1917,7 +1934,7 @@ export function StickyNote({
         left: `${position.x}px`,
         top: `${position.y}px`,
         backgroundColor: backgroundColor,
-        boxShadow: calculateShadowByRecency(),
+        ...getShadowStyle,
         border:
           noteColor === "transparent" ? "none" : `1px solid ${borderColor}`,
         zIndex: noteColor === "transparent" ? -1 : note.zIndex || 1,
@@ -1933,10 +1950,9 @@ export function StickyNote({
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => setHoveredDebounced(true)}
+      onMouseLeave={() => setHoveredDebounced(false)}
     >
-
       {/* 新着マーク */}
       {isNewNote && noteColor !== "transparent" && (
         <div
@@ -1994,7 +2010,11 @@ export function StickyNote({
                 whiteSpace: "pre-wrap",
                 width: "auto",
                 maxWidth: parsedContent.find(
-                  (c) => c.type === "image" || c.type === "boardthumbnailimage" || c.type === "youtubeembed" || c.type === "googledocembed"
+                  (c) =>
+                    c.type === "image" ||
+                    c.type === "boardthumbnailimage" ||
+                    c.type === "youtubeembed" ||
+                    c.type === "googledocembed"
                 )
                   ? "none"
                   : "160px",
@@ -2270,7 +2290,9 @@ export function StickyNote({
         </div>
       )}
       {/* ポータルでカラーツールバーを表示 */}
-      {showToolbar && isEditing && canEditNote &&
+      {showToolbar &&
+        isEditing &&
+        canEditNote &&
         createPortal(
           <div
             className="note-toolbar"
@@ -2453,13 +2475,20 @@ export function StickyNote({
           document.body
         )}
       {/* キーヒント表示 */}
-      {hintKey && noteRef.current &&
+      {hintKey &&
+        noteRef.current &&
         createPortal(
           <div
             style={{
               position: "fixed",
-              left: `${noteRef.current.getBoundingClientRect().left + noteRef.current.offsetWidth / 2}px`,
-              top: `${noteRef.current.getBoundingClientRect().top + noteRef.current.offsetHeight / 2}px`,
+              left: `${
+                noteRef.current.getBoundingClientRect().left +
+                noteRef.current.offsetWidth / 2
+              }px`,
+              top: `${
+                noteRef.current.getBoundingClientRect().top +
+                noteRef.current.offsetHeight / 2
+              }px`,
               transform: "translate(-50%, -50%)",
               background: "rgba(255, 107, 53, 0.95)",
               color: "white",
