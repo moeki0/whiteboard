@@ -160,6 +160,8 @@ export function SearchBoards({ user }: SearchBoardsProps) {
                         src={board.thumbnailUrl}
                         alt={`${board.name} thumbnail`}
                         className="thumbnail-image"
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
                       />
                     </div>
                   ) : (

@@ -123,6 +123,8 @@ export const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
       className={`inline-block rounded shadow-sm ${className}`}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       style={finalStyle as any}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onError={() => setError("画像の読み込みに失敗しました")}
     />
   );

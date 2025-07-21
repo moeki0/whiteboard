@@ -2015,6 +2015,7 @@ export function StickyNote({
                           pointerEvents: "none",
                         }}
                         draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
                         onMouseDown={(e) => e.preventDefault()}
                       />
                     </div>
@@ -2065,6 +2066,8 @@ export function StickyNote({
                         display: "inline-block",
                         userSelect: "none",
                       }}
+                      draggable={false}
+                      onDragStart={(e) => e.preventDefault()}
                       onError={(e) => {
                         // 画像が読み込めなかった場合のフォールバック
                         const target = e.target as HTMLImageElement;
@@ -2090,6 +2093,8 @@ export function StickyNote({
                         borderRadius: "2px",
                         userSelect: "none",
                       }}
+                      draggable={false}
+                      onDragStart={(e) => e.preventDefault()}
                       onError={(e) => {
                         // 画像が読み込めなかった場合のフォールバック
                         const target = e.target as HTMLImageElement;

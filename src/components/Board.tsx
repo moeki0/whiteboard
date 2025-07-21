@@ -117,6 +117,10 @@ export function Board({ user }: BoardProps) {
     null
   );
 
+  // WASD パン用の状態
+  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const panAnimationRef = useRef<number | null>(null);
+
   // ズーム慣性用の状態
   const [zoomVelocity, setZoomVelocity] = useState<number>(0);
   const [lastWheelTime, setLastWheelTime] = useState<number>(0);
@@ -315,6 +319,61 @@ export function Board({ user }: BoardProps) {
       );
     }
   }, []);
+
+  // ボードアクセス時に選択状態をリセット
+  useEffect(() => {
+    // ボードが読み込まれた時に選択状態を初期化
+    setSelectedNoteIds(new Set());
+    setSelectedItemIds(new Set());
+    setSelectedGroupIds(new Set());
+    updateUrlForNote(null);
+  }, [boardId, updateUrlForNote]);
+
+  // WASD パンアニメーション
+  useEffect(() => {
+    if (pressedKeys.size === 0) {
+      if (panAnimationRef.current) {
+        cancelAnimationFrame(panAnimationRef.current);
+        panAnimationRef.current = null;
+      }
+      return;
+    }
+
+    const animate = () => {
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement &&
+        (activeElement.tagName === "TEXTAREA" ||
+          activeElement.tagName === "INPUT");
+
+      if (!isInputFocused && !isKeyHintMode) {
+        const panSpeed = 8; // より高速なパン移動
+        let deltaX = 0;
+        let deltaY = 0;
+
+        if (pressedKeys.has("w")) deltaY += panSpeed;
+        if (pressedKeys.has("s")) deltaY -= panSpeed;
+        if (pressedKeys.has("a")) deltaX += panSpeed;
+        if (pressedKeys.has("d")) deltaX -= panSpeed;
+
+        if (deltaX !== 0) setPanX(prev => prev + deltaX);
+        if (deltaY !== 0) setPanY(prev => prev + deltaY);
+      }
+
+      panAnimationRef.current = requestAnimationFrame(animate);
+    };
+
+    if (panAnimationRef.current === null) {
+      panAnimationRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (panAnimationRef.current) {
+        cancelAnimationFrame(panAnimationRef.current);
+        panAnimationRef.current = null;
+      }
+    };
+  }, [pressedKeys, isKeyHintMode]);
 
   // URLハッシュの変更を監視（一時的に無効化してテスト）
   // useEffect(() => {
@@ -2303,6 +2362,20 @@ export function Board({ user }: BoardProps) {
           deleteSelectedArrows();
           deleteSelectedGroups();
         }
+      } else if (e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
+                 e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") {
+        // WASDキーでボードをパン
+        const activeElement = document.activeElement;
+        const isInputFocused =
+          activeElement &&
+          (activeElement.tagName === "TEXTAREA" ||
+            activeElement.tagName === "INPUT");
+
+        if (!isInputFocused && !isKeyHintMode && !e.repeat) {
+          e.preventDefault();
+          const key = e.key.toLowerCase();
+          setPressedKeys(prev => new Set([...prev, key]));
+        }
       } else if (e.key === "Escape") {
         // Escapeで選択状態をクリアまたはキーヒントモードを終了
         const activeElement = document.activeElement;
@@ -2424,9 +2497,30 @@ export function Board({ user }: BoardProps) {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
+          e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") {
+        const key = e.key.toLowerCase();
+        setPressedKeys(prev => {
+          const newKeys = new Set(prev);
+          newKeys.delete(key);
+          return newKeys;
+        });
+      }
+    };
+
+    const handleBlur = () => {
+      // フォーカスを失ったときにすべてのキーをクリア
+      setPressedKeys(new Set());
+    };
+
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [
     // activeNoteId削除済み

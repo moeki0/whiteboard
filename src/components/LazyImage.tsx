@@ -45,6 +45,8 @@ export function LazyImage({ src, alt, className, placeholderClassName }: LazyIma
             src={src}
             alt={alt}
             className={className}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             onLoad={() => setIsLoaded(true)}
             style={{
               opacity: isLoaded ? 1 : 0,
