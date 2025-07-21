@@ -126,6 +126,7 @@ interface StickyNoteProps {
   project: Project | null;
   user?: { displayName: string | null; photoURL: string | null } | null;
   onAddNote?: (x: number, y: number) => string;
+  hintKey?: string;
 }
 
 export function StickyNote({
@@ -148,6 +149,7 @@ export function StickyNote({
   project,
   onBlur,
   onAddNote,
+  hintKey,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
@@ -292,7 +294,7 @@ export function StickyNote({
       window.removeEventListener('resize', updateNotePosition);
       window.removeEventListener('scroll', updateNotePosition);
     };
-  }, [position, isHovered, isEditing, showToolbar]);
+  }, [position, isHovered, isEditing, showToolbar, hintKey]);
 
   // ボードサムネイル取得
   useEffect(() => {
@@ -2442,6 +2444,31 @@ export function StickyNote({
                   <div>Cosense: {cosenseLink.name}</div>
                 </a>
               ))}
+          </div>,
+          document.body
+        )}
+      {/* キーヒント表示 */}
+      {hintKey && noteRef.current &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: `${noteRef.current.getBoundingClientRect().left + noteRef.current.offsetWidth / 2}px`,
+              top: `${noteRef.current.getBoundingClientRect().top + noteRef.current.offsetHeight / 2}px`,
+              transform: "translate(-50%, -50%)",
+              background: "rgba(255, 107, 53, 0.95)",
+              color: "white",
+              fontSize: "12px",
+              fontWeight: "bold",
+              padding: "4px 6px",
+              borderRadius: "2px",
+              zIndex: 100000,
+              pointerEvents: "none",
+              fontFamily: "monospace",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}
+          >
+            {hintKey}
           </div>,
           document.body
         )}

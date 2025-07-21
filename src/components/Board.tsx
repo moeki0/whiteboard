@@ -128,10 +128,41 @@ export function Board({ user }: BoardProps) {
   // 新しいボード作成の状態
   const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
 
+  // Vimiumスタイルのキーヒント用の状態
+  const [isKeyHintMode, setIsKeyHintMode] = useState<boolean>(false);
+  const [noteHintKeys, setNoteHintKeys] = useState<Map<string, string>>(new Map());
+
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
 
   const nanoid = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 21);
+
+  // キーヒント生成用の文字列
+  const HINT_CHARS = "asdfghjklqwertyuiopzxcvbnm";
+  
+  // キーヒントを生成する関数
+  const generateHintKeys = useCallback((noteIds: string[]) => {
+    const hintMap = new Map<string, string>();
+    const chars = HINT_CHARS.split('');
+    
+    // 単一文字でカバーできる場合
+    if (noteIds.length <= chars.length) {
+      noteIds.forEach((id, index) => {
+        hintMap.set(id, chars[index]);
+      });
+    } else {
+      // 2文字の組み合わせが必要な場合
+      let hintIndex = 0;
+      for (let i = 0; i < chars.length && hintIndex < noteIds.length; i++) {
+        for (let j = 0; j < chars.length && hintIndex < noteIds.length; j++) {
+          hintMap.set(noteIds[hintIndex], chars[i] + chars[j]);
+          hintIndex++;
+        }
+      }
+    }
+    
+    return hintMap;
+  }, []);
 
   const { addToHistory, undo, redo } = useHistory();
   const {
@@ -2111,9 +2142,23 @@ export function Board({ user }: BoardProps) {
             e.preventDefault();
             createGroup();
           }
+        } else if (e.key === "u") {
+          // Ctrl+U: キーヒントモード
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            const visibleNoteIds = notes.map(note => note.id);
+            const hintKeys = generateHintKeys(visibleNoteIds);
+            setNoteHintKeys(hintKeys);
+            setIsKeyHintMode(true);
+          }
         }
-      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        // 上下キーでズーム
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
@@ -2123,24 +2168,81 @@ export function Board({ user }: BoardProps) {
         if (!isInputFocused) {
           e.preventDefault();
           
-          const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
-          const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-          
-          // ビューポート中心でズーム
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
-          
-          // ズーム前の中心位置（ワールド座標）
-          const worldCenterX = (centerX - panX) / zoom;
-          const worldCenterY = (centerY - panY) / zoom;
-          
-          // ズーム後にビューポート中心が同じ場所を指すようにパンを調整
-          const newPanX = centerX - worldCenterX * newZoom;
-          const newPanY = centerY - worldCenterY * newZoom;
-          
-          setZoom(newZoom);
-          setPanX(newPanX);
-          setPanY(newPanY);
+          if (e.shiftKey) {
+            // Shift+矢印でパン
+            const panDistance = 50; // パン距離
+            let newPanX = panX;
+            let newPanY = panY;
+            
+            switch (e.key) {
+              case "ArrowUp":
+                newPanY += panDistance;
+                break;
+              case "ArrowDown":
+                newPanY -= panDistance;
+                break;
+              case "ArrowLeft":
+                newPanX += panDistance;
+                break;
+              case "ArrowRight":
+                newPanX -= panDistance;
+                break;
+            }
+            
+            setPanX(newPanX);
+            setPanY(newPanY);
+          } else if (selectedNoteIds.size > 0) {
+            // 選択された付箋を矢印キーで移動
+            const moveDistance = 10; // 移動距離
+            let deltaX = 0;
+            let deltaY = 0;
+            
+            switch (e.key) {
+              case "ArrowUp":
+                deltaY = -moveDistance;
+                break;
+              case "ArrowDown":
+                deltaY = moveDistance;
+                break;
+              case "ArrowLeft":
+                deltaX = -moveDistance;
+                break;
+              case "ArrowRight":
+                deltaX = moveDistance;
+                break;
+            }
+            
+            // 選択されたすべての付箋を移動
+            selectedNoteIds.forEach(noteId => {
+              const note = notes.find(n => n.id === noteId);
+              if (note) {
+                updateNote(noteId, {
+                  x: note.x + deltaX,
+                  y: note.y + deltaY
+                });
+              }
+            });
+          } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            // 上下キーでズーム
+            const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
+            const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+            
+            // ビューポート中心でズーム
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            // ズーム前の中心位置（ワールド座標）
+            const worldCenterX = (centerX - panX) / zoom;
+            const worldCenterY = (centerY - panY) / zoom;
+            
+            // ズーム後にビューポート中心が同じ場所を指すようにパンを調整
+            const newPanX = centerX - worldCenterX * newZoom;
+            const newPanY = centerY - worldCenterY * newZoom;
+            
+            setZoom(newZoom);
+            setPanX(newPanX);
+            setPanY(newPanY);
+          }
         }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
@@ -2160,6 +2262,45 @@ export function Board({ user }: BoardProps) {
           deleteSelectedNotes();
           deleteSelectedArrows();
           deleteSelectedGroups();
+        }
+      } else if (e.key === "Escape") {
+        // Escapeで選択状態をクリアまたはキーヒントモードを終了
+        const activeElement = document.activeElement;
+        const isInputFocused =
+          activeElement &&
+          (activeElement.tagName === "TEXTAREA" ||
+            activeElement.tagName === "INPUT");
+
+        if (!isInputFocused) {
+          e.preventDefault();
+          if (isKeyHintMode) {
+            setIsKeyHintMode(false);
+            setNoteHintKeys(new Map());
+          } else {
+            setSelectedNoteIds(new Set());
+            setSelectedItemIds(new Set());
+            setSelectedGroupIds(new Set());
+          }
+        }
+      } else if (isKeyHintMode) {
+        // キーヒントモード中の処理
+        e.preventDefault();
+        const pressedKey = e.key.toLowerCase();
+        
+        // 押されたキーに対応するノートIDを検索
+        let targetNoteId = null;
+        for (const [noteId, hintKey] of noteHintKeys) {
+          if (hintKey === pressedKey) {
+            targetNoteId = noteId;
+            break;
+          }
+        }
+        
+        if (targetNoteId) {
+          // ノートを選択状態にする
+          setSelectedNoteIds(new Set([targetNoteId]));
+          setIsKeyHintMode(false);
+          setNoteHintKeys(new Map());
         }
       }
     };
@@ -2193,6 +2334,13 @@ export function Board({ user }: BoardProps) {
     setZoom,
     setPanX,
     setPanY,
+    updateNote,
+    setSelectedNoteIds,
+    setSelectedItemIds,
+    setSelectedGroupIds,
+    isKeyHintMode,
+    noteHintKeys,
+    generateHintKeys,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
@@ -2423,6 +2571,7 @@ export function Board({ user }: BoardProps) {
                   updateBoardMetadata();
                 }, 500); // throttleの影響を考慮して少し遅延
               }}
+              hintKey={isKeyHintMode ? noteHintKeys.get(note.id) : undefined}
             />
           ))}
 
