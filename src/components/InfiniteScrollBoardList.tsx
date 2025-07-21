@@ -471,6 +471,12 @@ export function InfiniteScrollBoardList({
                 }
                 className="board-card"
                 style={{ position: "relative" }}
+                onClick={() => {
+                  // ボードリンクをクリックした時に閲覧時刻を更新
+                  import('../utils/boardViewHistory').then(({ updateBoardViewTime }) => {
+                    updateBoardViewTime(board.id);
+                  });
+                }}
               >
                 {hasUnread && (
                   <div

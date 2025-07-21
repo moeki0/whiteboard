@@ -430,6 +430,12 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
                 }
                 className="board-card"
                 style={{ position: 'relative' }}
+                onClick={() => {
+                  // ボードリンクをクリックした時に閲覧時刻を更新
+                  import('../utils/boardViewHistory').then(({ updateBoardViewTime }) => {
+                    updateBoardViewTime(board.id);
+                  });
+                }}
               >
                 {/* 未読ラベル（三角） */}
                 {hasUnread && (

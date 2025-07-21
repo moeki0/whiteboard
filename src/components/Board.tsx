@@ -327,6 +327,11 @@ export function Board({ user }: BoardProps) {
     setSelectedItemIds(new Set());
     setSelectedGroupIds(new Set());
     updateUrlForNote(null);
+    
+    // ボードアクセス時に閲覧時刻を更新（未読マークをクリア）
+    if (boardId) {
+      updateBoardViewTime(boardId);
+    }
   }, [boardId, updateUrlForNote]);
 
   // WASD パンアニメーション
