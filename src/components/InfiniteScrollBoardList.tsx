@@ -17,6 +17,7 @@ import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
 import { normalizeTitle } from "../utils/boardTitleIndex";
 import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
+import { isProjectMember } from "../utils/permissions";
 // import { getTruePaginatedBoards } from "../utils/truePagination";
 // import { updateBoardListItem } from "../utils/boardDataStructure";
 import { ref, onValue, get, update } from "firebase/database";
@@ -422,10 +423,12 @@ export function InfiniteScrollBoardList({
   return (
     <div className="board-list">
       <div className="board-list-header">
-        <button className="fab-new-board-btn" onClick={createBoard}>
-          <LuPlus />
-          <span>Create New Board</span>
-        </button>
+        {user && isProjectMember(project, user.uid) && (
+          <button className="fab-new-board-btn" onClick={createBoard}>
+            <LuPlus />
+            <span>Create New Board</span>
+          </button>
+        )}
       </div>
 
       {error && (

@@ -1,7 +1,7 @@
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, get, update, query, orderByChild } from "firebase/database";
+import { ref, onValue, get, update } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
@@ -14,6 +14,7 @@ import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
 import { getPaginatedBoards, DenormalizedBoard } from "../utils/boardDataOptimizer";
 import { updateBoardListItem } from "../utils/boardDataStructure";
+import { isProjectMember } from "../utils/permissions";
 
 interface BoardListProps {
   user: User | null;
@@ -201,7 +202,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   }, [boards]);
 
   const createBoard = async () => {
-    if (!projectId) return;
+    if (!projectId || !user) return;
+
+    // プロジェクトのメンバーシップをチェック
+    if (!isProjectMember(project, user.uid)) {
+      console.error('User is not a member of this project');
+      return;
+    }
 
     const boardId = nanoid();
     const now = Date.now();
@@ -401,10 +408,12 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   return (
     <div className="board-list">
       <div className="board-list-header">
-        <button className="fab-new-board-btn" onClick={createBoard}>
-          <LuPlus />
-          <span>Create New Board</span>
-        </button>
+        {user && isProjectMember(project, user.uid) && (
+          <button className="fab-new-board-btn" onClick={createBoard}>
+            <LuPlus />
+            <span>Create New Board</span>
+          </button>
+        )}
       </div>
 
       <div className="boards-grid">

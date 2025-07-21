@@ -14,6 +14,7 @@ import {
   getLatestProjectSlug,
   recordBoardNameChange,
 } from "../utils/historyManager";
+import { checkBoardEditPermission } from "../utils/permissions";
 
 interface HeaderWrapperProps {
   user: User;
@@ -186,6 +187,23 @@ export const HeaderWrapper = memo(function HeaderWrapper({
         try {
           const boardRef = ref(rtdb, `boards/${boardId}`);
           const boardData = (await get(boardRef)).val() || {};
+
+          // プロジェクトデータを取得して権限チェック
+          let project = null;
+          if (boardData.projectId) {
+            const projectRef = ref(rtdb, `projects/${boardData.projectId}`);
+            const projectSnapshot = await get(projectRef);
+            project = projectSnapshot.exists() ? projectSnapshot.val() : null;
+          }
+
+          // ボード編集権限をチェック
+          const permissionCheck = checkBoardEditPermission(boardData, project, user.uid);
+          if (!permissionCheck.canEdit) {
+            console.error('User does not have permission to edit this board:', permissionCheck.reason);
+            setEditingBoardTitle(boardTitle);
+            setBoardTitle(boardTitle);
+            return;
+          }
 
           // 同じプロジェクト内で重複チェック
           if (boardData.projectId) {

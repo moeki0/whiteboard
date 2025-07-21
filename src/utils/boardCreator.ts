@@ -1,10 +1,11 @@
 import { nanoid } from "nanoid";
 import { rtdb } from "../config/firebase";
-import { ref, set, update } from "firebase/database";
-import { Board } from "../types";
+import { ref, update, get } from "firebase/database";
+import { Board, Project } from "../types";
 import { checkBoardNameDuplicate, addToRecentlyCreated } from "./boardNaming";
 import { normalizeTitle } from "./boardTitleIndex";
 import { updateBoardListItem } from "./boardDataStructure";
+import { isProjectMember } from "./permissions";
 
 /**
  * タイトルから新しいボードを作成する
@@ -14,11 +15,21 @@ export const createBoardFromTitle = async (
   boardTitle: string,
   userId: string
 ): Promise<string> => {
-  const startTime = performance.now();
-
   try {
+    // プロジェクトのメンバーシップをチェック
+    const projectRef = ref(rtdb, `projects/${projectId}`);
+    const projectSnapshot = await get(projectRef);
+    
+    if (!projectSnapshot.exists()) {
+      throw new Error('Project not found');
+    }
+    
+    const project: Project = projectSnapshot.val();
+    if (!isProjectMember(project, userId)) {
+      throw new Error('User is not a member of this project');
+    }
+
     // ボード名の重複チェック
-    const dupCheckStart = performance.now();
     const isDuplicate = await checkBoardNameDuplicate(projectId, boardTitle);
 
     // 重複する場合は番号を付けて一意にする
@@ -49,7 +60,7 @@ export const createBoardFromTitle = async (
     };
 
     // バッチ更新用のデータを準備
-    const updates: { [key: string]: any } = {};
+    const updates: { [key: string]: Board | string } = {};
 
     // ボードデータ
     updates[`boards/${boardId}`] = boardData;
@@ -67,7 +78,6 @@ export const createBoardFromTitle = async (
     }
 
     // 一括更新（アトミックな操作）
-    performance.now();
     await update(ref(rtdb), updates);
 
     // 新しいデータ構造にも追加
