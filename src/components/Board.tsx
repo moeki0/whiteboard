@@ -130,6 +130,7 @@ export function Board({ user }: BoardProps) {
 
   // Vimiumスタイルのキーヒント用の状態
   const [isKeyHintMode, setIsKeyHintMode] = useState<boolean>(false);
+  const [pressedKeyHistory, setPressedKeyHistory] = useState<Array<string>>([]);
   const [noteHintKeys, setNoteHintKeys] = useState<Map<string, string>>(
     new Map()
   );
@@ -2329,9 +2330,14 @@ export function Board({ user }: BoardProps) {
         // 押されたキーに対応するノートIDを検索
         let targetNoteId = null;
         for (const [noteId, hintKey] of noteHintKeys) {
-          if (hintKey === pressedKey) {
-            targetNoteId = noteId;
-            break;
+          for (let keyLength = 0; keyLength < 32; keyLength++) {
+            if (
+              hintKey ===
+              pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
+            ) {
+              targetNoteId = noteId;
+              break;
+            }
           }
         }
 
@@ -2340,6 +2346,9 @@ export function Board({ user }: BoardProps) {
           setSelectedNoteIds(new Set([targetNoteId]));
           setIsKeyHintMode(false);
           setNoteHintKeys(new Map());
+          setPressedKeyHistory([]);
+        } else {
+          setPressedKeyHistory((prev) => [...prev, pressedKey]);
         }
       } else if (e.key === "Enter") {
         // Enterキーで選択された付箋をエディットモードに
