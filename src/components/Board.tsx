@@ -130,7 +130,9 @@ export function Board({ user }: BoardProps) {
 
   // Vimiumスタイルのキーヒント用の状態
   const [isKeyHintMode, setIsKeyHintMode] = useState<boolean>(false);
-  const [noteHintKeys, setNoteHintKeys] = useState<Map<string, string>>(new Map());
+  const [noteHintKeys, setNoteHintKeys] = useState<Map<string, string>>(
+    new Map()
+  );
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -139,12 +141,12 @@ export function Board({ user }: BoardProps) {
 
   // キーヒント生成用の文字列
   const HINT_CHARS = "asdfghjklqwertyuiopzxcvbnm";
-  
+
   // キーヒントを生成する関数
   const generateHintKeys = useCallback((noteIds: string[]) => {
     const hintMap = new Map<string, string>();
-    const chars = HINT_CHARS.split('');
-    
+    const chars = HINT_CHARS.split("");
+
     // 単一文字でカバーできる場合
     if (noteIds.length <= chars.length) {
       noteIds.forEach((id, index) => {
@@ -160,7 +162,7 @@ export function Board({ user }: BoardProps) {
         }
       }
     }
-    
+
     return hintMap;
   }, []);
 
@@ -481,7 +483,7 @@ export function Board({ user }: BoardProps) {
     addToHistory({
       type: "CREATE_ARROW",
       userId: user.uid,
-      arrow: { ...newArrow, id: arrowId }
+      arrow: { ...newArrow, id: arrowId },
     });
 
     // 矢印作成後、付箋の選択をクリア
@@ -530,7 +532,7 @@ export function Board({ user }: BoardProps) {
     addToHistory({
       type: "CREATE_GROUP",
       userId: user.uid,
-      group: { ...newGroup, id: groupId }
+      group: { ...newGroup, id: groupId },
     });
 
     // グループ作成後、付箋の選択をクリア
@@ -572,7 +574,7 @@ export function Board({ user }: BoardProps) {
     addToHistory({
       type: "DELETE_ARROW",
       userId: user.uid,
-      arrow: arrow
+      arrow: arrow,
     });
 
     // 選択状態も削除
@@ -1685,7 +1687,7 @@ export function Board({ user }: BoardProps) {
     addToHistory({
       type: "DELETE_GROUP",
       userId: user.uid,
-      group: group
+      group: group,
     });
 
     // 選択状態も削除
@@ -1814,8 +1816,12 @@ export function Board({ user }: BoardProps) {
     setCurrentUndoRedoNoteId(action.noteId || null);
 
     try {
-      const noteRef = action.noteId ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`) : null;
-      const note = action.noteId ? notes.find((n) => n.id === action.noteId) : null;
+      const noteRef = action.noteId
+        ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`)
+        : null;
+      const note = action.noteId
+        ? notes.find((n) => n.id === action.noteId)
+        : null;
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1869,7 +1875,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_ARROW":
           // 矢印の作成をundo（削除）
           if (action.arrow) {
-            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            const arrowRef = ref(
+              rtdb,
+              `boards/${boardId}/arrows/${action.arrow.id}`
+            );
             remove(arrowRef);
           }
           break;
@@ -1877,7 +1886,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_ARROW":
           // 矢印の削除をundo（復元）
           if (action.arrow) {
-            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            const arrowRef = ref(
+              rtdb,
+              `boards/${boardId}/arrows/${action.arrow.id}`
+            );
             set(arrowRef, action.arrow);
           }
           break;
@@ -1885,7 +1897,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_GROUP":
           // グループの作成をundo（削除）
           if (action.group) {
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.group.id}`
+            );
             remove(groupRef);
           }
           break;
@@ -1893,7 +1908,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_GROUP":
           // グループの削除をundo（復元）
           if (action.group) {
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.group.id}`
+            );
             set(groupRef, action.group);
           }
           break;
@@ -1917,8 +1935,12 @@ export function Board({ user }: BoardProps) {
     setCurrentUndoRedoNoteId(action.noteId || null);
 
     try {
-      const noteRef = action.noteId ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`) : null;
-      const note = action.noteId ? notes.find((n) => n.id === action.noteId) : null;
+      const noteRef = action.noteId
+        ? ref(rtdb, `boards/${boardId}/notes/${action.noteId}`)
+        : null;
+      const note = action.noteId
+        ? notes.find((n) => n.id === action.noteId)
+        : null;
 
       switch (action.type) {
         case "CREATE_NOTES":
@@ -1969,7 +1991,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_ARROW":
           // 矢印の作成をredo（再作成）
           if (action.arrow) {
-            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            const arrowRef = ref(
+              rtdb,
+              `boards/${boardId}/arrows/${action.arrow.id}`
+            );
             set(arrowRef, action.arrow);
           }
           break;
@@ -1977,7 +2002,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_ARROW":
           // 矢印の削除をredo（再削除）
           if (action.arrow) {
-            const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${action.arrow.id}`);
+            const arrowRef = ref(
+              rtdb,
+              `boards/${boardId}/arrows/${action.arrow.id}`
+            );
             remove(arrowRef);
           }
           break;
@@ -1985,7 +2013,10 @@ export function Board({ user }: BoardProps) {
         case "CREATE_GROUP":
           // グループの作成をredo（再作成）
           if (action.group) {
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.group.id}`
+            );
             set(groupRef, action.group);
           }
           break;
@@ -1993,7 +2024,10 @@ export function Board({ user }: BoardProps) {
         case "DELETE_GROUP":
           // グループの削除をredo（再削除）
           if (action.group) {
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${action.group.id}`);
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.group.id}`
+            );
             remove(groupRef);
           }
           break;
@@ -2152,13 +2186,18 @@ export function Board({ user }: BoardProps) {
 
           if (!isInputFocused) {
             e.preventDefault();
-            const visibleNoteIds = notes.map(note => note.id);
+            const visibleNoteIds = notes.map((note) => note.id);
             const hintKeys = generateHintKeys(visibleNoteIds);
             setNoteHintKeys(hintKeys);
             setIsKeyHintMode(true);
           }
         }
-      } else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      } else if (
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight"
+      ) {
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
@@ -2167,13 +2206,13 @@ export function Board({ user }: BoardProps) {
 
         if (!isInputFocused) {
           e.preventDefault();
-          
+
           if (e.shiftKey) {
             // Shift+矢印でパン
             const panDistance = 50; // パン距離
             let newPanX = panX;
             let newPanY = panY;
-            
+
             switch (e.key) {
               case "ArrowUp":
                 newPanY += panDistance;
@@ -2188,7 +2227,7 @@ export function Board({ user }: BoardProps) {
                 newPanX -= panDistance;
                 break;
             }
-            
+
             setPanX(newPanX);
             setPanY(newPanY);
           } else if (selectedNoteIds.size > 0) {
@@ -2196,7 +2235,7 @@ export function Board({ user }: BoardProps) {
             const moveDistance = 10; // 移動距離
             let deltaX = 0;
             let deltaY = 0;
-            
+
             switch (e.key) {
               case "ArrowUp":
                 deltaY = -moveDistance;
@@ -2211,14 +2250,14 @@ export function Board({ user }: BoardProps) {
                 deltaX = moveDistance;
                 break;
             }
-            
+
             // 選択されたすべての付箋を移動
-            selectedNoteIds.forEach(noteId => {
-              const note = notes.find(n => n.id === noteId);
+            selectedNoteIds.forEach((noteId) => {
+              const note = notes.find((n) => n.id === noteId);
               if (note) {
                 updateNote(noteId, {
                   x: note.x + deltaX,
-                  y: note.y + deltaY
+                  y: note.y + deltaY,
                 });
               }
             });
@@ -2226,19 +2265,19 @@ export function Board({ user }: BoardProps) {
             // 上下キーでズーム
             const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
             const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-            
+
             // ビューポート中心でズーム
             const centerX = window.innerWidth / 2;
             const centerY = window.innerHeight / 2;
-            
+
             // ズーム前の中心位置（ワールド座標）
             const worldCenterX = (centerX - panX) / zoom;
             const worldCenterY = (centerY - panY) / zoom;
-            
+
             // ズーム後にビューポート中心が同じ場所を指すようにパンを調整
             const newPanX = centerX - worldCenterX * newZoom;
             const newPanY = centerY - worldCenterY * newZoom;
-            
+
             setZoom(newZoom);
             setPanX(newPanX);
             setPanY(newPanY);
@@ -2286,7 +2325,7 @@ export function Board({ user }: BoardProps) {
         // キーヒントモード中の処理
         e.preventDefault();
         const pressedKey = e.key.toLowerCase();
-        
+
         // 押されたキーに対応するノートIDを検索
         let targetNoteId = null;
         for (const [noteId, hintKey] of noteHintKeys) {
@@ -2295,7 +2334,7 @@ export function Board({ user }: BoardProps) {
             break;
           }
         }
-        
+
         if (targetNoteId) {
           // ノートを選択状態にする
           setSelectedNoteIds(new Set([targetNoteId]));
@@ -2316,6 +2355,62 @@ export function Board({ user }: BoardProps) {
           // 付箋をダブルクリックしたのと同じ効果を発生させる
           // ここではsetNoteToFocusを使って付箋にフォーカスを当てる
           setNoteToFocus(noteId);
+        }
+      } else if (e.shiftKey) {
+        // Shift+文字キーの組み合わせ
+        if (e.key === "G") {
+          // Shift+G: グループを作成
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused && selectedNoteIds.size >= 2) {
+            e.preventDefault();
+            createGroup();
+          }
+        } else if (e.key === "S") {
+          // Ctrl+U: キーヒントモード
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            const visibleNoteIds = notes.map((note) => note.id);
+            const hintKeys = generateHintKeys(visibleNoteIds);
+            setNoteHintKeys(hintKeys);
+            setIsKeyHintMode(true);
+          }
+        } else if (e.key === "A") {
+          // Shift+A: 矢印を挿入
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            addArrow();
+          }
+        } else if (e.key === "C") {
+          // Shift+S: 新しい付箋を追加してフォーカス
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused) {
+            e.preventDefault();
+            const newNoteId = addNote();
+            setNoteToFocus(newNoteId);
+            setSelectedNoteIds(new Set([newNoteId]));
+          }
         }
       }
     };
