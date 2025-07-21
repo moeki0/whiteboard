@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { createPortal } from "react-dom";
 import TextareaAutosize from "react-textarea-autosize";
 import throttle from "lodash.throttle";
 import { Note, Board, Project, UserProfile } from "../types";
@@ -223,6 +224,7 @@ export function StickyNote({
   const noteRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
   const contentRef = useRef<HTMLTextAreaElement>(null);
+  const [notePosition, setNotePosition] = useState({ left: 0, top: 0 });
 
   // throttled update function
   const throttledUpdate = useCallback(
@@ -267,6 +269,30 @@ export function StickyNote({
     noteColor,
     textSize,
   ]);
+
+  // 付箋の画面上の位置を追跡
+  useEffect(() => {
+    const updateNotePosition = () => {
+      if (noteRef.current) {
+        const rect = noteRef.current.getBoundingClientRect();
+        setNotePosition({
+          left: rect.left + rect.width / 2, // 付箋の中央のX座標
+          top: rect.top - 22, // 付箋の上部から22px上
+        });
+      }
+    };
+
+    updateNotePosition();
+    
+    // ウィンドウリサイズ時も位置を更新
+    window.addEventListener('resize', updateNotePosition);
+    window.addEventListener('scroll', updateNotePosition);
+    
+    return () => {
+      window.removeEventListener('resize', updateNotePosition);
+      window.removeEventListener('scroll', updateNotePosition);
+    };
+  }, [position, isHovered, isEditing, showToolbar]);
 
   // ボードサムネイル取得
   useEffect(() => {
@@ -1908,175 +1934,6 @@ export function StickyNote({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* リンクボタン */}
-      {isHovered &&
-        !isEditing &&
-        (extractLinks(content).length > 0 ||
-          extractBoardLinks(content, boardLinks).length > 0) && (
-          <div
-            style={{
-              position: "absolute",
-              top: "-22px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: "4px",
-              background: "#444",
-              borderRadius: "4px 4px 0 0",
-              zIndex: 1000,
-              border: "1px solid #ccc",
-              borderBottom: "none",
-            }}
-          >
-            {/* 通常のリンク */}
-            {extractLinks(content)
-              .slice(0, 3)
-              .map((link, index) => (
-                <button
-                  key={`url-${index}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(link, "_blank", "noopener,noreferrer");
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    maxWidth: "150px",
-                    padding: "4px 8px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    color: "#eee",
-                  }}
-                  title={link}
-                >
-                  {new URL(link).hostname}
-                </button>
-              ))}
-            {/* ボードリンク */}
-            {extractBoardLinks(content, boardLinks)
-              .slice(0, 2)
-              .map((boardLink, index) => {
-                return (
-                  <a
-                    key={`board-${index}`}
-                    href={
-                      project?.slug
-                        ? `/${project.slug}/${boardLink.name}`
-                        : boardLink.boardId
-                        ? `/${boardLink.boardId}`
-                        : `/${project?.slug || "unknown"}/${boardLink.name}`
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      display: "inline-block",
-                      background: "none",
-                      border: "none",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      maxWidth: "150px",
-                      padding: "4px 8px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      color: boardLink.boardId ? "#eee" : "#ccc",
-                      textDecoration: "none",
-                    }}
-                    title={`Board: ${boardLink.name}${
-                      boardLink.boardId ? "" : " (will be created)"
-                    }`}
-                  >
-                    {boardLink.name}
-                  </a>
-                );
-              })}
-            {/* Cosenseページリンク */}
-            {extractCosenseLinks(content, project?.cosenseProjectName)
-              .slice(0, 2)
-              .map((cosenseLink, index) => (
-                <a
-                  key={`cosense-${index}`}
-                  href={cosenseLink.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    display: "inline-block",
-                    background: "none",
-                    border: "none",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    maxWidth: "150px",
-                    padding: "4px 8px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    color: "white",
-                    textDecoration: "none",
-                  }}
-                  title={`Cosense: ${cosenseLink.name}`}
-                >
-                  <div>Cosense: {cosenseLink.name}</div>
-                </a>
-              ))}
-          </div>
-        )}
-      {/* ツールバー */}
-      {showToolbar && isEditing && canEditNote ? (
-        <div
-          className="note-toolbar"
-          role="toolbar"
-          aria-label="Color selection"
-        >
-          {/* 色選択ボタン */}
-          <div className="toolbar-section">
-            <button
-              className="toolbar-color-btn white"
-              onClick={(e) => handleColorSelect("white", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="白"
-            />
-            <button
-              className="toolbar-color-btn transparent"
-              onClick={(e) => handleColorSelect("transparent", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="透明"
-            />
-            <button
-              className="toolbar-color-btn red"
-              onClick={(e) => handleColorSelect("red", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="赤"
-            />
-            <button
-              className="toolbar-color-btn blue"
-              onClick={(e) => handleColorSelect("blue", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="青"
-            />
-            <button
-              className="toolbar-color-btn green"
-              onClick={(e) => handleColorSelect("green", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="緑"
-            />
-            <button
-              className="toolbar-color-btn yellow"
-              onClick={(e) => handleColorSelect("yellow", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="黄"
-            />
-            <button
-              className="toolbar-color-btn purple"
-              onClick={(e) => handleColorSelect("purple", e)}
-              onMouseDown={(e) => e.preventDefault()}
-              title="紫"
-            />
-          </div>
-        </div>
-      ) : null}
 
       {/* 新着マーク */}
       {isNewNote && noteColor !== "transparent" && (
@@ -2405,6 +2262,189 @@ export function StickyNote({
           )}
         </div>
       )}
+      {/* ポータルでカラーツールバーを表示 */}
+      {showToolbar && isEditing && canEditNote &&
+        createPortal(
+          <div
+            className="note-toolbar"
+            style={{
+              position: "fixed",
+              left: `${notePosition.left}px`,
+              top: `${notePosition.top}px`,
+              transform: "translateX(-50%)",
+              zIndex: 99999,
+              pointerEvents: "auto",
+              width: "auto",
+            }}
+            role="toolbar"
+            aria-label="Color selection"
+          >
+            {/* 色選択ボタン */}
+            <div className="toolbar-section">
+              <button
+                className="toolbar-color-btn white"
+                onClick={(e) => handleColorSelect("white", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="白"
+              />
+              <button
+                className="toolbar-color-btn transparent"
+                onClick={(e) => handleColorSelect("transparent", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="透明"
+              />
+              <button
+                className="toolbar-color-btn red"
+                onClick={(e) => handleColorSelect("red", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="赤"
+              />
+              <button
+                className="toolbar-color-btn blue"
+                onClick={(e) => handleColorSelect("blue", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="青"
+              />
+              <button
+                className="toolbar-color-btn green"
+                onClick={(e) => handleColorSelect("green", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="緑"
+              />
+              <button
+                className="toolbar-color-btn yellow"
+                onClick={(e) => handleColorSelect("yellow", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="黄"
+              />
+              <button
+                className="toolbar-color-btn purple"
+                onClick={(e) => handleColorSelect("purple", e)}
+                onMouseDown={(e) => e.preventDefault()}
+                title="紫"
+              />
+            </div>
+          </div>,
+          document.body
+        )}
+      {/* ポータルでリンクボタンを表示 */}
+      {isHovered &&
+        !isEditing &&
+        (extractLinks(content).length > 0 ||
+          extractBoardLinks(content, boardLinks).length > 0) &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: `${notePosition.left}px`,
+              top: `${notePosition.top}px`,
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: "4px",
+              background: "#444",
+              borderRadius: "4px 4px 0 0",
+              zIndex: 99999,
+              border: "1px solid #ccc",
+              borderBottom: "none",
+              pointerEvents: "auto",
+            }}
+          >
+            {/* 通常のリンク */}
+            {extractLinks(content)
+              .slice(0, 3)
+              .map((link, index) => (
+                <button
+                  key={`url-${index}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(link, "_blank", "noopener,noreferrer");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    maxWidth: "150px",
+                    padding: "4px 8px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: "#eee",
+                  }}
+                  title={link}
+                >
+                  {new URL(link).hostname}
+                </button>
+              ))}
+            {/* ボードリンク */}
+            {extractBoardLinks(content, boardLinks)
+              .slice(0, 2)
+              .map((boardLink, index) => {
+                return (
+                  <a
+                    key={`board-${index}`}
+                    href={
+                      project?.slug
+                        ? `/${project.slug}/${boardLink.name}`
+                        : boardLink.boardId
+                        ? `/${boardLink.boardId}`
+                        : `/${project?.slug || "unknown"}/${boardLink.name}`
+                    }
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-block",
+                      background: "none",
+                      border: "none",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      maxWidth: "150px",
+                      padding: "4px 8px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      color: boardLink.boardId ? "#eee" : "#ccc",
+                      textDecoration: "none",
+                    }}
+                    title={`Board: ${boardLink.name}${
+                      boardLink.boardId ? "" : " (will be created)"
+                    }`}
+                  >
+                    {boardLink.name}
+                  </a>
+                );
+              })}
+            {/* Cosenseページリンク */}
+            {extractCosenseLinks(content, project?.cosenseProjectName)
+              .slice(0, 2)
+              .map((cosenseLink, index) => (
+                <a
+                  key={`cosense-${index}`}
+                  href={cosenseLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: "inline-block",
+                    background: "none",
+                    border: "none",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    maxWidth: "150px",
+                    padding: "4px 8px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: "white",
+                    textDecoration: "none",
+                  }}
+                  title={`Cosense: ${cosenseLink.name}`}
+                >
+                  <div>Cosense: {cosenseLink.name}</div>
+                </a>
+              ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
