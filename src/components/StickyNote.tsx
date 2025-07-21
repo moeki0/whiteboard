@@ -599,9 +599,9 @@ export function StickyNote({
     // 影の強度を時間経過に応じて調整（計算のみ、タイマー不要）
     let shadowIntensity = 1;
     if (timeDiff < 60 * 1000) {
-      shadowIntensity = 2;
+      shadowIntensity = 1.2;
     } else if (timeDiff < 5 * 60 * 1000) {
-      shadowIntensity = 1;
+      shadowIntensity = 0.7;
     } else if (timeDiff < 30 * 60 * 1000) {
       shadowIntensity = 0.5;
     } else if (timeDiff < 60 * 60 * 1000) {
