@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set, get, update } from "firebase/database";
+import { ref, onValue, get, update } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
@@ -22,6 +22,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const { resolvedProjectId } = useSlug();
   const projectId = resolvedProjectId || propProjectId || paramProjectId;
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { updateCurrentProject } = useProject();
   const [boards, setBoards] = useState<Board[]>([]);
   const [boardCursors, setBoardCursors] = useState<
@@ -35,6 +36,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     Record<string, string>
   >({});
   const [project, setProject] = useState<Project | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [, setBoardIds] = useState<string[]>([]);
+  const itemsPerPage = 14;
+  
+  // Get current page from URL query params
+  const pageFromUrl = parseInt(searchParams.get('page') || '1', 10);
+  const currentPage = isNaN(pageFromUrl) || pageFromUrl < 1 ? 1 : pageFromUrl;
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
@@ -56,16 +64,37 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           updateCurrentProject(projectId);
         }
 
-        // Get board IDs from projectBoards
+        // Get all board IDs for this project first (for total count and pagination)
         const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
         const projectBoardsSnapshot = await get(projectBoardsRef);
         const projectBoardsData = projectBoardsSnapshot.val();
-
+        
         if (projectBoardsData) {
-          const boardIds = Object.keys(projectBoardsData);
-
-          // Fetch actual board data from boards collection
-          const boardPromises = boardIds.map(async (boardId) => {
+          // Get all board IDs and their timestamps
+          const allBoardEntries = Object.entries(projectBoardsData).map(([id, data]: [string, Board]) => ({
+            id,
+            timestamp: data.updatedAt || data.createdAt || 0,
+            isPinned: data.isPinned || false
+          }));
+          
+          // Sort all boards: pinned first, then by timestamp
+          allBoardEntries.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            return b.timestamp - a.timestamp;
+          });
+          
+          const allBoardIds = allBoardEntries.map(entry => entry.id);
+          setBoardIds(allBoardIds);
+          setTotalCount(allBoardIds.length);
+          
+          // Get boards for current page
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+          const pageBoardIds = allBoardIds.slice(startIndex, endIndex);
+          
+          // Fetch actual board data for current page
+          const boardPromises = pageBoardIds.map(async (boardId) => {
             const boardRef = ref(rtdb, `boards/${boardId}`);
             const boardSnapshot = await get(boardRef);
             if (boardSnapshot.exists()) {
@@ -80,17 +109,15 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           const boardResults = await Promise.all(boardPromises);
           const validBoards = boardResults.filter((board) => board !== null);
           
-          // Sort boards: pinned boards first, then by updatedAt/createdAt
-          const sortedBoards = validBoards.sort((a, b) => {
-            // First, sort by pinned status (pinned boards come first)
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-            
-            // If both have same pin status, sort by date (newest first)
-            return (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt);
+          // Keep the original sort order from allBoardEntries
+          const boardOrderMap = new Map(pageBoardIds.map((id, index) => [id, index]));
+          validBoards.sort((a, b) => {
+            const aIndex = boardOrderMap.get(a.id) ?? Number.MAX_VALUE;
+            const bIndex = boardOrderMap.get(b.id) ?? Number.MAX_VALUE;
+            return aIndex - bIndex;
           });
           
-          setBoards(sortedBoards);
+          setBoards(validBoards);
 
           // Get board metadata from precomputed data
           const thumbnailMap: Record<string, string> = {};
@@ -130,8 +157,12 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
       }
     };
 
+    if (currentPage === 1) {
+      // Reset board IDs when project changes
+      setBoardIds([]);
+    }
     loadBoards();
-  }, [projectId, updateCurrentProject]);
+  }, [projectId, currentPage, updateCurrentProject]);
 
   // Listen to cursors for all boards
   useEffect(() => {
@@ -198,7 +229,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     };
 
     // バッチ更新で全てのデータを一度に書き込み
-    const updates: { [key: string]: any } = {};
+    const updates: { [key: string]: Board | string } = {};
     updates[`boards/${boardId}`] = board;
     updates[`projectBoards/${projectId}/${boardId}`] = board;
     
@@ -283,6 +314,93 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     );
   };
 
+  // Calculate pagination based on total count from Firebase
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    // Update URL with new page number
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (page === 1) {
+      newSearchParams.delete('page');
+    } else {
+      newSearchParams.set('page', page.toString());
+    }
+    setSearchParams(newSearchParams);
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="pagination">
+        {currentPage > 1 && (
+          <button
+            className="pagination-btn"
+            onClick={() => handlePageChange(currentPage - 1)}
+          >
+            Previous
+          </button>
+        )}
+        
+        {startPage > 1 && (
+          <>
+            <button
+              className="pagination-btn"
+              onClick={() => handlePageChange(1)}
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="pagination-ellipsis">...</span>}
+          </>
+        )}
+
+        {pageNumbers.map((page) => (
+          <button
+            key={page}
+            className={`pagination-btn ${page === currentPage ? 'active' : ''}`}
+            onClick={() => handlePageChange(page)}
+          >
+            {page}
+          </button>
+        ))}
+
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="pagination-ellipsis">...</span>}
+            <button
+              className="pagination-btn"
+              onClick={() => handlePageChange(totalPages)}
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        {currentPage < totalPages && (
+          <button
+            className="pagination-btn"
+            onClick={() => handlePageChange(currentPage + 1)}
+          >
+            Next
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="board-list">
       <div className="board-list-header">
@@ -352,6 +470,8 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         );
         })}
       </div>
+
+      {renderPagination()}
     </div>
   );
 }

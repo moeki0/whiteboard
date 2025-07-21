@@ -35,6 +35,72 @@ button {
   cursor: pointer;
 }
 
+/* Pagination styles */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2rem;
+  padding: 1rem 0;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  min-width: 36px;
+}
+
+.pagination-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #999;
+}
+
+.pagination-btn.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  padding: 8px 4px;
+  color: #666;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pagination-btn {
+    background-color: #2a2a2a;
+    color: #fff;
+    border-color: #555;
+  }
+
+  .pagination-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #777;
+  }
+
+  .pagination-btn.active {
+    background-color: #0056b3;
+    border-color: #0056b3;
+  }
+
+  .pagination-ellipsis {
+    color: #aaa;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #101010;
