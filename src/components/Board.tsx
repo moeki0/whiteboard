@@ -2302,6 +2302,21 @@ export function Board({ user }: BoardProps) {
           setIsKeyHintMode(false);
           setNoteHintKeys(new Map());
         }
+      } else if (e.key === "Enter") {
+        // Enterキーで選択された付箋をエディットモードに
+        const activeElement = document.activeElement;
+        const isInputFocused =
+          activeElement &&
+          (activeElement.tagName === "TEXTAREA" ||
+            activeElement.tagName === "INPUT");
+
+        if (!isInputFocused && selectedNoteIds.size === 1) {
+          e.preventDefault();
+          const noteId = Array.from(selectedNoteIds)[0];
+          // 付箋をダブルクリックしたのと同じ効果を発生させる
+          // ここではsetNoteToFocusを使って付箋にフォーカスを当てる
+          setNoteToFocus(noteId);
+        }
       }
     };
 
@@ -2341,6 +2356,7 @@ export function Board({ user }: BoardProps) {
     isKeyHintMode,
     noteHintKeys,
     generateHintKeys,
+    setNoteToFocus,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
