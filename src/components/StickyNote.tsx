@@ -592,6 +592,11 @@ export function StickyNote({
 
   // 影のスタイルを計算する関数（強制再レンダリングではなく、必要時のみ計算）
   const getShadowStyle = useMemo(() => {
+    // 透明色の付箋は影を表示しない
+    if (noteColor === "transparent") {
+      return { boxShadow: "none" };
+    }
+
     const lastUpdate = note.updatedAt || note.createdAt;
     const now = Date.now();
     const timeDiff = now - lastUpdate;
@@ -613,7 +618,7 @@ export function StickyNote({
     return {
       boxShadow: `0 0px ${16 * shadowIntensity}px rgba(0, 0, 0, 0.15)`,
     };
-  }, [note.updatedAt, note.createdAt]);
+  }, [note.updatedAt, note.createdAt, noteColor]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 編集中はドラッグを無効化
@@ -743,6 +748,7 @@ export function StickyNote({
         width: dimensions.width,
         isEditing: true,
         editedBy: currentUserId,
+        updatedAt: Date.now(),
       });
       return;
     }
@@ -784,6 +790,7 @@ export function StickyNote({
       width: dimensions.width,
       isEditing: true,
       editedBy: currentUserId,
+      updatedAt: Date.now(),
     });
   };
 
@@ -880,6 +887,7 @@ export function StickyNote({
       width: dimensions.width,
       isEditing: false,
       editedBy: null,
+      updatedAt: Date.now(),
     });
     // 編集完了時のコールバックを実行
     if (onBlur) {
@@ -922,6 +930,7 @@ export function StickyNote({
       width: dimensions.width,
       isEditing: true,
       editedBy: currentUserId,
+      updatedAt: Date.now(),
     });
   };
 
@@ -957,6 +966,7 @@ export function StickyNote({
       width: dimensions.width,
       isEditing: true,
       editedBy: currentUserId,
+      updatedAt: Date.now(),
     });
   };
 
