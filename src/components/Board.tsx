@@ -1318,8 +1318,8 @@ export function Board({ user }: BoardProps) {
       const currentTime = Date.now();
       const timeDelta = currentTime - lastWheelTime;
 
-      // 中間的な感度設定
-      const baseSensitivity = 0.001; // 基本感度を中間に
+      // ズーム感度を調整（より敏感に）
+      const baseSensitivity = 0.005; // 感度を3倍に上げる
       const zoomFactor = Math.pow(1.2, -e.deltaY * baseSensitivity);
 
       // 速度の計算（連続したホイール操作で適度に加速）
@@ -1330,22 +1330,16 @@ export function Board({ user }: BoardProps) {
       }
 
       setLastWheelTime(currentTime);
-      setZoomVelocity(velocity);
+      // setZoomVelocity(velocity); // 慣性を無効化
 
       // マウス位置を取得
       const rect = boardRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // ズームターゲットを設定（最初のホイール操作時のみ）
-      if (!zoomTarget || timeDelta > 200) {
-        // 200ms以上経過したら新しいターゲット
-        setZoomTarget({ x: mouseX, y: mouseY });
-      }
-
-      // 使用するターゲット位置
-      const targetX = zoomTarget?.x || mouseX;
-      const targetY = zoomTarget?.y || mouseY;
+      // ズームターゲットを設定（慣性無効時は毎回マウス位置を使用）
+      const targetX = mouseX;
+      const targetY = mouseY;
 
       // ズーム前のターゲット位置（ワールド座標）
       const worldTargetX = (targetX - panX) / zoom;
@@ -1365,58 +1359,58 @@ export function Board({ user }: BoardProps) {
     [zoom, panX, panY, lastWheelTime, zoomTarget]
   );
 
-  // ズーム慣性アニメーション
-  useEffect(() => {
-    if (Math.abs(zoomVelocity) > 0.001) {
-      const animate = () => {
-        setZoomVelocity((prevVelocity) => {
-          const newVelocity = prevVelocity * 0.95; // 減衰率を上げてゆっくりに
+  // ズーム慣性アニメーション（無効化）
+  // useEffect(() => {
+  //   if (Math.abs(zoomVelocity) > 0.001) {
+  //     const animate = () => {
+  //       setZoomVelocity((prevVelocity) => {
+  //         const newVelocity = prevVelocity * 0.95; // 減衰率を上げてゆっくりに
 
-          if (Math.abs(newVelocity) < 0.001) {
-            // ズーム終了時にターゲットをクリア
-            setZoomTarget(null);
-            return 0;
-          }
+  //         if (Math.abs(newVelocity) < 0.001) {
+  //           // ズーム終了時にターゲットをクリア
+  //           setZoomTarget(null);
+  //           return 0;
+  //         }
 
-          // ズームターゲットが設定されていればそれを使用、なければビューポート中心
-          const targetX = zoomTarget?.x || window.innerWidth / 2;
-          const targetY = zoomTarget?.y || window.innerHeight / 2;
+  //         // ズームターゲットが設定されていればそれを使用、なければビューポート中心
+  //         const targetX = zoomTarget?.x || window.innerWidth / 2;
+  //         const targetY = zoomTarget?.y || window.innerHeight / 2;
 
-          setZoom((prevZoom) => {
-            const zoomFactor = Math.pow(1.2, -newVelocity);
-            const newZoom = Math.max(0.1, Math.min(5, prevZoom * zoomFactor));
+  //         setZoom((prevZoom) => {
+  //           const zoomFactor = Math.pow(1.2, -newVelocity);
+  //           const newZoom = Math.max(0.1, Math.min(5, prevZoom * zoomFactor));
 
-            // パンも調整
-            if (boardRef.current) {
-              setPanX((prevPanX) => {
-                const worldTargetX = (targetX - prevPanX) / prevZoom;
-                return targetX - worldTargetX * newZoom;
-              });
+  //           // パンも調整
+  //           if (boardRef.current) {
+  //             setPanX((prevPanX) => {
+  //               const worldTargetX = (targetX - prevPanX) / prevZoom;
+  //               return targetX - worldTargetX * newZoom;
+  //             });
 
-              setPanY((prevPanY) => {
-                const worldTargetY = (targetY - prevPanY) / prevZoom;
-                return targetY - worldTargetY * newZoom;
-              });
-            }
+  //             setPanY((prevPanY) => {
+  //               const worldTargetY = (targetY - prevPanY) / prevZoom;
+  //               return targetY - worldTargetY * newZoom;
+  //             });
+  //           }
 
-            return newZoom;
-          });
+  //           return newZoom;
+  //         });
 
-          return newVelocity;
-        });
+  //         return newVelocity;
+  //       });
 
-        zoomAnimationRef.current = requestAnimationFrame(animate);
-      };
+  //       zoomAnimationRef.current = requestAnimationFrame(animate);
+  //     };
 
-      zoomAnimationRef.current = requestAnimationFrame(animate);
+  //     zoomAnimationRef.current = requestAnimationFrame(animate);
 
-      return () => {
-        if (zoomAnimationRef.current) {
-          cancelAnimationFrame(zoomAnimationRef.current);
-        }
-      };
-    }
-  }, [zoomVelocity, zoomTarget]);
+  //     return () => {
+  //       if (zoomAnimationRef.current) {
+  //         cancelAnimationFrame(zoomAnimationRef.current);
+  //       }
+  //     };
+  //   }
+  // }, [zoomVelocity, zoomTarget]);
 
   // マウスイベントのリスナー設定
   useEffect(() => {
@@ -2118,6 +2112,36 @@ export function Board({ user }: BoardProps) {
             createGroup();
           }
         }
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        // 上下キーでズーム
+        const activeElement = document.activeElement;
+        const isInputFocused =
+          activeElement &&
+          (activeElement.tagName === "TEXTAREA" ||
+            activeElement.tagName === "INPUT");
+
+        if (!isInputFocused) {
+          e.preventDefault();
+          
+          const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
+          const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+          
+          // ビューポート中心でズーム
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          
+          // ズーム前の中心位置（ワールド座標）
+          const worldCenterX = (centerX - panX) / zoom;
+          const worldCenterY = (centerY - panY) / zoom;
+          
+          // ズーム後にビューポート中心が同じ場所を指すようにパンを調整
+          const newPanX = centerX - worldCenterX * newZoom;
+          const newPanY = centerY - worldCenterY * newZoom;
+          
+          setZoom(newZoom);
+          setPanX(newPanX);
+          setPanY(newPanY);
+        }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
         (selectedNoteIds.size > 0 ||
@@ -2163,6 +2187,12 @@ export function Board({ user }: BoardProps) {
     deleteSelectedGroups,
     addArrow,
     createGroup,
+    zoom,
+    panX,
+    panY,
+    setZoom,
+    setPanX,
+    setPanY,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
