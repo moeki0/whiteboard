@@ -7,7 +7,7 @@ export interface User {
 
 export interface BoardItem {
   id: string;
-  type: 'note' | 'arrow';
+  type: 'note' | 'arrow' | 'group';
   userId: string;
   createdAt: number;
   zIndex: number;
@@ -125,4 +125,11 @@ export interface Arrow extends BoardItem {
   endNoteId: string;
   startAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
   endAnchor?: 'auto' | 'left' | 'right' | 'top' | 'bottom';
+}
+
+export interface Group extends BoardItem {
+  type: 'group';
+  noteIds: string[];
+  name?: string;
+  color?: string;
 }

@@ -9,6 +9,7 @@ import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
 import { ArrowSVG } from "./ArrowSVG";
 import { CursorDisplay } from "./CursorDisplay";
+import { Group } from "./Group";
 import { useHistory } from "../hooks/useHistory";
 import { useBoard } from "../hooks/useBoard";
 import { useCursor } from "../hooks/useCursor";
@@ -19,7 +20,7 @@ import {
 } from "../utils/clipboardUtils";
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
-import { User, Note, Arrow as ArrowType, BoardItem } from "../types";
+import { User, Note, Arrow as ArrowType, Group as GroupType } from "../types";
 import { generateNewBoardName } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
@@ -53,11 +54,18 @@ export function Board({ user }: BoardProps) {
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
     new Set()
   );
-  const [isCreatingArrow, setIsCreatingArrow] = useState<boolean>(false);
-  const [arrowStartPoint, setArrowStartPoint] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+
+  // グループ関連の状態
+  const [groups, setGroups] = useState<GroupType[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(
+    new Set()
+  );
+  // 矢印作成関連の状態（削除済み）
+  // const [isCreatingArrow, setIsCreatingArrow] = useState<boolean>(false);
+  // const [arrowStartPoint, setArrowStartPoint] = useState<{
+  //   x: number;
+  //   y: number;
+  // } | null>(null);
 
   // 範囲選択用の状態
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
@@ -84,6 +92,17 @@ export function Board({ user }: BoardProps) {
   >({});
   const [justFinishedBulkDrag, setJustFinishedBulkDrag] =
     useState<boolean>(false);
+
+  // グループドラッグ用の状態
+  const [isDraggingGroup, setIsDraggingGroup] = useState<boolean>(false);
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
+  const [groupDragStartPos, setGroupDragStartPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [initialGroupNotePositions, setInitialGroupNotePositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
 
   // パン・ズーム用の状態
   const [panX, setPanX] = useState<number>(0);
@@ -125,6 +144,29 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // グループを読み込む
+  useEffect(() => {
+    if (!boardId) return;
+
+    const groupsRef = ref(rtdb, `boards/${boardId}/groups`);
+    const unsubscribe = onValue(groupsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const groupsData = snapshot.val();
+        const groupsList = Object.entries(groupsData).map(
+          ([id, group]: [string, any]) => ({
+            ...group,
+            id,
+          })
+        ) as GroupType[];
+        setGroups(groupsList);
+      } else {
+        setGroups([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [boardId]);
 
   // ボードの閲覧時刻を記録（ページを離れる時のみ）
   useEffect(() => {
@@ -205,7 +247,7 @@ export function Board({ user }: BoardProps) {
 
     const hash = window.location.hash.slice(1);
     console.log("Debug: Initial hash processing:", hash, notes.length);
-    
+
     if (hash) {
       const note = notes.find((n) => n.id === hash);
       console.log("Debug: Found note for hash:", note);
@@ -223,7 +265,7 @@ export function Board({ user }: BoardProps) {
         console.log("Debug: Applied initial hash processing");
       }
     }
-    
+
     initialHashProcessed.current = true;
   }, [notes]);
 
@@ -410,6 +452,48 @@ export function Board({ user }: BoardProps) {
     setSelectedItemIds(new Set([arrowId]));
 
     return arrowId;
+  };
+
+  // グループ作成関数
+  const createGroup = (): string => {
+    // 未ログインユーザーはグループを作成できない
+    if (!user?.uid) return "";
+
+    // 権限チェック
+    if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
+      return "";
+    }
+
+    // 2つ以上の付箋が選択されている必要がある
+    const selectedNoteArray = Array.from(selectedNoteIds);
+    if (selectedNoteArray.length < 2) {
+      console.warn("グループを作成するには、2つ以上の付箋を選択してください。");
+      return "";
+    }
+
+    const newGroup: Omit<GroupType, "id"> = {
+      type: "group",
+      noteIds: selectedNoteArray,
+      userId: user.uid,
+      createdAt: Date.now(),
+      zIndex: nextZIndex,
+      isDragging: false,
+      draggedBy: null,
+      color: "rgba(91, 151, 255, 0.1)",
+    };
+
+    const groupId = nanoid();
+
+    const groupRef = ref(rtdb, `boards/${boardId}/groups/${groupId}`);
+    set(groupRef, newGroup);
+    setNextZIndex((prev) => prev + 1);
+
+    // グループ作成後、付箋の選択をクリア
+    setSelectedNoteIds(new Set());
+    // 新しいグループを選択状態にする
+    setSelectedGroupIds(new Set([groupId]));
+
+    return groupId;
   };
 
   const updateArrow = (arrowId: string, updates: Partial<ArrowType>) => {
@@ -617,6 +701,29 @@ export function Board({ user }: BoardProps) {
     }
   };
 
+  const handleSelectGroup = (
+    groupId: string,
+    _isMultiSelect: boolean = false,
+    isShiftSelect: boolean = false
+  ) => {
+    if (isShiftSelect) {
+      // Shiftキーが押されている場合は複数選択
+      const newSelectedIds = new Set(selectedGroupIds);
+      if (newSelectedIds.has(groupId)) {
+        newSelectedIds.delete(groupId);
+      } else {
+        newSelectedIds.add(groupId);
+      }
+      setSelectedGroupIds(newSelectedIds);
+    } else {
+      // 通常の単一選択
+      setSelectedGroupIds(new Set([groupId]));
+      // 付箋と矢印の選択をクリア
+      setSelectedNoteIds(new Set());
+      setSelectedItemIds(new Set());
+    }
+  };
+
   const handleBoardClick = () => {
     // 範囲選択終了直後や一括ドラッグ終了直後はクリックを無視
     if (isSelecting || justFinishedSelection || justFinishedBulkDrag) {
@@ -625,6 +732,7 @@ export function Board({ user }: BoardProps) {
 
     setSelectedNoteIds(new Set());
     setSelectedItemIds(new Set());
+    setSelectedGroupIds(new Set());
     updateUrlForNote(null);
   };
 
@@ -911,6 +1019,29 @@ export function Board({ user }: BoardProps) {
     setInitialSelectedPositions(positions);
   };
 
+  // グループドラッグの開始
+  const startGroupDrag = (groupId: string, e: React.MouseEvent<SVGElement>) => {
+    // 権限チェック
+    if (!user?.uid) return;
+
+    const group = groups.find((g) => g.id === groupId);
+    if (!group || group.userId !== user.uid) return;
+
+    setIsDraggingGroup(true);
+    setDraggingGroupId(groupId);
+    setGroupDragStartPos({ x: e.clientX, y: e.clientY });
+
+    // グループ内の付箋の初期位置を記録
+    const positions: Record<string, { x: number; y: number }> = {};
+    group.noteIds.forEach((noteId) => {
+      const note = notes.find((n) => n.id === noteId);
+      if (note) {
+        positions[noteId] = { x: note.x, y: note.y };
+      }
+    });
+    setInitialGroupNotePositions(positions);
+  };
+
   // 一括移動の処理
   const handleBulkDragMove = useCallback(
     (e: MouseEvent) => {
@@ -942,6 +1073,46 @@ export function Board({ user }: BoardProps) {
       initialSelectedPositions,
       updateNote,
       user?.uid,
+      zoom,
+    ]
+  );
+
+  // グループドラッグの処理
+  const handleGroupDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingGroup || !groupDragStartPos || !draggingGroupId) return;
+
+      // ズームを考慮した移動距離計算
+      const deltaX = (e.clientX - groupDragStartPos.x) / zoom;
+      const deltaY = (e.clientY - groupDragStartPos.y) / zoom;
+
+      const group = groups.find((g) => g.id === draggingGroupId);
+      if (!group) return;
+
+      group.noteIds.forEach((noteId) => {
+        const initialPos = initialGroupNotePositions[noteId];
+        if (initialPos) {
+          const newX = initialPos.x + deltaX;
+          const newY = initialPos.y + deltaY;
+
+          updateNote(noteId, {
+            x: newX,
+            y: newY,
+            isDragging: true,
+            draggedBy: user?.uid,
+          });
+        }
+      });
+    },
+    [
+      isDraggingGroup,
+      groupDragStartPos,
+      draggingGroupId,
+      initialGroupNotePositions,
+      groups,
+      updateNote,
+      user?.uid,
+      zoom,
     ]
   );
 
@@ -1013,6 +1184,72 @@ export function Board({ user }: BoardProps) {
     isUndoRedoOperation,
     addToHistory,
     user?.uid,
+  ]);
+
+  // グループドラッグの終了
+  const handleGroupDragEnd = useCallback(() => {
+    if (isDraggingGroup && groupDragStartPos && draggingGroupId) {
+      const group = groups.find((g) => g.id === draggingGroupId);
+      if (!group) return;
+
+      // 移動履歴を記録
+      const moves: Array<{
+        noteId: string;
+        oldPosition: { x: number; y: number };
+        newPosition: { x: number; y: number };
+      }> = [];
+
+      group.noteIds.forEach((noteId) => {
+        const note = notes.find((n) => n.id === noteId);
+        const initialPos = initialGroupNotePositions[noteId];
+        if (
+          note &&
+          initialPos &&
+          (note.x !== initialPos.x || note.y !== initialPos.y)
+        ) {
+          moves.push({
+            noteId,
+            oldPosition: initialPos,
+            newPosition: { x: note.x, y: note.y },
+          });
+        }
+      });
+
+      // 移動をhistoryに追加
+      if (moves.length > 0 && !isUndoRedoOperation && user?.uid) {
+        addToHistory({
+          type: "MOVE_NOTES",
+          noteId: moves[0].noteId,
+          userId: user.uid,
+          moves: moves,
+        });
+      }
+
+      // 最終位置を確定
+      group.noteIds.forEach((noteId) => {
+        updateNote(noteId, {
+          isDragging: false,
+          draggedBy: null,
+        });
+      });
+
+      // グループドラッグ状態をクリア
+      setIsDraggingGroup(false);
+      setDraggingGroupId(null);
+      setGroupDragStartPos(null);
+      setInitialGroupNotePositions({});
+    }
+  }, [
+    isDraggingGroup,
+    groupDragStartPos,
+    draggingGroupId,
+    groups,
+    notes,
+    initialGroupNotePositions,
+    isUndoRedoOperation,
+    addToHistory,
+    user?.uid,
+    updateNote,
   ]);
 
   // パン操作の開始
@@ -1156,7 +1393,6 @@ export function Board({ user }: BoardProps) {
     }
   }, [zoomVelocity, zoomTarget]);
 
-
   // マウスイベントのリスナー設定
   useEffect(() => {
     if (isSelecting) {
@@ -1179,6 +1415,18 @@ export function Board({ user }: BoardProps) {
       };
     }
   }, [isDraggingMultiple, handleBulkDragMove, handleBulkDragEnd]);
+
+  // グループドラッグのイベントリスナー
+  useEffect(() => {
+    if (isDraggingGroup) {
+      document.addEventListener("mousemove", handleGroupDragMove);
+      document.addEventListener("mouseup", handleGroupDragEnd);
+      return () => {
+        document.removeEventListener("mousemove", handleGroupDragMove);
+        document.removeEventListener("mouseup", handleGroupDragEnd);
+      };
+    }
+  }, [isDraggingGroup, handleGroupDragMove, handleGroupDragEnd]);
 
   // パン操作のイベントリスナー
   useEffect(() => {
@@ -1354,6 +1602,39 @@ export function Board({ user }: BoardProps) {
     });
 
     setSelectedItemIds(new Set());
+  };
+
+  // 複数選択されたグループを削除
+  const deleteSelectedGroups = () => {
+    // 未ログインユーザーはグループを削除できない
+    if (!user?.uid) return;
+
+    selectedGroupIds.forEach((groupId) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (group && group.userId === user.uid) {
+        deleteGroup(groupId);
+      }
+    });
+
+    setSelectedGroupIds(new Set());
+  };
+
+  // 単一グループを削除
+  const deleteGroup = (groupId: string) => {
+    // 未ログインユーザーはグループを削除できない
+    if (!user?.uid) return;
+
+    const groupRef = ref(rtdb, `boards/${boardId}/groups/${groupId}`);
+    remove(groupRef);
+
+    // 選択状態も削除
+    if (selectedGroupIds.has(groupId)) {
+      setSelectedGroupIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(groupId);
+        return newSet;
+      });
+    }
   };
 
   // コピーされた複数付箋を貼り付け
@@ -1724,12 +2005,26 @@ export function Board({ user }: BoardProps) {
           // Ctrl+K: 矢印を挿入
           e.preventDefault();
           addArrow();
+        } else if (e.key === "l") {
+          // Ctrl+L: グループを作成
+          const activeElement = document.activeElement;
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === "TEXTAREA" ||
+              activeElement.tagName === "INPUT");
+
+          if (!isInputFocused && selectedNoteIds.size >= 2) {
+            e.preventDefault();
+            createGroup();
+          }
         }
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        (selectedNoteIds.size > 0 || selectedItemIds.size > 0)
+        (selectedNoteIds.size > 0 ||
+          selectedItemIds.size > 0 ||
+          selectedGroupIds.size > 0)
       ) {
-        // Delete selected notes and arrows if no input is focused
+        // Delete selected notes, arrows, and groups if no input is focused
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
@@ -1740,6 +2035,7 @@ export function Board({ user }: BoardProps) {
           e.preventDefault();
           deleteSelectedNotes();
           deleteSelectedArrows();
+          deleteSelectedGroups();
         }
       }
     };
@@ -1758,11 +2054,15 @@ export function Board({ user }: BoardProps) {
     performRedo,
     selectedNoteIds,
     selectedItemIds,
+    selectedGroupIds,
     notes,
     arrows,
+    groups,
     deleteSelectedNotes,
     deleteSelectedArrows,
+    deleteSelectedGroups,
     addArrow,
+    createGroup,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
@@ -1996,6 +2296,19 @@ export function Board({ user }: BoardProps) {
             />
           ))}
 
+          {/* グループを描画 */}
+          {groups.map((group) => (
+            <Group
+              key={group.id}
+              group={group}
+              notes={notes}
+              onSelect={handleSelectGroup}
+              isSelected={selectedGroupIds.has(group.id)}
+              zoom={zoom}
+              onStartGroupDrag={startGroupDrag}
+            />
+          ))}
+
           {/* SVGコンテナで矢印を描画 */}
           <svg
             style={{
@@ -2022,7 +2335,7 @@ export function Board({ user }: BoardProps) {
               ))}
             </g>
           </svg>
-          
+
           <CursorDisplay cursors={cursors} />
           {renderSelectionBox()}
         </div>
@@ -2067,15 +2380,52 @@ export function Board({ user }: BoardProps) {
         </button>
       )}
       {selectedNoteIds.size > 1 && user && (
-        <button
-          onClick={createBoardFromSelection}
-          className="fab-create-board-btn"
-          title="Create new board from selected notes"
-          disabled={isCreatingBoard}
+        <div
+          style={{
+            position: "fixed",
+            bottom: "30px",
+            right: "100px",
+            display: "flex",
+            gap: "12px",
+            zIndex: 1000,
+          }}
         >
-          <MdContentCopy />
-          <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
-        </button>
+          <button
+            onClick={() => createGroup()}
+            className="fab-create-group-btn"
+            title="Create group from selected notes"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 16px",
+              borderRadius: "28px",
+              backgroundColor: "#9C27B0", // 紫色でグループを表現
+              color: "white",
+              border: "none",
+              fontSize: "14px",
+              fontWeight: "500",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>⬡</span>
+            <span>Group</span>
+          </button>
+          <button
+            onClick={createBoardFromSelection}
+            className="fab-create-board-btn"
+            title="Create new board from selected notes"
+            disabled={isCreatingBoard}
+            style={{
+              position: "static", // CSSのfixedポジションを上書き
+            }}
+          >
+            <MdContentCopy />
+            <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
+          </button>
+        </div>
       )}
       {/* Cosense Link */}
       {board && project?.cosenseProjectName && (
