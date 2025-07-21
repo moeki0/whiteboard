@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, get, update } from "firebase/database";
+import { ref, onValue, get, update, query, orderByChild } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
@@ -11,6 +11,8 @@ import { generateNewBoardName, addToRecentlyCreated } from "../utils/boardNaming
 import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
 import { normalizeTitle } from "../utils/boardTitleIndex";
 import { hasBoardUnreadContent } from "../utils/boardViewHistory";
+import { LazyImage } from "./LazyImage";
+import { getPaginatedBoards, DenormalizedBoard } from "../utils/boardDataOptimizer";
 
 interface BoardListProps {
   user: User | null;
@@ -24,7 +26,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { updateCurrentProject } = useProject();
-  const [boards, setBoards] = useState<Board[]>([]);
+  const [boards, setBoards] = useState<DenormalizedBoard[]>([]);
   const [boardCursors, setBoardCursors] = useState<
     Record<string, Record<string, Cursor>>
   >({});
@@ -37,7 +39,8 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   >({});
   const [project, setProject] = useState<Project | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [, setBoardIds] = useState<string[]>([]);
+  const [allBoardIds, setAllBoardIds] = useState<string[]>([]);
+  const [cachedBoards, setCachedBoards] = useState<Record<string, DenormalizedBoard>>({});
   const itemsPerPage = 14;
   
   // Get current page from URL query params
@@ -64,94 +67,34 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           updateCurrentProject(projectId);
         }
 
-        // Get all board IDs for this project first (for total count and pagination)
-        const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
-        const projectBoardsSnapshot = await get(projectBoardsRef);
-        const projectBoardsData = projectBoardsSnapshot.val();
+        // Use optimized query
+        const result = await getPaginatedBoards(projectId, currentPage, itemsPerPage);
         
-        if (projectBoardsData) {
-          // Get all board IDs and their timestamps
-          const allBoardEntries = Object.entries(projectBoardsData).map(([id, data]: [string, Board]) => ({
-            id,
-            timestamp: data.updatedAt || data.createdAt || 0,
-            isPinned: data.isPinned || false
-          }));
-          
-          // Sort all boards: pinned first, then by timestamp
-          allBoardEntries.sort((a, b) => {
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-            return b.timestamp - a.timestamp;
-          });
-          
-          const allBoardIds = allBoardEntries.map(entry => entry.id);
-          setBoardIds(allBoardIds);
-          setTotalCount(allBoardIds.length);
-          
-          // Get boards for current page
-          const startIndex = (currentPage - 1) * itemsPerPage;
-          const endIndex = startIndex + itemsPerPage;
-          const pageBoardIds = allBoardIds.slice(startIndex, endIndex);
-          
-          // Fetch actual board data for current page
-          const boardPromises = pageBoardIds.map(async (boardId) => {
-            const boardRef = ref(rtdb, `boards/${boardId}`);
-            const boardSnapshot = await get(boardRef);
-            if (boardSnapshot.exists()) {
-              return {
-                id: boardId,
-                ...boardSnapshot.val(),
-              };
-            }
-            return null;
-          });
+        setBoards(result.boards);
+        setAllBoardIds(result.allBoardIds);
+        setTotalCount(result.totalCount);
 
-          const boardResults = await Promise.all(boardPromises);
-          const validBoards = boardResults.filter((board) => board !== null);
-          
-          // Keep the original sort order from allBoardEntries
-          const boardOrderMap = new Map(pageBoardIds.map((id, index) => [id, index]));
-          validBoards.sort((a, b) => {
-            const aIndex = boardOrderMap.get(a.id) ?? Number.MAX_VALUE;
-            const bIndex = boardOrderMap.get(b.id) ?? Number.MAX_VALUE;
-            return aIndex - bIndex;
-          });
-          
-          setBoards(validBoards);
+        // Get board metadata from optimized data
+        const thumbnailMap: Record<string, string> = {};
+        const titleMap: Record<string, string> = {};
+        const descriptionMap: Record<string, string> = {};
 
-          // Get board metadata from precomputed data
-          const thumbnailMap: Record<string, string> = {};
-          const titleMap: Record<string, string> = {};
-          const descriptionMap: Record<string, string> = {};
+        result.boards.forEach((board) => {
+          // Use denormalized data
+          if (board.title) {
+            titleMap[board.id] = board.title;
+          }
+          if (board.description) {
+            descriptionMap[board.id] = board.description;
+          }
+          if (board.thumbnailUrl) {
+            thumbnailMap[board.id] = board.thumbnailUrl;
+          }
+        });
 
-          validBoards.forEach((board) => {
-            // Use precomputed metadata if available, fallback to board.name
-            const metadata = board.metadata;
-            if (metadata) {
-              if (metadata.title) {
-                titleMap[board.id] = metadata.title;
-              }
-              if (metadata.description) {
-                descriptionMap[board.id] = metadata.description;
-              }
-              if (metadata.thumbnailUrl) {
-                thumbnailMap[board.id] = metadata.thumbnailUrl;
-              }
-            } else {
-              // Fallback to board name if no metadata
-              titleMap[board.id] = board.name || "";
-            }
-          });
-
-          setBoardThumbnails(thumbnailMap);
-          setBoardTitles(titleMap);
-          setBoardDescriptions(descriptionMap);
-        } else {
-          setBoards([]);
-          setBoardThumbnails({});
-          setBoardTitles({});
-          setBoardDescriptions({});
-        }
+        setBoardThumbnails(thumbnailMap);
+        setBoardTitles(titleMap);
+        setBoardDescriptions(descriptionMap);
       } catch (error) {
         console.error("Error loading boards:", error);
       }
@@ -159,10 +102,56 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
 
     if (currentPage === 1) {
       // Reset board IDs when project changes
-      setBoardIds([]);
+      setAllBoardIds([]);
     }
     loadBoards();
   }, [projectId, currentPage, updateCurrentProject]);
+
+  // Prefetch next page data
+  useEffect(() => {
+    if (!projectId || !allBoardIds.length) return;
+    
+    const prefetchNextPage = async () => {
+      const nextPageStart = currentPage * itemsPerPage;
+      const nextPageEnd = nextPageStart + itemsPerPage;
+      const nextPageIds = allBoardIds.slice(nextPageStart, nextPageEnd);
+      
+      if (nextPageIds.length === 0) return;
+      
+      // Check if we already have cached data
+      const uncachedIds = nextPageIds.filter(id => !cachedBoards[id]);
+      if (uncachedIds.length === 0) return;
+      
+      // Fetch uncached boards
+      const boardPromises = uncachedIds.map(async (boardId) => {
+        const boardRef = ref(rtdb, `boards/${boardId}`);
+        const boardSnapshot = await get(boardRef);
+        if (boardSnapshot.exists()) {
+          return {
+            id: boardId,
+            ...boardSnapshot.val(),
+          };
+        }
+        return null;
+      });
+      
+      const results = await Promise.all(boardPromises);
+      const validBoards = results.filter(board => board !== null);
+      
+      // Update cache
+      setCachedBoards(prev => {
+        const newCache = { ...prev };
+        validBoards.forEach(board => {
+          if (board) newCache[board.id] = board;
+        });
+        return newCache;
+      });
+    };
+    
+    // Delay prefetch slightly to prioritize current page
+    const timer = setTimeout(prefetchNextPage, 500);
+    return () => clearTimeout(timer);
+  }, [projectId, currentPage, allBoardIds, cachedBoards, itemsPerPage]);
 
   // Listen to cursors for all boards
   useEffect(() => {
@@ -272,7 +261,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   };
 
   // Component to render active members for a board
-  const ActiveMembers = ({ boardId }: { boardId: string }) => {
+  const ActiveMembers = memo(({ boardId }: { boardId: string }) => {
     const cursors = boardCursors[boardId] || {};
     const activeUsers = Object.values(cursors);
 
@@ -312,7 +301,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         )}
       </div>
     );
-  };
+  });
 
   // Calculate pagination based on total count from Firebase
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -445,15 +434,11 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
                 <p className="board-name">{boardTitles[board.id] || ""}</p>
               {boardThumbnails[board.id] ? (
                 <div className="board-thumbnail">
-                  {boardThumbnails[board.id] ? (
-                    <img
-                      src={boardThumbnails[board.id]}
-                      alt={`${board.name} thumbnail`}
-                      className="thumbnail-image"
-                    />
-                  ) : (
-                    <div className="thumbnail-placeholder"></div>
-                  )}
+                  <LazyImage
+                    src={boardThumbnails[board.id]}
+                    alt={`${board.name} thumbnail`}
+                    className="thumbnail-image"
+                  />
                 </div>
               ) : (
                 <div className="board-card-content">

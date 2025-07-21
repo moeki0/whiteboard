@@ -51,6 +51,11 @@ export interface Board {
   projectId: string;
   updatedAt?: number;
   isPinned?: boolean;
+  metadata?: {
+    title?: string;
+    description?: string;
+    thumbnailUrl?: string;
+  };
 }
 
 export interface BoardScene {
