@@ -347,6 +347,7 @@ export function Board({ user }: BoardProps) {
           activeElement.tagName === "INPUT");
 
       if (!isInputFocused && !isKeyHintMode) {
+
         const panSpeed = 8; // より高速なパン移動
         let deltaX = 0;
         let deltaY = 0;
@@ -2371,7 +2372,7 @@ export function Board({ user }: BoardProps) {
           (activeElement.tagName === "TEXTAREA" ||
             activeElement.tagName === "INPUT");
 
-        if (!isInputFocused && !isKeyHintMode && !e.repeat) {
+        if (!isInputFocused && !isKeyHintMode && !e.repeat && !e.shiftKey) {
           e.preventDefault();
           const key = e.key.toLowerCase();
           setPressedKeys(prev => new Set([...prev, key]));
@@ -2506,6 +2507,10 @@ export function Board({ user }: BoardProps) {
           newKeys.delete(key);
           return newKeys;
         });
+      }
+      // Shiftキーが離されたときもWASDキー状態をクリア
+      if (e.key === "Shift") {
+        setPressedKeys(new Set());
       }
     };
 
