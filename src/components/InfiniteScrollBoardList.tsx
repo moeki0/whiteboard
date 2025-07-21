@@ -111,6 +111,11 @@ export function InfiniteScrollBoardList({
         );
 
         boardsArray.sort((a, b) => {
+          // ピン留めされたボードを最優先
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          
+          // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
           const aTime = a.updatedAt || a.createdAt || 0;
           const bTime = b.updatedAt || b.createdAt || 0;
           return bTime - aTime; // 新しいものが上
@@ -118,8 +123,9 @@ export function InfiniteScrollBoardList({
 
         console.log(
           "🔍 After sort:",
-          boardsArray.slice(0, 3).map((b) => ({
+          boardsArray.slice(0, 5).map((b) => ({
             name: b.name,
+            isPinned: b.isPinned || false,
             updatedAt: b.updatedAt,
             updatedAtDate: b.updatedAt
               ? new Date(b.updatedAt).toLocaleString()
@@ -246,6 +252,11 @@ export function InfiniteScrollBoardList({
             newBoards[index] = updatedBoard;
             // 更新後に再ソート
             newBoards.sort((a, b) => {
+              // ピン留めされたボードを最優先
+              if (a.isPinned && !b.isPinned) return -1;
+              if (!a.isPinned && b.isPinned) return 1;
+              
+              // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
               const aTime = a.updatedAt || a.createdAt || 0;
               const bTime = b.updatedAt || b.createdAt || 0;
               return bTime - aTime;
