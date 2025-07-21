@@ -2005,8 +2005,8 @@ export function Board({ user }: BoardProps) {
           // Ctrl+K: 矢印を挿入
           e.preventDefault();
           addArrow();
-        } else if (e.key === "l") {
-          // Ctrl+L: グループを作成
+        } else if (e.key === "g") {
+          // Ctrl+G: グループを作成
           const activeElement = document.activeElement;
           const isInputFocused =
             activeElement &&

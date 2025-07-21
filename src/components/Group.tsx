@@ -119,8 +119,9 @@ export function Group({
     
     if (noteElement) {
       const rect = noteElement.getBoundingClientRect();
-      noteWidth = rect.width;
-      noteHeight = rect.height;
+      // ズームを考慮してサイズを調整
+      noteWidth = rect.width / zoom;
+      noteHeight = rect.height / zoom;
     } else {
       // DOM要素が見つからない場合は計算値を使用
       const dimensions = calculateNoteDimensions(note);
