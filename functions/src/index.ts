@@ -209,3 +209,54 @@ export const removeBoardHttp = functions.https.onRequest(async (req, res) => {
     }
   });
 });
+
+// Scrapbox APIプロキシ
+export const searchScrapboxTitles = functions.https.onRequest(async (req, res) => {
+  return corsHandler(req, res, async () => {
+    try {
+      if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+      }
+
+      if (req.method !== "GET") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      const { projectName, q: query } = req.query;
+
+      if (!projectName || !query) {
+        res.status(400).json({ error: "projectName and q parameters are required" });
+        return;
+      }
+
+      if (typeof projectName !== "string" || typeof query !== "string") {
+        res.status(400).json({ error: "projectName and q must be strings" });
+        return;
+      }
+
+      console.log("[Scrapbox Proxy] Searching:", { projectName, query });
+
+      // Scrapbox APIを呼び出し
+      const scrapboxUrl = `https://scrapbox.io/api/pages/${encodeURIComponent(projectName)}/search/titles?q=${encodeURIComponent(query)}`;
+      
+      const response = await fetch(scrapboxUrl);
+      
+      if (!response.ok) {
+        console.warn("[Scrapbox Proxy] API error:", response.status, response.statusText);
+        res.status(response.status).json({ error: "Scrapbox API error" });
+        return;
+      }
+
+      const data = await response.json();
+      console.log("[Scrapbox Proxy] Response data:", data);
+
+      // レスポンスをそのまま返す
+      res.json(data);
+    } catch (error) {
+      console.error("[Scrapbox Proxy] Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+});

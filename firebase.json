@@ -47,14 +47,14 @@
   ],
   "emulators": {
     "functions": {
-      "port": 5002
+      "port": 5001
     },
     "ui": {
       "enabled": true,
-      "port": 4002
+      "port": 4003
     },
     "hub": {
-      "port": 4402
+      "port": 4403
     }
   }
 }

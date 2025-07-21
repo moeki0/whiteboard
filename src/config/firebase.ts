@@ -31,7 +31,7 @@ if (
   !(globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED
 ) {
   try {
-    connectFunctionsEmulator(functions, "localhost", 5002);
+    connectFunctionsEmulator(functions, "localhost", 5001);
     (globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
   } catch (error) {
     console.warn("Failed to connect to Functions emulator:", error);

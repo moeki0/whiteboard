@@ -19,8 +19,10 @@ import {
   filterBoardSuggestions,
 } from "../utils/textCompletion";
 import { useProjectBoards } from "../hooks/useProjectBoards";
-import { BoardSuggestions } from "./BoardSuggestions";
+import { BoardSuggestions, CombinedSuggestions } from "./BoardSuggestions";
+import { useCombinedSuggestions } from "../hooks/useCombinedSuggestions";
 import { extractBoardLinks } from "../utils/extractBoardLinks";
+import { extractCosenseLinks } from "../utils/extractCosenseLinks";
 import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
 
 interface ImageContent {
@@ -185,6 +187,18 @@ export function StickyNote({
   const canMoveNote = canEditBoard || isNoteOwner;
   // プロジェクトボード一覧を取得
   const { boards: projectBoards } = useProjectBoards(project?.id || null);
+
+  // 統合候補（ボード + Scrapbox）を取得
+  const {
+    suggestions: combinedSuggestions,
+    isLoading: suggestionsLoading,
+    error: suggestionsError,
+  } = useCombinedSuggestions(
+    projectBoards,
+    boardSuggestionInfo.searchText,
+    project?.cosenseProjectName,
+    showBoardSuggestions
+  );
 
   const [dimensions] = useState({
     width: "auto" as const, // 固定幅に設定
@@ -729,13 +743,9 @@ export function StickyNote({
       // ボード候補が表示されている場合はタブキーで候補を移動
       if (showBoardSuggestions) {
         e.preventDefault();
-        const filteredBoards = filterBoardSuggestions(
-          projectBoards,
-          boardSuggestionInfo.searchText
-        );
-        if (filteredBoards.length > 0) {
+        if (combinedSuggestions.length > 0) {
           setSelectedSuggestionIndex((prev) =>
-            prev < filteredBoards.length - 1 ? prev + 1 : 0
+            prev < combinedSuggestions.length - 1 ? prev + 1 : 0
           );
         }
       }
@@ -743,15 +753,17 @@ export function StickyNote({
       // Enterキーで選択された候補を確定
       if (showBoardSuggestions) {
         e.preventDefault();
-        const filteredBoards = filterBoardSuggestions(
-          projectBoards,
-          boardSuggestionInfo.searchText
-        );
+        // 統合候補から選択
         if (
-          filteredBoards.length > 0 &&
-          filteredBoards[selectedSuggestionIndex]
+          combinedSuggestions.length > 0 &&
+          combinedSuggestions[selectedSuggestionIndex]
         ) {
-          handleSelectBoard(filteredBoards[selectedSuggestionIndex].name);
+          const selectedSuggestion =
+            combinedSuggestions[selectedSuggestionIndex];
+          handleSelectSuggestion(
+            selectedSuggestion.title,
+            selectedSuggestion.type
+          );
         }
       } else if (e.shiftKey) {
         // Shift+Enter: 下に新しい付箋を作成
@@ -833,6 +845,41 @@ export function StickyNote({
 
     // カーソルを]の後に移動
     const newCursorPosition = bracketStart + 1 + boardName.length + 1;
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.setSelectionRange(
+          newCursorPosition,
+          newCursorPosition
+        );
+        contentRef.current.focus();
+      }
+    }, 0);
+
+    throttledContentUpdate(note.id, {
+      content: newContent,
+      width: dimensions.width,
+      isEditing: true,
+      editedBy: currentUserId,
+    });
+  };
+
+  // 統合候補を選択したときの処理
+  const handleSelectSuggestion = (
+    title: string,
+    type: "board" | "scrapbox"
+  ) => {
+    console.log("[StickyNote] Selecting suggestion:", { title, type });
+    const { bracketStart, bracketEnd } = boardSuggestionInfo;
+    const newContent =
+      content.substring(0, bracketStart + 1) +
+      title +
+      content.substring(bracketEnd);
+
+    setContent(newContent);
+    setShowBoardSuggestions(false);
+
+    // カーソルを]の後に移動
+    const newCursorPosition = bracketStart + 1 + title.length + 1;
     setTimeout(() => {
       if (contentRef.current) {
         contentRef.current.setSelectionRange(
@@ -1675,7 +1722,7 @@ export function StickyNote({
               ))}
             {/* ボードリンク */}
             {extractBoardLinks(content, boardLinks)
-              .slice(0, 3)
+              .slice(0, 2)
               .map((boardLink, index) => {
                 return (
                   <a
@@ -1710,6 +1757,35 @@ export function StickyNote({
                   </a>
                 );
               })}
+            {/* Cosenseページリンク */}
+            {extractCosenseLinks(content, project?.cosenseProjectName)
+              .slice(0, 2)
+              .map((cosenseLink, index) => (
+                <a
+                  key={`cosense-${index}`}
+                  href={cosenseLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: "inline-block",
+                    background: "none",
+                    border: "none",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    maxWidth: "150px",
+                    padding: "4px 8px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: "white",
+                    textDecoration: "none",
+                  }}
+                  title={`Cosense: ${cosenseLink.name}`}
+                >
+                  <div>Cosense: {cosenseLink.name}</div>
+                </a>
+              ))}
           </div>
         )}
       {/* ツールバー */}
@@ -1986,16 +2062,15 @@ export function StickyNote({
             zIndex: 1000,
           }}
         >
-          <BoardSuggestions
-            boards={filterBoardSuggestions(
-              projectBoards,
-              boardSuggestionInfo.searchText
-            )}
+          <CombinedSuggestions
+            suggestions={combinedSuggestions}
             searchText={boardSuggestionInfo.searchText}
-            onSelectBoard={handleSelectBoard}
+            onSelectSuggestion={handleSelectSuggestion}
             position={{ x: 0, y: 0 }} // 相対位置なので不要
             isVisible={true}
             selectedIndex={selectedSuggestionIndex}
+            isLoading={suggestionsLoading}
+            error={suggestionsError}
           />
         </div>
       )}

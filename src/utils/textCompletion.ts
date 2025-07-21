@@ -4,6 +4,18 @@
 
 import { Board } from "../types";
 import Fuse from "fuse.js";
+import { searchScrapboxTitles, ScrapboxSearchResult } from "./scrapboxApi";
+
+/**
+ * 統合された候補アイテムの型
+ */
+export interface SuggestionItem {
+  title: string;
+  type: 'board' | 'scrapbox';
+  boardId?: string;
+  url?: string;
+  matches?: any;
+}
 
 /**
  * ボード候補のファジー検索フィルタリング
@@ -37,6 +49,117 @@ export function filterBoardSuggestions(
     ...result.item,
     matches: result.matches
   }));
+}
+
+/**
+ * Scrapboxページのファジー検索フィルタリング
+ * @param pages Scrapboxページ一覧
+ * @param searchText 検索文字列
+ * @returns フィルタリングされたページ一覧（関連性の高い順）
+ */
+export function filterScrapboxSuggestions(
+  pages: ScrapboxSearchResult[],
+  searchText: string
+): ScrapboxSearchResult[] {
+  if (!searchText.trim()) {
+    return pages;
+  }
+  
+  // Fuseの設定（Scrapbox用に調整）
+  const options = {
+    keys: ['title'], // 検索対象のフィールド
+    threshold: 0.4, // より厳しい閾値（より関連性の高いものを表示）
+    distance: 50, // 短い距離でマッチング
+    includeScore: true, // スコアを含める
+    includeMatches: true, // マッチした部分の情報を含める
+    minMatchCharLength: 1, // 最小マッチ文字数
+    ignoreLocation: true, // 位置を無視（全体的なマッチを重視）
+  };
+  
+  const fuse = new Fuse(pages, options);
+  const results = fuse.search(searchText);
+  
+  console.log('[Scrapbox Filter] Input pages:', pages.length);
+  console.log('[Scrapbox Filter] Filtered results:', results.length);
+  
+  // スコア順にソートされた結果を返す（マッチ情報も含む）
+  return results.map(result => ({
+    ...result.item,
+    matches: result.matches
+  }));
+}
+
+/**
+ * ボードとScrapboxページの統合候補を取得
+ * @param boards ボード一覧
+ * @param searchText 検索文字列
+ * @param scrapboxProjectName Scrapboxプロジェクト名（オプション）
+ * @returns 統合された候補一覧
+ */
+export async function getCombinedSuggestions(
+  boards: Board[],
+  searchText: string,
+  scrapboxProjectName?: string
+): Promise<SuggestionItem[]> {
+  console.log('[Combined Suggestions] Starting search:', { 
+    boardCount: boards.length, 
+    searchText, 
+    scrapboxProjectName 
+  });
+  
+  const suggestions: SuggestionItem[] = [];
+  
+  // ボード候補を追加
+  const filteredBoards = filterBoardSuggestions(boards, searchText);
+  console.log('[Combined Suggestions] Board suggestions:', filteredBoards.length);
+  
+  suggestions.push(...filteredBoards.map(board => ({
+    title: String(board.name || ''),
+    type: 'board' as const,
+    boardId: board.id,
+    matches: (board as any).matches
+  })));
+  
+  // Scrapbox候補を追加（プロジェクト名が指定されている場合のみ）
+  if (scrapboxProjectName && searchText.trim()) {
+    console.log('[Combined Suggestions] Fetching Scrapbox suggestions...');
+    try {
+      // まず広範囲でScrapboxページを取得（検索文字列の最初の文字など）
+      const broadSearchText = searchText.length > 2 ? searchText.substring(0, 2) : searchText;
+      const scrapboxResults = await searchScrapboxTitles(scrapboxProjectName, broadSearchText);
+      console.log('[Combined Suggestions] Raw Scrapbox results:', scrapboxResults.length);
+      
+      // クライアントサイドで詳細なファジー検索を実行
+      const filteredResults = filterScrapboxSuggestions(scrapboxResults, searchText);
+      console.log('[Combined Suggestions] Filtered Scrapbox suggestions:', filteredResults.length);
+      
+      suggestions.push(...filteredResults.map(result => ({
+        title: String(result.title || ''),
+        type: 'scrapbox' as const,
+        url: result.url,
+        matches: result.matches
+      })));
+    } catch (error) {
+      console.error('[Combined Suggestions] Failed to fetch Scrapbox suggestions:', error);
+    }
+  } else {
+    console.log('[Combined Suggestions] Skipping Scrapbox (no project name or empty search)');
+  }
+  
+  // 候補を種類別に分離してソート
+  const boardSuggestions = suggestions.filter(s => s.type === 'board');
+  const scrapboxSuggestions = suggestions.filter(s => s.type === 'scrapbox');
+  
+  // ボード候補を優先し、その後にScrapbox候補を表示
+  const sortedSuggestions = [...boardSuggestions, ...scrapboxSuggestions];
+  
+  console.log('[Combined Suggestions] Final suggestions:', {
+    total: sortedSuggestions.length,
+    boards: boardSuggestions.length,
+    scrapbox: scrapboxSuggestions.length
+  });
+  
+  return sortedSuggestions;
 }
 
 /**
