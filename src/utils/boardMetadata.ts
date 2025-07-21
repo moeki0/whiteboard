@@ -109,11 +109,24 @@ export async function updateBoardMetadata(
   try {
     const metadata = await calculateBoardMetadata(boardId, notes);
 
+    // boards を更新
     const boardRef = ref(rtdb, `boards/${boardId}`);
+    const boardSnapshot = await get(boardRef);
+    const boardData = boardSnapshot.val();
+    
     await update(boardRef, {
       updatedAt: Date.now(),
       metadata,
     });
+
+    // projectBoards も同期更新（ボードリスト用）
+    if (boardData?.projectId) {
+      const projectBoardRef = ref(rtdb, `projectBoards/${boardData.projectId}/${boardId}`);
+      await update(projectBoardRef, {
+        updatedAt: Date.now(),
+        metadata,
+      });
+    }
 
     // Sync to Algolia asynchronously (non-blocking)
     get(boardRef)

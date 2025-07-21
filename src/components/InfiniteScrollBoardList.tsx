@@ -138,6 +138,16 @@ export function InfiniteScrollBoardList({
         console.log(
           `✅ Loaded ${boardsArray.length} total boards, showing ${initialBoards.length} initially`
         );
+        
+        // デバッグ: 最初の数個のボードのメタデータを詳細確認
+        console.log('🔍 Board metadata debug:', boardsArray.slice(0, 3).map(b => ({
+          name: b.name,
+          metadata: b.metadata,
+          metadataDescription: b.metadata?.description,
+          metadataTitle: b.metadata?.title,
+          hasDescription: !!b.metadata?.description,
+          hasThumbnail: !!b.metadata?.thumbnailUrl
+        })));
       } else {
         setAllBoards([]);
         setBoards([]);
