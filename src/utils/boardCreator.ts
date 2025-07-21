@@ -62,14 +62,16 @@ export const createBoardFromTitle = async (
     // バッチ更新用のデータを準備
     const updates: { [key: string]: Board | string } = {};
 
-    // ボードデータ
-    updates[`boards/${boardId}`] = boardData;
-
-    // プロジェクトボードの関連付け
-    updates[`projectBoards/${projectId}/${boardId}`] = {
+    // ボードデータ（IDを含む完全なBoard型）
+    const completeBoard: Board = {
       ...boardData,
       id: boardId,
     };
+
+    updates[`boards/${boardId}`] = completeBoard;
+
+    // プロジェクトボードの関連付け
+    updates[`projectBoards/${projectId}/${boardId}`] = completeBoard;
 
     // タイトルインデックス
     const normalizedTitle = normalizeTitle(finalBoardName);
@@ -82,7 +84,7 @@ export const createBoardFromTitle = async (
 
     // 新しいデータ構造にも追加
     try {
-      await updateBoardListItem(projectId, boardId, { ...boardData, id: boardId });
+      await updateBoardListItem(projectId, boardId, completeBoard);
     } catch (error) {
       console.warn('Failed to update new board structure:', error);
     }

@@ -286,7 +286,13 @@ export function InfiniteScrollBoardList({
 
   // ボード作成
   const createBoard = async () => {
-    if (!projectId) return;
+    if (!projectId || !user) return;
+
+    // プロジェクトのメンバーシップをチェック
+    if (!isProjectMember(project, user.uid)) {
+      console.error('User is not a member of this project');
+      return;
+    }
 
     const boardId = nanoid();
     const now = Date.now();
