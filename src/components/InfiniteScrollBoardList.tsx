@@ -438,6 +438,19 @@ export function InfiniteScrollBoardList({
       <div className="boards-grid">
         {boards.map((board) => {
           const hasUnread = hasBoardUnreadContent(board.id, board.updatedAt);
+          
+          // デバッグ：未読状態をログ出力（最初の3個のみ）
+          if (boards.indexOf(board) < 3) {
+            console.log(`🔍 Unread debug for ${board.name}:`, {
+              boardId: board.id,
+              boardUpdatedAt: board.updatedAt,
+              updatedAtDate: board.updatedAt ? new Date(board.updatedAt).toLocaleString() : 'undefined',
+              hasUnread,
+              lastViewTime: localStorage.getItem('maplap_board_view_history') 
+                ? JSON.parse(localStorage.getItem('maplap_board_view_history') || '{}')[board.id] 
+                : 'no history'
+            });
+          }
 
           return (
             <div key={board.id} className="board-card-wrapper">
@@ -467,7 +480,7 @@ export function InfiniteScrollBoardList({
                   />
                 )}
                 <p className="board-name">
-                  {board.metadata?.title || board.name || ""}
+                  {board.isPinned ? "📌 " : ""}{board.metadata?.title || board.name || ""}
                 </p>
                 {board.metadata?.thumbnailUrl ? (
                   <div className="board-thumbnail">
