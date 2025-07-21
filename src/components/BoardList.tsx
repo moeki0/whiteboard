@@ -13,6 +13,7 @@ import { normalizeTitle } from "../utils/boardTitleIndex";
 import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
 import { getPaginatedBoards, DenormalizedBoard } from "../utils/boardDataOptimizer";
+import { updateBoardListItem } from "../utils/boardDataStructure";
 
 interface BoardListProps {
   user: User | null;
@@ -229,6 +230,13 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     }
     
     await update(ref(rtdb), updates);
+    
+    // 新しいデータ構造にも追加
+    try {
+      await updateBoardListItem(projectId, boardId, board);
+    } catch (error) {
+      console.warn('Failed to update new board structure:', error);
+    }
     
     // 作成したボードをキャッシュに追加
     addToRecentlyCreated(projectId, uniqueName, boardId);

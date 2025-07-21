@@ -161,8 +161,19 @@ export async function updateBoardTitle(
         lastUpdated: Date.now(),
       });
 
-      // タイトルインデックスを更新
+      // projectBoardsも同期更新（ボードリスト用）
       if (projectId) {
+        const projectBoardRef = ref(rtdb, `projectBoards/${projectId}/${boardId}`);
+        await update(projectBoardRef, {
+          name: newTitle,
+          updatedAt: Date.now(),
+          metadata: {
+            title: newTitle,
+            lastUpdated: Date.now(),
+          },
+        });
+        
+        // タイトルインデックスを更新
         await updateBoardTitleIndex(projectId, boardId, oldTitle, newTitle);
       }
 

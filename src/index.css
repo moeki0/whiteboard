@@ -101,6 +101,106 @@ button {
   }
 }
 
+/* Infinite scroll styles */
+.boards-stats {
+  font-size: 14px;
+  color: #666;
+  margin-left: 1rem;
+}
+
+.load-more-trigger {
+  padding: 2rem;
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #666;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.load-more-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.end-message {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.error-message {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  color: #900;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.error-message button {
+  background-color: #900;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .boards-stats {
+    color: #aaa;
+  }
+
+  .loading-spinner {
+    color: #aaa;
+  }
+
+  .spinner {
+    border: 2px solid #555;
+    border-top: 2px solid #0056b3;
+  }
+
+  .load-more-placeholder {
+    color: #666;
+  }
+
+  .end-message {
+    color: #aaa;
+  }
+
+  .error-message {
+    background-color: #4a1f1f;
+    border-color: #8b4444;
+    color: #ffaaaa;
+  }
+
+  .error-message button {
+    background-color: #cc3333;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #101010;

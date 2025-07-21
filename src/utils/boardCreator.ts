@@ -4,6 +4,7 @@ import { ref, set, update } from "firebase/database";
 import { Board } from "../types";
 import { checkBoardNameDuplicate, addToRecentlyCreated } from "./boardNaming";
 import { normalizeTitle } from "./boardTitleIndex";
+import { updateBoardListItem } from "./boardDataStructure";
 
 /**
  * タイトルから新しいボードを作成する
@@ -68,6 +69,13 @@ export const createBoardFromTitle = async (
     // 一括更新（アトミックな操作）
     performance.now();
     await update(ref(rtdb), updates);
+
+    // 新しいデータ構造にも追加
+    try {
+      await updateBoardListItem(projectId, boardId, { ...boardData, id: boardId });
+    } catch (error) {
+      console.warn('Failed to update new board structure:', error);
+    }
 
     // 作成したボードをキャッシュに追加（インデックスの遅延対策）
     addToRecentlyCreated(projectId, finalBoardName, boardId);

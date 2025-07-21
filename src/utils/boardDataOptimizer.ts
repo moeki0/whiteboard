@@ -2,6 +2,13 @@ import { ref, get, update } from "firebase/database";
 import { rtdb } from "../config/firebase";
 import { Board } from "../types";
 import { boardListCache } from "./boardListCache";
+import { getProjectBoardsList, BoardListItem, migrateToNewStructure } from "./boardDataStructure";
+import { 
+  shouldUseNewStructure, 
+  shouldAutoMigrate, 
+  updateMigrationStatus,
+  getMigrationConfig 
+} from "./migrationManager";
 
 // Denormalized board data structure for faster queries
 export interface DenormalizedBoard extends Board {
@@ -23,13 +30,120 @@ export async function getPaginatedBoards(
   boards: DenormalizedBoard[];
   totalCount: number;
   allBoardIds: string[];
+  usedNewStructure: boolean;
 }> {
+  const startTime = performance.now();
+  
   try {
     // Check cache first
     const cacheKey = boardListCache.getBoardListKey(projectId, page);
     const cachedData = boardListCache.get(cacheKey);
     if (cachedData) {
-      return cachedData;
+      console.log(`📋 Cache hit for ${projectId} page ${page}`);
+      return { ...cachedData, usedNewStructure: cachedData.usedNewStructure ?? false };
+    }
+    
+    // 移行管理に基づいて使用する構造を決定
+    const useNewStructure = await shouldUseNewStructure(projectId);
+    console.log(`📋 Project ${projectId}: Using ${useNewStructure ? 'NEW' : 'OLD'} structure`);
+    
+    // 新構造を使用する場合
+    if (useNewStructure) {
+      try {
+        const newStructureResult = await getProjectBoardsList(projectId, page, itemsPerPage);
+        
+        if (newStructureResult.boards.length > 0 || newStructureResult.totalCount === 0) {
+          // Convert BoardListItem to DenormalizedBoard
+          const denormalizedBoards: DenormalizedBoard[] = newStructureResult.boards.map(item => ({
+            id: item.id,
+            name: item.name,
+            title: item.title,
+            description: item.description,
+            thumbnailUrl: item.thumbnailUrl,
+            createdBy: item.createdBy,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            isPinned: item.isPinned,
+            projectId: item.projectId,
+            metadata: {
+              title: item.title,
+              description: item.description,
+              thumbnailUrl: item.thumbnailUrl
+            }
+          }));
+          
+          const result = {
+            boards: denormalizedBoards,
+            totalCount: newStructureResult.totalCount,
+            allBoardIds: newStructureResult.allBoardIds,
+            usedNewStructure: true
+          };
+          
+          // Cache the result
+          boardListCache.set(cacheKey, result);
+          
+          const endTime = performance.now();
+          console.log(`📋 NEW structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
+          
+          return result;
+        } else {
+          console.log('📋 New structure exists but no data, falling back to old structure');
+        }
+      } catch (error) {
+        console.warn('📋 New structure failed, falling back to old structure:', error);
+        // 新構造でエラーが発生した場合、ステータスを更新
+        await updateMigrationStatus(projectId, 'error', error instanceof Error ? error.message : String(error));
+      }
+    }
+    
+    // 自動移行の判定と実行
+    const shouldMigrate = await shouldAutoMigrate(projectId);
+    if (shouldMigrate) {
+      console.log(`📋 Auto-migrating project ${projectId}`);
+      try {
+        await updateMigrationStatus(projectId, 'migrating');
+        await migrateToNewStructure(projectId);
+        await updateMigrationStatus(projectId, 'migrated');
+        
+        // 移行完了後、新構造でリトライ
+        const newStructureResult = await getProjectBoardsList(projectId, page, itemsPerPage);
+        
+        const denormalizedBoards: DenormalizedBoard[] = newStructureResult.boards.map(item => ({
+          id: item.id,
+          name: item.name,
+          title: item.title,
+          description: item.description,
+          thumbnailUrl: item.thumbnailUrl,
+          createdBy: item.createdBy,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          isPinned: item.isPinned,
+          projectId: item.projectId,
+          metadata: {
+            title: item.title,
+            description: item.description,
+            thumbnailUrl: item.thumbnailUrl
+          }
+        }));
+        
+        const result = {
+          boards: denormalizedBoards,
+          totalCount: newStructureResult.totalCount,
+          allBoardIds: newStructureResult.allBoardIds,
+          usedNewStructure: true
+        };
+        
+        boardListCache.set(cacheKey, result);
+        
+        const endTime = performance.now();
+        console.log(`📋 Auto-migration and NEW structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
+        
+        return result;
+      } catch (error) {
+        console.error('📋 Auto-migration failed:', error);
+        await updateMigrationStatus(projectId, 'error', error instanceof Error ? error.message : String(error));
+        // フォールバック処理を継続
+      }
     }
     // First, check if we have denormalized data
     const denormalizedRef = ref(rtdb, `projectBoardsDenormalized/${projectId}`);
@@ -60,7 +174,8 @@ export async function getPaginatedBoards(
       const result = {
         boards: paginatedBoards,
         totalCount: boardsArray.length,
-        allBoardIds
+        allBoardIds,
+        usedNewStructure: true
       };
       
       // Cache the result
@@ -76,7 +191,7 @@ export async function getPaginatedBoards(
     const projectBoardsData = projectBoardsSnapshot.val();
     
     if (!projectBoardsData) {
-      return { boards: [], totalCount: 0, allBoardIds: [] };
+      return { boards: [], totalCount: 0, allBoardIds: [], usedNewStructure: false };
     }
     
     // Get all board IDs and their timestamps
@@ -130,16 +245,20 @@ export async function getPaginatedBoards(
     const result = {
       boards: validBoards,
       totalCount: allBoardIds.length,
-      allBoardIds
+      allBoardIds,
+      usedNewStructure: false
     };
     
     // Cache the result
     boardListCache.set(cacheKey, result);
     
+    const endTime = performance.now();
+    console.log(`📋 OLD structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
+    
     return result;
   } catch (error) {
     console.error("Error in getPaginatedBoards:", error);
-    return { boards: [], totalCount: 0, allBoardIds: [] };
+    return { boards: [], totalCount: 0, allBoardIds: [], usedNewStructure: false };
   }
 }
 

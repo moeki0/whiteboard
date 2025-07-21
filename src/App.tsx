@@ -10,7 +10,7 @@ import { auth } from "./config/firebase";
 import { resolveProjectIdToSlug } from "./utils/slugResolver";
 import { Auth } from "./components/Auth";
 import { Home } from "./components/Home";
-import { BoardList } from "./components/BoardList";
+import { InfiniteScrollBoardList } from "./components/InfiniteScrollBoardList";
 import { Board } from "./components/Board";
 import { InviteJoin } from "./components/InviteJoin";
 import { ProjectSettings } from "./components/ProjectSettings";
@@ -145,7 +145,7 @@ function App() {
               path="/project/:projectId"
               element={
                 <ProtectedRoute>
-                  <BoardList user={user!} />
+                  <InfiniteScrollBoardList user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -265,7 +265,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SlugRouter type="project">
-                    <BoardList user={user!} />
+                    <InfiniteScrollBoardList user={user!} />
                   </SlugRouter>
                 </ProtectedRoute>
               }
