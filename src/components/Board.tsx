@@ -2041,8 +2041,8 @@ export function Board({ user }: BoardProps) {
     setPanY: panZoom.setPanY,
     zoom: panZoom.zoom,
     setZoom: panZoom.setZoom,
-    onUndo: undo,
-    onRedo: redo,
+    onUndo: performUndo,
+    onRedo: performRedo,
     onCopy: async () => {
       if (selection.selectedNoteIds.size === 1) {
         const noteId = Array.from(selection.selectedNoteIds)[0];

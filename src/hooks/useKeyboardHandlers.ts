@@ -64,6 +64,7 @@ export function useKeyboardHandlers({
 }: KeyboardHandlerProps) {
   const handleUndoKey = useCallback((e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+      console.log('Undo key detected');
       e.preventDefault();
       onUndo();
     }
@@ -71,6 +72,7 @@ export function useKeyboardHandlers({
 
   const handleRedoKey = useCallback((e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
+      console.log('Redo key detected');
       e.preventDefault();
       onRedo();
     }
