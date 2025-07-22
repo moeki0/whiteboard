@@ -23,7 +23,7 @@
     "deploy": "npm run build --prefix client && npm run build --prefix functions && firebase deploy",
     "install:all": "npm install && npm install --prefix client && npm install --prefix functions",
     "clean": "rm -rf client/node_modules client/dist functions/node_modules functions/lib node_modules",
-    "postinstall": "cd client && (npm ci || npm install) && cd ../functions && (npm ci || npm install)"
+    "postinstall": "npm install --prefix client && npm install --prefix functions"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

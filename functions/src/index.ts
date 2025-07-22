@@ -41,6 +41,7 @@ interface AlgoliaBoard {
 
 export const syncBoard = functions
   .region("us-central1")
+  .runtime("nodejs20")
   .runWith({
     timeoutSeconds: 60,
     memory: "256MB",
@@ -70,7 +71,9 @@ export const syncBoard = functions
     }
   });
 
-export const removeBoard = functions.https.onCall(async (data, context) => {
+export const removeBoard = functions
+  .runtime("nodejs20")
+  .https.onCall(async (data, context) => {
   // 認証チェック
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -99,7 +102,9 @@ export const removeBoard = functions.https.onCall(async (data, context) => {
   }
 });
 
-export const syncProject = functions.https.onCall(async (data, context) => {
+export const syncProject = functions
+  .runtime("nodejs20")
+  .https.onCall(async (data, context) => {
   // 認証チェック
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -129,7 +134,9 @@ export const syncProject = functions.https.onCall(async (data, context) => {
 });
 
 // onRequest版の関数（CORS対応）
-export const syncBoardHttp = functions.https.onRequest(async (req, res) => {
+export const syncBoardHttp = functions
+  .runtime("nodejs20")
+  .https.onRequest(async (req, res) => {
   return corsHandler(req, res, async () => {
     try {
       // プリフライトリクエストの処理
@@ -171,7 +178,9 @@ export const syncBoardHttp = functions.https.onRequest(async (req, res) => {
   });
 });
 
-export const removeBoardHttp = functions.https.onRequest(async (req, res) => {
+export const removeBoardHttp = functions
+  .runtime("nodejs20")
+  .https.onRequest(async (req, res) => {
   return corsHandler(req, res, async () => {
     try {
       if (req.method === "OPTIONS") {
@@ -211,7 +220,9 @@ export const removeBoardHttp = functions.https.onRequest(async (req, res) => {
 });
 
 // Scrapbox APIプロキシ
-export const searchScrapboxTitles = functions.https.onRequest(async (req, res) => {
+export const searchScrapboxTitles = functions
+  .runtime("nodejs20")
+  .https.onRequest(async (req, res) => {
   return corsHandler(req, res, async () => {
     try {
       if (req.method === "OPTIONS") {
