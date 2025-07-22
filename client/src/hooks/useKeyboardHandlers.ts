@@ -190,22 +190,26 @@ export function useKeyboardHandlers({
             // Shift+上矢印：上パン
             setPanY((prev) => prev + panSpeed);
           } else {
-            // 上矢印：ズームイン（カーソル位置を基準）
+            // 上矢印：ズームイン（画面中央を基準）
             if (boardRef.current) {
-              const rect = boardRef.current.getBoundingClientRect();
-              // 最後のマウス位置をボード内の相対座標として使用
-              const mouseX = lastMousePos.current.x - rect.left;
-              const mouseY = lastMousePos.current.y - rect.top;
               
-              const zoomInFactor = 1.1;
-              const newZoomIn = Math.max(0.1, Math.min(5, zoom * zoomInFactor));
-              const deltaZoom = newZoomIn - zoom;
+              // ビューポートのサイズを使用（実際に見えている画面のサイズ）
+              const centerX = window.innerWidth / 2;
+              const centerY = window.innerHeight / 2;
               
-              // カーソル位置を基準にパンを調整（ホイールズームと同じ計算）
-              const newPanX = panX - (mouseX * deltaZoom) / zoom;
-              const newPanY = panY - (mouseY * deltaZoom) / zoom;
+              const zoomFactor = 1.1;
+              const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
               
-              setZoom(newZoomIn);
+              // 画面中央のワールド座標を計算
+              const worldCenterX = (centerX - panX) / zoom;
+              const worldCenterY = (centerY - panY) / zoom;
+              
+              // ズーム後も画面中央が同じワールド座標を指すようにパンを調整
+              const newPanX = centerX - worldCenterX * newZoom;
+              const newPanY = centerY - worldCenterY * newZoom;
+              
+              
+              setZoom(newZoom);
               setPanX(newPanX);
               setPanY(newPanY);
             }
@@ -217,30 +221,34 @@ export function useKeyboardHandlers({
             // Shift+下矢印：下パン
             setPanY((prev) => prev - panSpeed);
           } else {
-            // 下矢印：ズームアウト（カーソル位置を基準）
+            // 下矢印：ズームアウト（画面中央を基準）
             if (boardRef.current) {
-              const rect = boardRef.current.getBoundingClientRect();
-              // 最後のマウス位置をボード内の相対座標として使用
-              const mouseX = lastMousePos.current.x - rect.left;
-              const mouseY = lastMousePos.current.y - rect.top;
               
-              const zoomOutFactor = 0.9;
-              const newZoomOut = Math.max(0.1, Math.min(5, zoom * zoomOutFactor));
-              const deltaZoomOut = newZoomOut - zoom;
+              // ビューポートのサイズを使用（実際に見えている画面のサイズ）
+              const centerX = window.innerWidth / 2;
+              const centerY = window.innerHeight / 2;
               
-              // カーソル位置を基準にパンを調整（ホイールズームと同じ計算）
-              const newPanXDown = panX - (mouseX * deltaZoomOut) / zoom;
-              const newPanYDown = panY - (mouseY * deltaZoomOut) / zoom;
+              const zoomFactor = 0.9;
+              const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
               
-              setZoom(newZoomOut);
-              setPanX(newPanXDown);
-              setPanY(newPanYDown);
+              // 画面中央のワールド座標を計算
+              const worldCenterX = (centerX - panX) / zoom;
+              const worldCenterY = (centerY - panY) / zoom;
+              
+              // ズーム後も画面中央が同じワールド座標を指すようにパンを調整
+              const newPanX = centerX - worldCenterX * newZoom;
+              const newPanY = centerY - worldCenterY * newZoom;
+              
+              
+              setZoom(newZoom);
+              setPanX(newPanX);
+              setPanY(newPanY);
             }
           }
           break;
       }
     },
-    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef, lastMousePos]
+    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef]
   );
 
   const handleDeleteKey = useCallback(
