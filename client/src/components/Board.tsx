@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useParams, NavigateFunction } from "react-router-dom";
 import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
@@ -311,13 +311,18 @@ export function Board({ user }: BoardProps) {
   //   return () => window.removeEventListener("hashchange", handleHashChange);
   // }, [notes]);
 
-  // Update maxZIndex when notes change
-  useEffect(() => {
+  // Calculate maxZIndex using useMemo for performance
+  const maxZIndex = useMemo(() => {
     if (notes.length > 0) {
-      const maxZ = Math.max(...notes.map((n) => n.zIndex || 0), 99);
-      setNextZIndex(maxZ + 1);
+      return Math.max(...notes.map((n) => n.zIndex || 0), 99);
     }
+    return 99;
   }, [notes]);
+
+  // Update nextZIndex when maxZIndex changes
+  useEffect(() => {
+    setNextZIndex(maxZIndex + 1);
+  }, [maxZIndex]);
 
   // Listen to project membership changes for real-time access control
   useEffect(() => {

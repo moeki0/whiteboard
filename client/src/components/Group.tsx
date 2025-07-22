@@ -92,7 +92,7 @@ function createSmoothPath(points: Array<{ x: number; y: number }>, tension: numb
   return path + ' Z';
 }
 
-export function Group({
+const GroupComponent = function Group({
   group,
   notes,
   onSelect,
@@ -254,4 +254,6 @@ export function Group({
       )}
     </div>
   );
-}
+};
+
+export const Group = React.memo(GroupComponent);

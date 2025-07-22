@@ -131,7 +131,7 @@ interface StickyNoteProps {
   hintKey?: string;
 }
 
-export function StickyNote({
+const StickyNoteComponent = function StickyNote({
   note,
   onUpdate,
   onDelete,
@@ -2603,4 +2603,6 @@ export function StickyNote({
         )}
     </div>
   );
-}
+};
+
+export const StickyNote = React.memo(StickyNoteComponent);

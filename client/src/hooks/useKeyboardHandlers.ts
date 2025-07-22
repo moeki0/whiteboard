@@ -151,18 +151,10 @@ export function useKeyboardHandlers({
     [onCreateGroup]
   );
 
+  // キーヒントモード機能を無効化
   const handleKeyHintModeKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "f") {
-        e.preventDefault();
-        setIsKeyHintMode((prev) => {
-          if (!prev) {
-            const visibleNoteIds = notes.map((note) => note.id);
-            generateHintKeys(visibleNoteIds);
-          }
-          return !prev;
-        });
-      }
+      // 機能を無効化
     },
     [setIsKeyHintMode, notes, generateHintKeys]
   );
@@ -395,26 +387,10 @@ export function useKeyboardHandlers({
           }
           break;
         case "KeyS":
-          // Shift+S: キーヒントモード (fキーと同じ機能)
-          console.log("Shift+S detected, toggling key hint mode");
-          console.log("Current isKeyHintMode:", isKeyHintMode);
-          e.preventDefault();
-
-          // 状態更新を直接実行して重複を防ぐ
-          if (!isKeyHintMode) {
-            console.log("Enabling key hint mode");
-            const visibleNoteIds = notes.map((note) => note.id);
-            console.log(
-              "Generating hint keys for notes:",
-              visibleNoteIds.length
-            );
-            generateHintKeys(visibleNoteIds);
-            setIsKeyHintMode(true);
-          } else {
-            console.log("Disabling key hint mode");
-            setIsKeyHintMode(false);
-          }
-          return true;
+          // Shift+S: キーヒントモード機能を無効化
+          console.log("Shift+S detected but disabled");
+          // 機能を無効化
+          break;
         case "KeyA":
           // Shift+A: 矢印を挿入
           console.log("Shift+A detected");

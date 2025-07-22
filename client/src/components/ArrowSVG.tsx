@@ -10,7 +10,7 @@ interface ArrowSVGProps {
   notes: Note[];
 }
 
-export function ArrowSVG({
+const ArrowSVGComponent = function ArrowSVG({
   arrow,
   isSelected,
   onSelect,
@@ -291,4 +291,6 @@ export function ArrowSVG({
       />
     </g>
   );
-}
+};
+
+export const ArrowSVG = React.memo(ArrowSVGComponent);
