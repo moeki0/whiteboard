@@ -49,12 +49,21 @@
     "functions": {
       "port": 5001
     },
+    "database": {
+      "port": 9000
+    },
+    "auth": {
+      "port": 9099
+    },
     "ui": {
       "enabled": true,
-      "port": 4003
+      "port": 4004
     },
     "hub": {
-      "port": 4403
+      "port": 4404
+    },
+    "logging": {
+      "port": 4502
     }
   }
 }
