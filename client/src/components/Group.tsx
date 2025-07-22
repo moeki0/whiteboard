@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Group as GroupType, Note } from "../types";
 import { calculateNoteDimensions } from "../utils/noteUtils";
 
@@ -100,6 +100,8 @@ const GroupComponent = function Group({
   zoom = 1,
   onStartGroupDrag,
 }: GroupProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
   // グループ内の付箋を取得
   const groupNotes = notes.filter(note => group.noteIds.includes(note.id));
   
@@ -207,27 +209,37 @@ const GroupComponent = function Group({
         }}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {/* 背景の影 */}
         <defs>
           <filter id={`shadow-${group.id}`} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="2" dy="2" stdDeviation="3" floodColor="rgba(0,0,0,0.1)" />
           </filter>
+          <filter id={`shadow-hover-${group.id}`} x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="3" dy="3" stdDeviation="5" floodColor="rgba(0,0,0,0.15)" />
+          </filter>
           <linearGradient id={`gradient-${group.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor={group.color || "rgba(91, 151, 255, 0.15)"} />
             <stop offset="100%" stopColor={group.color || "rgba(91, 151, 255, 0.05)"} />
+          </linearGradient>
+          <linearGradient id={`gradient-hover-${group.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={group.color || "rgba(91, 151, 255, 0.3)"} />
+            <stop offset="100%" stopColor={group.color || "rgba(91, 151, 255, 0.15)"} />
           </linearGradient>
         </defs>
         
         <path
           d={smoothPath}
-          fill={`url(#gradient-${group.id})`}
-          stroke={isSelected ? "#5b97ff" : "rgba(91, 151, 255, 0.4)"}
-          strokeWidth={isSelected ? 3 : 2}
+          fill={isHovered ? `url(#gradient-hover-${group.id})` : `url(#gradient-${group.id})`}
+          stroke={isSelected ? "#5b97ff" : isHovered ? "#5b97ff" : "rgba(91, 151, 255, 0.4)"}
+          strokeWidth={isSelected ? 3 : isHovered ? 2.5 : 2}
           strokeDasharray={isSelected ? "none" : "8,4"}
-          filter={`url(#shadow-${group.id})`}
+          filter={isHovered ? `url(#shadow-hover-${group.id})` : `url(#shadow-${group.id})`}
           style={{
             transition: "all 0.2s ease-in-out",
+            cursor: "pointer",
           }}
         />
       </svg>
