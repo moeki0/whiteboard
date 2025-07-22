@@ -13,6 +13,10 @@ import { Group } from "./Group";
 import { useHistory } from "../hooks/useHistory";
 import { useBoard } from "../hooks/useBoard";
 import { useCursor } from "../hooks/useCursor";
+import { useSelection } from "../hooks/useSelection";
+import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import { usePanZoom } from "../hooks/usePanZoom";
+import { useKeyHints } from "../hooks/useKeyHints";
 import { getUserColor } from "../utils/colors";
 import {
   copyStickyNoteToClipboard,
@@ -36,11 +40,13 @@ export function Board({ user }: BoardProps) {
     boardName?: string; 
     boardId?: string; 
   }>();
-  // activeNoteIdを削除 - selectedNoteIdsで管理
-  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
-    new Set()
-  );
-  // selectedNoteIdsRefを削除 - 別のアプローチを使用
+  // 状態管理をカスタムフックに分離
+  const selection = useSelection();
+  const dragAndDrop = useDragAndDrop();
+  const panZoom = usePanZoom();
+  const keyHints = useKeyHints();
+  
+  // activeNoteIdを削除 - selection.selectedNoteIdsで管理
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   const [copiedNote, setCopiedNote] = useState<Note | null>(null);
   const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
@@ -54,16 +60,8 @@ export function Board({ user }: BoardProps) {
   >(null);
   const [noteToFocus, setNoteToFocus] = useState<string | null>(null);
 
-  // 矢印関連の状態
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
-    new Set()
-  );
-
   // グループ関連の状態
   const [groups, setGroups] = useState<GroupType[]>([]);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(
-    new Set()
-  );
   // 矢印作成関連の状態（削除済み）
   // const [isCreatingArrow, setIsCreatingArrow] = useState<boolean>(false);
   // const [arrowStartPoint, setArrowStartPoint] = useState<{
@@ -71,70 +69,17 @@ export function Board({ user }: BoardProps) {
   //   y: number;
   // } | null>(null);
 
-  // 範囲選択用の状態
-  const [isSelecting, setIsSelecting] = useState<boolean>(false);
-  const [selectionStart, setSelectionStart] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [selectionEnd, setSelectionEnd] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(false);
-  const [justFinishedSelection, setJustFinishedSelection] =
-    useState<boolean>(false);
+  // 範囲選択用の状態は useSelection に移動
 
-  // 一括移動用の状態
-  const [isDraggingMultiple, setIsDraggingMultiple] = useState<boolean>(false);
-  const [dragStartPos, setDragStartPos] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [initialSelectedPositions, setInitialSelectedPositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-  const [justFinishedBulkDrag, setJustFinishedBulkDrag] =
-    useState<boolean>(false);
+  // 一括移動・グループドラッグ状態は useDragAndDrop に移動
 
-  // グループドラッグ用の状態
-  const [isDraggingGroup, setIsDraggingGroup] = useState<boolean>(false);
-  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
-  const [groupDragStartPos, setGroupDragStartPos] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [initialGroupNotePositions, setInitialGroupNotePositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-
-  // パン・ズーム用の状態
-  const [panX, setPanX] = useState<number>(0);
-  const [panY, setPanY] = useState<number>(0);
-  const [zoom, setZoom] = useState<number>(1);
-  const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [panStartPos, setPanStartPos] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [initialPan, setInitialPan] = useState<{ x: number; y: number } | null>(
-    null
-  );
-
+  // パン・ズーム状態は usePanZoom に移動
   // WASD パン用の状態（削除：カクカク移動のため不要）
-
-  // ズーム慣性用の状態
-  const [lastWheelTime, setLastWheelTime] = useState<number>(0);
 
   // 新しいボード作成の状態
   const [isCreatingBoard, setIsCreatingBoard] = useState<boolean>(false);
 
-  // Vimiumスタイルのキーヒント用の状態
-  const [isKeyHintMode, setIsKeyHintMode] = useState<boolean>(false);
-  const [pressedKeyHistory, setPressedKeyHistory] = useState<Array<string>>([]);
-  const [noteHintKeys, setNoteHintKeys] = useState<Map<string, string>>(
-    new Map()
-  );
+  // キーヒント状態は useKeyHints に移動
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
@@ -267,9 +212,9 @@ export function Board({ user }: BoardProps) {
     },
     sessionId,
     cursorColor,
-    panX,
-    panY,
-    zoom,
+    panX: panZoom.panX,
+    panY: panZoom.panY,
+    zoom: panZoom.zoom,
   });
 
   // ハッシュがない場合の初期位置を設定
@@ -281,8 +226,8 @@ export function Board({ user }: BoardProps) {
     // ハッシュがない場合は画面中央を原点に
     if (boardRef.current) {
       const rect = boardRef.current.getBoundingClientRect();
-      setPanX(rect.width / 2);
-      setPanY(rect.height / 2);
+      panZoom.setPanX(rect.width / 2);
+      panZoom.setPanY(rect.height / 2);
     }
   }, []);
 
@@ -306,9 +251,9 @@ export function Board({ user }: BoardProps) {
         // 付箋のサイズを考慮（一般的な付箋サイズ: 幅200px, 高さ150px）
         const noteWidth = 200;
         const noteHeight = 150;
-        setPanX(centerX - note.x - noteWidth / 2);
-        setPanY(centerY - note.y - noteHeight / 2);
-        setSelectedNoteIds(new Set([hash]));
+        panZoom.setPanX(centerX - note.x - noteWidth / 2);
+        panZoom.setPanY(centerY - note.y - noteHeight / 2);
+        selection.setSelectedNoteIds(new Set([hash]));
         console.log("Debug: Applied initial hash processing");
       }
     }
@@ -332,9 +277,9 @@ export function Board({ user }: BoardProps) {
   // ボードアクセス時に選択状態をリセット
   useEffect(() => {
     // ボードが読み込まれた時に選択状態を初期化
-    setSelectedNoteIds(new Set());
-    setSelectedItemIds(new Set());
-    setSelectedGroupIds(new Set());
+    selection.setSelectedNoteIds(new Set());
+    selection.setSelectedItemIds(new Set());
+    selection.setSelectedGroupIds(new Set());
     updateUrlForNote(null);
     
     // ボードアクセス時に閲覧時刻を更新（未読マークをクリア）
@@ -352,7 +297,7 @@ export function Board({ user }: BoardProps) {
   //     if (hash && notes.length > 0) {
   //       const note = notes.find((n) => n.id === hash);
   //       if (note) {
-  //         setSelectedNoteIds(new Set([hash]));
+  //         selection.setSelectedNoteIds(new Set([hash]));
   //       }
   //     }
   //   };
@@ -415,8 +360,8 @@ export function Board({ user }: BoardProps) {
       noteY = y;
     } else {
       // ビューポートの中央付近にランダムに配置
-      const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
-      const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+      const viewportCenterX = -panZoom.panX / panZoom.zoom + window.innerWidth / 2 / panZoom.zoom;
+      const viewportCenterY = -panZoom.panY / panZoom.zoom + window.innerHeight / 2 / panZoom.zoom;
       noteX = viewportCenterX + (Math.random() - 0.5) * 300; // 中央から±150px
       noteY = viewportCenterY + (Math.random() - 0.5) * 300;
     }
@@ -455,7 +400,7 @@ export function Board({ user }: BoardProps) {
     // 新しい付箋にフォーカスを設定
     setNoteToFocus(noteId);
     // 新しい付箋を選択状態にする
-    setSelectedNoteIds(new Set([noteId]));
+    selection.setSelectedNoteIds(new Set([noteId]));
     updateUrlForNote(noteId);
 
     // ボードの更新時刻を更新（非同期で実行、エラーがあってもメイン処理に影響しない）
@@ -483,7 +428,7 @@ export function Board({ user }: BoardProps) {
     }
 
     // 2つの付箋が選択されている必要がある
-    const selectedNoteArray = Array.from(selectedNoteIds);
+    const selectedNoteArray = Array.from(selection.selectedNoteIds);
     if (selectedNoteArray.length !== 2) {
       // ボタンからの呼び出しの場合はアラートを表示しない（条件分岐で制御）
       console.warn("矢印を作成するには、ちょうど2つの付箋を選択してください。");
@@ -517,9 +462,9 @@ export function Board({ user }: BoardProps) {
     });
 
     // 矢印作成後、付箋の選択をクリア
-    setSelectedNoteIds(new Set());
+    selection.setSelectedNoteIds(new Set());
     // 新しい矢印を選択状態にする
-    setSelectedItemIds(new Set([arrowId]));
+    selection.setSelectedItemIds(new Set([arrowId]));
 
     return arrowId;
   };
@@ -535,7 +480,7 @@ export function Board({ user }: BoardProps) {
     }
 
     // 2つ以上の付箋が選択されている必要がある
-    const selectedNoteArray = Array.from(selectedNoteIds);
+    const selectedNoteArray = Array.from(selection.selectedNoteIds);
     if (selectedNoteArray.length < 2) {
       console.warn("グループを作成するには、2つ以上の付箋を選択してください。");
       return "";
@@ -566,9 +511,9 @@ export function Board({ user }: BoardProps) {
     });
 
     // グループ作成後、付箋の選択をクリア
-    setSelectedNoteIds(new Set());
+    selection.setSelectedNoteIds(new Set());
     // 新しいグループを選択状態にする
-    setSelectedGroupIds(new Set([groupId]));
+    selection.setSelectedGroupIds(new Set([groupId]));
 
     return groupId;
   };
@@ -608,8 +553,8 @@ export function Board({ user }: BoardProps) {
     });
 
     // 選択状態も削除
-    if (selectedItemIds.has(arrowId)) {
-      setSelectedItemIds((prev) => {
+    if (selection.selectedItemIds.has(arrowId)) {
+      selection.setSelectedItemIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(arrowId);
         return newSet;
@@ -724,8 +669,8 @@ export function Board({ user }: BoardProps) {
     }, 100);
 
     // 選択状態も削除
-    if (selectedNoteIds.has(noteId)) {
-      setSelectedNoteIds((prev) => {
+    if (selection.selectedNoteIds.has(noteId)) {
+      selection.setSelectedNoteIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(noteId);
         return newSet;
@@ -745,7 +690,7 @@ export function Board({ user }: BoardProps) {
     isShiftSelect: boolean = false
   ) => {
     // 一括ドラッグ直後や範囲選択直後はアクティベートを無視
-    if (isDraggingMultiple || justFinishedBulkDrag || justFinishedSelection) {
+    if (dragAndDrop.isDraggingMultiple || dragAndDrop.justFinishedBulkDrag || selection.justFinishedSelection) {
       return;
     }
 
@@ -753,21 +698,21 @@ export function Board({ user }: BoardProps) {
       // Ctrl/Cmdキーが押されている場合は最前面に移動
       bringNoteToFront(noteId);
       // 単一選択に設定
-      setSelectedNoteIds(new Set([noteId]));
+      selection.setSelectedNoteIds(new Set([noteId]));
       updateUrlForNote(noteId);
     } else if (isShiftSelect) {
       // Shiftキーが押されている場合は複数選択
-      const newSelectedIds = new Set(selectedNoteIds);
+      const newSelectedIds = new Set(selection.selectedNoteIds);
       if (newSelectedIds.has(noteId)) {
         newSelectedIds.delete(noteId);
       } else {
         newSelectedIds.add(noteId);
       }
-      setSelectedNoteIds(newSelectedIds);
+      selection.setSelectedNoteIds(newSelectedIds);
       // 複数選択時はURL更新しない
     } else {
       // 通常の単一選択（zIndexは変更しない）
-      setSelectedNoteIds(new Set([noteId]));
+      selection.setSelectedNoteIds(new Set([noteId]));
       updateUrlForNote(noteId);
     }
   };
@@ -779,18 +724,18 @@ export function Board({ user }: BoardProps) {
   ) => {
     if (isShiftSelect) {
       // Shiftキーが押されている場合は複数選択
-      const newSelectedIds = new Set(selectedItemIds);
+      const newSelectedIds = new Set(selection.selectedItemIds);
       if (newSelectedIds.has(arrowId)) {
         newSelectedIds.delete(arrowId);
       } else {
         newSelectedIds.add(arrowId);
       }
-      setSelectedItemIds(newSelectedIds);
+      selection.setSelectedItemIds(newSelectedIds);
     } else {
       // 通常の単一選択
-      setSelectedItemIds(new Set([arrowId]));
+      selection.setSelectedItemIds(new Set([arrowId]));
       // 付箋の選択をクリア
-      setSelectedNoteIds(new Set());
+      selection.setSelectedNoteIds(new Set());
     }
   };
 
@@ -801,31 +746,31 @@ export function Board({ user }: BoardProps) {
   ) => {
     if (isShiftSelect) {
       // Shiftキーが押されている場合は複数選択
-      const newSelectedIds = new Set(selectedGroupIds);
+      const newSelectedIds = new Set(selection.selectedGroupIds);
       if (newSelectedIds.has(groupId)) {
         newSelectedIds.delete(groupId);
       } else {
         newSelectedIds.add(groupId);
       }
-      setSelectedGroupIds(newSelectedIds);
+      selection.setSelectedGroupIds(newSelectedIds);
     } else {
       // 通常の単一選択
-      setSelectedGroupIds(new Set([groupId]));
+      selection.setSelectedGroupIds(new Set([groupId]));
       // 付箋と矢印の選択をクリア
-      setSelectedNoteIds(new Set());
-      setSelectedItemIds(new Set());
+      selection.setSelectedNoteIds(new Set());
+      selection.setSelectedItemIds(new Set());
     }
   };
 
   const handleBoardClick = () => {
     // 範囲選択終了直後や一括ドラッグ終了直後はクリックを無視
-    if (isSelecting || justFinishedSelection || justFinishedBulkDrag) {
+    if (selection.isSelecting || selection.justFinishedSelection || dragAndDrop.justFinishedBulkDrag) {
       return;
     }
 
-    setSelectedNoteIds(new Set());
-    setSelectedItemIds(new Set());
-    setSelectedGroupIds(new Set());
+    selection.setSelectedNoteIds(new Set());
+    selection.setSelectedItemIds(new Set());
+    selection.setSelectedGroupIds(new Set());
     updateUrlForNote(null);
   };
 
@@ -834,7 +779,7 @@ export function Board({ user }: BoardProps) {
     if (!user || !boardId || !project || isCreatingBoard) return;
 
     // 選択された付箋を取得
-    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
+    const selectedNotes = notes.filter((note) => selection.selectedNoteIds.has(note.id));
 
     if (selectedNotes.length === 0) return;
 
@@ -944,8 +889,8 @@ export function Board({ user }: BoardProps) {
     const rect = boardRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const clickX = (e.clientX - rect.left - panX) / zoom;
-    const clickY = (e.clientY - rect.top - panY) / zoom;
+    const clickX = (e.clientX - rect.left - panZoom.panX) / panZoom.zoom;
+    const clickY = (e.clientY - rect.top - panZoom.panY) / panZoom.zoom;
 
     // 付箋の基本サイズ（新規作成時）
     const noteWidth = 160;
@@ -962,7 +907,7 @@ export function Board({ user }: BoardProps) {
     setNoteToFocus(newNoteId);
 
     // 作成した付箋を選択状態にする
-    setSelectedNoteIds(new Set([newNoteId]));
+    selection.setSelectedNoteIds(new Set([newNoteId]));
     updateUrlForNote(newNoteId);
   };
 
@@ -994,17 +939,17 @@ export function Board({ user }: BoardProps) {
         top: 0,
       };
       // transform を考慮した座標計算
-      const x = (e.clientX - rect.left - panX) / zoom;
-      const y = (e.clientY - rect.top - panY) / zoom;
+      const x = (e.clientX - rect.left - panZoom.panX) / panZoom.zoom;
+      const y = (e.clientY - rect.top - panZoom.panY) / panZoom.zoom;
 
-      setIsSelecting(true);
-      setIsMultiSelectMode(false);
-      setSelectionStart({ x, y });
-      setSelectionEnd({ x, y });
-      setJustFinishedSelection(false);
+      selection.setIsSelecting(true);
+      selection.setIsMultiSelectMode(false);
+      selection.setSelectionStart({ x, y });
+      selection.setSelectionEnd({ x, y });
+      selection.setJustFinishedSelection(false);
 
       // 既存の選択をクリア
-      setSelectedNoteIds(new Set());
+      selection.setSelectedNoteIds(new Set());
       updateUrlForNote(null);
     } else {
       // 通常のドラッグでパン
@@ -1015,23 +960,23 @@ export function Board({ user }: BoardProps) {
   // 範囲選択の更新
   const handleBoardMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isSelecting || !selectionStart) return;
+      if (!selection.isSelecting || !selection.selectionStart) return;
 
       const rect = boardRef.current?.getBoundingClientRect() || {
         left: 0,
         top: 0,
       };
       // transform を考慮した座標計算
-      const x = (e.clientX - rect.left - panX) / zoom;
-      const y = (e.clientY - rect.top - panY) / zoom;
+      const x = (e.clientX - rect.left - panZoom.panX) / panZoom.zoom;
+      const y = (e.clientY - rect.top - panZoom.panY) / panZoom.zoom;
 
-      setSelectionEnd({ x, y });
+      selection.setSelectionEnd({ x, y });
 
       // 選択範囲内の付箋を取得
-      const minX = Math.min(selectionStart.x, x);
-      const maxX = Math.max(selectionStart.x, x);
-      const minY = Math.min(selectionStart.y, y);
-      const maxY = Math.max(selectionStart.y, y);
+      const minX = Math.min(selection.selectionStart.x, x);
+      const maxX = Math.max(selection.selectionStart.x, x);
+      const minY = Math.min(selection.selectionStart.y, y);
+      const maxY = Math.max(selection.selectionStart.y, y);
 
       const notesInSelection = notes.filter((note) => {
         return isNoteInSelection(note, { minX, minY, maxX, maxY });
@@ -1041,75 +986,75 @@ export function Board({ user }: BoardProps) {
       const newSelectedIds = new Set<string>();
 
       // マルチセレクトモードの場合は既存の選択を保持
-      if (isMultiSelectMode) {
-        selectedNoteIds.forEach((id) => newSelectedIds.add(id));
+      if (selection.isMultiSelectMode) {
+        selection.selectedNoteIds.forEach((id) => newSelectedIds.add(id));
       }
 
       // 範囲選択された付箋を追加
       notesInSelection.forEach((note) => newSelectedIds.add(note.id));
 
-      setSelectedNoteIds(newSelectedIds);
+      selection.setSelectedNoteIds(newSelectedIds);
     },
     [
-      isSelecting,
-      selectionStart,
+      selection.isSelecting,
+      selection.selectionStart,
       notes,
-      isMultiSelectMode,
-      selectedNoteIds,
+      selection.isMultiSelectMode,
+      selection.selectedNoteIds,
       boardRef,
-      panX,
-      panY,
-      zoom,
+      panZoom.panX,
+      panZoom.panY,
+      panZoom.zoom,
     ]
   );
 
   // 範囲選択の終了
   const handleBoardMouseUp = useCallback(() => {
-    if (isSelecting && selectionStart && selectionEnd) {
+    if (selection.isSelecting && selection.selectionStart && selection.selectionEnd) {
       // 実際にドラッグが行われたかを確認（5px以上の移動で選択とみなす）
       const dragDistance = Math.sqrt(
-        Math.pow(selectionEnd.x - selectionStart.x, 2) +
-          Math.pow(selectionEnd.y - selectionStart.y, 2)
+        Math.pow(selection.selectionEnd.x - selection.selectionStart.x, 2) +
+          Math.pow(selection.selectionEnd.y - selection.selectionStart.y, 2)
       );
 
       const wasActualDrag = dragDistance > 5;
 
-      setIsSelecting(false);
-      setSelectionStart(null);
-      setSelectionEnd(null);
-      setIsMultiSelectMode(false);
+      selection.setIsSelecting(false);
+      selection.setSelectionStart(null);
+      selection.setSelectionEnd(null);
+      selection.setIsMultiSelectMode(false);
 
       if (wasActualDrag) {
-        setJustFinishedSelection(true);
+        selection.setJustFinishedSelection(true);
         // 少し後にフラグをクリア
         setTimeout(() => {
-          setJustFinishedSelection(false);
+          selection.setJustFinishedSelection(false);
         }, 200);
       }
     }
-  }, [isSelecting, selectionStart, selectionEnd]);
+  }, [selection.isSelecting, selection.selectionStart, selection.selectionEnd]);
 
   // 一括移動の開始
   const startBulkDrag = (
     noteId: string,
     e: React.MouseEvent<HTMLDivElement>
   ) => {
-    if (!selectedNoteIds.has(noteId)) {
+    if (!selection.selectedNoteIds.has(noteId)) {
       return;
     }
-    setIsDraggingMultiple(true);
-    setDragStartPos({ x: e.clientX, y: e.clientY });
-    setJustFinishedBulkDrag(false); // 新しいドラッグ開始時にフラグをクリア
+    dragAndDrop.setIsDraggingMultiple(true);
+    dragAndDrop.setDragStartPos({ x: e.clientX, y: e.clientY });
+    dragAndDrop.setJustFinishedBulkDrag(false); // 新しいドラッグ開始時にフラグをクリア
 
     // 選択された付箋の初期位置を記録
     const positions: Record<string, { x: number; y: number }> = {};
-    selectedNoteIds.forEach((id) => {
+    selection.selectedNoteIds.forEach((id) => {
       const note = notes.find((n) => n.id === id);
       if (note) {
         positions[id] = { x: note.x, y: note.y };
       }
     });
-    setInitialSelectedPositions(positions);
+    dragAndDrop.setInitialSelectedPositions(positions);
   };
 
   // グループドラッグの開始
@@ -1120,9 +1065,9 @@ export function Board({ user }: BoardProps) {
     const group = groups.find((g) => g.id === groupId);
     if (!group || group.userId !== user.uid) return;
 
-    setIsDraggingGroup(true);
-    setDraggingGroupId(groupId);
-    setGroupDragStartPos({ x: e.clientX, y: e.clientY });
+    dragAndDrop.setIsDraggingGroup(true);
+    dragAndDrop.setDraggingGroupId(groupId);
+    dragAndDrop.setGroupDragStartPos({ x: e.clientX, y: e.clientY });
 
     // グループ内の付箋の初期位置を記録
     const positions: Record<string, { x: number; y: number }> = {};
@@ -1132,20 +1077,20 @@ export function Board({ user }: BoardProps) {
         positions[noteId] = { x: note.x, y: note.y };
       }
     });
-    setInitialGroupNotePositions(positions);
+    dragAndDrop.setInitialGroupNotePositions(positions);
   };
 
   // 一括移動の処理
   const handleBulkDragMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDraggingMultiple || !dragStartPos) return;
+      if (!dragAndDrop.isDraggingMultiple || !dragAndDrop.dragStartPos) return;
 
       // ズームを考慮した移動距離計算
-      const deltaX = (e.clientX - dragStartPos.x) / zoom;
-      const deltaY = (e.clientY - dragStartPos.y) / zoom;
+      const deltaX = (e.clientX - dragAndDrop.dragStartPos.x) / panZoom.zoom;
+      const deltaY = (e.clientY - dragAndDrop.dragStartPos.y) / panZoom.zoom;
 
-      selectedNoteIds.forEach((noteId) => {
-        const initialPos = initialSelectedPositions[noteId];
+      selection.selectedNoteIds.forEach((noteId) => {
+        const initialPos = dragAndDrop.initialSelectedPositions[noteId];
         if (initialPos) {
           const newX = initialPos.x + deltaX;
           const newY = initialPos.y + deltaY;
@@ -1160,30 +1105,30 @@ export function Board({ user }: BoardProps) {
       });
     },
     [
-      isDraggingMultiple,
-      dragStartPos,
-      selectedNoteIds,
-      initialSelectedPositions,
+      dragAndDrop.isDraggingMultiple,
+      dragAndDrop.dragStartPos,
+      selection.selectedNoteIds,
+      dragAndDrop.initialSelectedPositions,
       updateNote,
       user?.uid,
-      zoom,
+      panZoom.zoom,
     ]
   );
 
   // グループドラッグの処理
   const handleGroupDragMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDraggingGroup || !groupDragStartPos || !draggingGroupId) return;
+      if (!dragAndDrop.isDraggingGroup || !dragAndDrop.groupDragStartPos || !dragAndDrop.draggingGroupId) return;
 
       // ズームを考慮した移動距離計算
-      const deltaX = (e.clientX - groupDragStartPos.x) / zoom;
-      const deltaY = (e.clientY - groupDragStartPos.y) / zoom;
+      const deltaX = (e.clientX - dragAndDrop.groupDragStartPos.x) / panZoom.zoom;
+      const deltaY = (e.clientY - dragAndDrop.groupDragStartPos.y) / panZoom.zoom;
 
-      const group = groups.find((g) => g.id === draggingGroupId);
+      const group = groups.find((g) => g.id === dragAndDrop.draggingGroupId);
       if (!group) return;
 
       group.noteIds.forEach((noteId) => {
-        const initialPos = initialGroupNotePositions[noteId];
+        const initialPos = dragAndDrop.initialGroupNotePositions[noteId];
         if (initialPos) {
           const newX = initialPos.x + deltaX;
           const newY = initialPos.y + deltaY;
@@ -1198,20 +1143,20 @@ export function Board({ user }: BoardProps) {
       });
     },
     [
-      isDraggingGroup,
-      groupDragStartPos,
-      draggingGroupId,
-      initialGroupNotePositions,
+      dragAndDrop.isDraggingGroup,
+      dragAndDrop.groupDragStartPos,
+      dragAndDrop.draggingGroupId,
+      dragAndDrop.initialGroupNotePositions,
       groups,
       updateNote,
       user?.uid,
-      zoom,
+      panZoom.zoom,
     ]
   );
 
   // 一括移動の終了
   const handleBulkDragEnd = useCallback(() => {
-    if (isDraggingMultiple && dragStartPos) {
+    if (dragAndDrop.isDraggingMultiple && dragAndDrop.dragStartPos) {
       // 移動履歴を記録
       const moves: Array<{
         noteId: string;
@@ -1219,9 +1164,9 @@ export function Board({ user }: BoardProps) {
         newPosition: { x: number; y: number };
       }> = [];
 
-      selectedNoteIds.forEach((noteId) => {
+      selection.selectedNoteIds.forEach((noteId) => {
         const note = notes.find((n) => n.id === noteId);
-        const initialPos = initialSelectedPositions[noteId];
+        const initialPos = dragAndDrop.initialSelectedPositions[noteId];
         if (
           note &&
           initialPos &&
@@ -1246,34 +1191,34 @@ export function Board({ user }: BoardProps) {
       }
 
       // 最終位置を確定
-      selectedNoteIds.forEach((noteId) => {
+      selection.selectedNoteIds.forEach((noteId) => {
         updateNote(noteId, {
           isDragging: false,
           draggedBy: null,
         });
       });
 
-      setJustFinishedBulkDrag(true);
+      dragAndDrop.setJustFinishedBulkDrag(true);
 
       // 一括ドラッグ状態を遅延してクリア（クリックイベントを防ぐため）
       setTimeout(() => {
-        setIsDraggingMultiple(false);
-        setDragStartPos(null);
-        setInitialSelectedPositions({});
+        dragAndDrop.setIsDraggingMultiple(false);
+        dragAndDrop.setDragStartPos(null);
+        dragAndDrop.setInitialSelectedPositions({});
       }, 100);
 
       // さらに後にフラグをクリア
       setTimeout(() => {
-        setJustFinishedBulkDrag(false);
+        dragAndDrop.setJustFinishedBulkDrag(false);
       }, 300);
     }
   }, [
-    isDraggingMultiple,
-    selectedNoteIds,
+    dragAndDrop.isDraggingMultiple,
+    selection.selectedNoteIds,
     updateNote,
-    dragStartPos,
+    dragAndDrop.dragStartPos,
     notes,
-    initialSelectedPositions,
+    dragAndDrop.initialSelectedPositions,
     isUndoRedoOperation,
     addToHistory,
     user?.uid,
@@ -1281,8 +1226,8 @@ export function Board({ user }: BoardProps) {
 
   // グループドラッグの終了
   const handleGroupDragEnd = useCallback(() => {
-    if (isDraggingGroup && groupDragStartPos && draggingGroupId) {
-      const group = groups.find((g) => g.id === draggingGroupId);
+    if (dragAndDrop.isDraggingGroup && dragAndDrop.groupDragStartPos && dragAndDrop.draggingGroupId) {
+      const group = groups.find((g) => g.id === dragAndDrop.draggingGroupId);
       if (!group) return;
 
       // 移動履歴を記録
@@ -1294,7 +1239,7 @@ export function Board({ user }: BoardProps) {
 
       group.noteIds.forEach((noteId) => {
         const note = notes.find((n) => n.id === noteId);
-        const initialPos = initialGroupNotePositions[noteId];
+        const initialPos = dragAndDrop.initialGroupNotePositions[noteId];
         if (
           note &&
           initialPos &&
@@ -1327,18 +1272,18 @@ export function Board({ user }: BoardProps) {
       });
 
       // グループドラッグ状態をクリア
-      setIsDraggingGroup(false);
-      setDraggingGroupId(null);
-      setGroupDragStartPos(null);
-      setInitialGroupNotePositions({});
+      dragAndDrop.setIsDraggingGroup(false);
+      dragAndDrop.setDraggingGroupId(null);
+      dragAndDrop.setGroupDragStartPos(null);
+      dragAndDrop.setInitialGroupNotePositions({});
     }
   }, [
-    isDraggingGroup,
-    groupDragStartPos,
-    draggingGroupId,
+    dragAndDrop.isDraggingGroup,
+    dragAndDrop.groupDragStartPos,
+    dragAndDrop.draggingGroupId,
     groups,
     notes,
-    initialGroupNotePositions,
+    dragAndDrop.initialGroupNotePositions,
     isUndoRedoOperation,
     addToHistory,
     user?.uid,
@@ -1348,32 +1293,32 @@ export function Board({ user }: BoardProps) {
   // パン操作の開始
   const handlePanStart = (e: React.MouseEvent) => {
     // 付箋や範囲選択が進行中の場合はパンしない
-    if (isSelecting || isDraggingMultiple) return;
+    if (selection.isSelecting || dragAndDrop.isDraggingMultiple) return;
 
-    setIsPanning(true);
-    setPanStartPos({ x: e.clientX, y: e.clientY });
-    setInitialPan({ x: panX, y: panY });
+    panZoom.setIsPanning(true);
+    panZoom.setPanStartPos({ x: e.clientX, y: e.clientY });
+    panZoom.setInitialPan({ x: panZoom.panX, y: panZoom.panY });
   };
 
   // パン操作の処理
   const handlePanMove = useCallback(
     (e: MouseEvent) => {
-      if (!isPanning || !panStartPos || !initialPan) return;
+      if (!panZoom.isPanning || !panZoom.panStartPos || !panZoom.initialPan) return;
 
-      const deltaX = e.clientX - panStartPos.x;
-      const deltaY = e.clientY - panStartPos.y;
+      const deltaX = e.clientX - panZoom.panStartPos.x;
+      const deltaY = e.clientY - panZoom.panStartPos.y;
 
-      setPanX(initialPan.x + deltaX);
-      setPanY(initialPan.y + deltaY);
+      panZoom.setPanX(panZoom.initialPan.x + deltaX);
+      panZoom.setPanY(panZoom.initialPan.y + deltaY);
     },
-    [isPanning, panStartPos, initialPan]
+    [panZoom.isPanning, panZoom.panStartPos, panZoom.initialPan]
   );
 
   // パン操作の終了
   const handlePanEnd = useCallback(() => {
-    setIsPanning(false);
-    setPanStartPos(null);
-    setInitialPan(null);
+    panZoom.setIsPanning(false);
+    panZoom.setPanStartPos(null);
+    panZoom.setInitialPan(null);
   }, []);
 
   // ズーム操作（高感度・慣性付き）
@@ -1384,7 +1329,7 @@ export function Board({ user }: BoardProps) {
       if (!boardRef.current) return;
 
       const currentTime = Date.now();
-      const timeDelta = currentTime - lastWheelTime;
+      const timeDelta = currentTime - panZoom.lastWheelTime;
 
       // ズーム感度を調整（より敏感に）
       const baseSensitivity = 0.005; // 感度を3倍に上げる
@@ -1392,8 +1337,8 @@ export function Board({ user }: BoardProps) {
 
       // 速度の計算は不要（未使用変数のため削除）
 
-      setLastWheelTime(currentTime);
-      // setZoomVelocity(velocity); // 慣性を無効化
+      panZoom.setLastWheelTime(currentTime);
+      // panZoom.setZoomVelocity(velocity); // 慣性を無効化
 
       // マウス位置を取得
       const rect = boardRef.current.getBoundingClientRect();
@@ -1405,52 +1350,52 @@ export function Board({ user }: BoardProps) {
       const targetY = mouseY;
 
       // ズーム前のターゲット位置（ワールド座標）
-      const worldTargetX = (targetX - panX) / zoom;
-      const worldTargetY = (targetY - panY) / zoom;
+      const worldTargetX = (targetX - panZoom.panX) / panZoom.zoom;
+      const worldTargetY = (targetY - panZoom.panY) / panZoom.zoom;
 
       // 新しいズーム値を計算
-      const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+      const newZoom = Math.max(0.1, Math.min(5, panZoom.zoom * zoomFactor));
 
       // ズーム後にターゲット位置が同じ場所を指すようにパンを調整
       const newPanX = targetX - worldTargetX * newZoom;
       const newPanY = targetY - worldTargetY * newZoom;
 
-      setZoom(newZoom);
-      setPanX(newPanX);
-      setPanY(newPanY);
+      panZoom.setZoom(newZoom);
+      panZoom.setPanX(newPanX);
+      panZoom.setPanY(newPanY);
     },
-    [zoom, panX, panY, lastWheelTime]
+    [panZoom.zoom, panZoom.panX, panZoom.panY, panZoom.lastWheelTime]
   );
 
   // ズーム慣性アニメーション（無効化）
   // useEffect(() => {
-  //   if (Math.abs(zoomVelocity) > 0.001) {
+  //   if (Math.abs(panZoom.zoomVelocity) > 0.001) {
   //     const animate = () => {
-  //       setZoomVelocity((prevVelocity) => {
+  //       panZoom.setZoomVelocity((prevVelocity) => {
   //         const newVelocity = prevVelocity * 0.95; // 減衰率を上げてゆっくりに
 
   //         if (Math.abs(newVelocity) < 0.001) {
   //           // ズーム終了時にターゲットをクリア
-  //           setZoomTarget(null);
+  //           panZoom.setZoomTarget(null);
   //           return 0;
   //         }
 
   //         // ズームターゲットが設定されていればそれを使用、なければビューポート中心
-  //         const targetX = zoomTarget?.x || window.innerWidth / 2;
-  //         const targetY = zoomTarget?.y || window.innerHeight / 2;
+  //         const targetX = panZoom.zoomTarget?.x || window.innerWidth / 2;
+  //         const targetY = panZoom.zoomTarget?.y || window.innerHeight / 2;
 
-  //         setZoom((prevZoom) => {
+  //         panZoom.setZoom((prevZoom) => {
   //           const zoomFactor = Math.pow(1.2, -newVelocity);
   //           const newZoom = Math.max(0.1, Math.min(5, prevZoom * zoomFactor));
 
   //           // パンも調整
   //           if (boardRef.current) {
-  //             setPanX((prevPanX) => {
+  //             panZoom.setPanX((prevPanX) => {
   //               const worldTargetX = (targetX - prevPanX) / prevZoom;
   //               return targetX - worldTargetX * newZoom;
   //             });
 
-  //             setPanY((prevPanY) => {
+  //             panZoom.setPanY((prevPanY) => {
   //               const worldTargetY = (targetY - prevPanY) / prevZoom;
   //               return targetY - worldTargetY * newZoom;
   //             });
@@ -1462,22 +1407,22 @@ export function Board({ user }: BoardProps) {
   //         return newVelocity;
   //       });
 
-  //       zoomAnimationRef.current = requestAnimationFrame(animate);
+  //       panZoom.zoomAnimationRef.current = requestAnimationFrame(animate);
   //     };
 
-  //     zoomAnimationRef.current = requestAnimationFrame(animate);
+  //     panZoom.zoomAnimationRef.current = requestAnimationFrame(animate);
 
   //     return () => {
-  //       if (zoomAnimationRef.current) {
-  //         cancelAnimationFrame(zoomAnimationRef.current);
+  //       if (panZoom.zoomAnimationRef.current) {
+  //         cancelAnimationFrame(panZoom.zoomAnimationRef.current);
   //       }
   //     };
   //   }
-  // }, [zoomVelocity, zoomTarget]);
+  // }, [panZoom.zoomVelocity, panZoom.zoomTarget]);
 
   // マウスイベントのリスナー設定
   useEffect(() => {
-    if (isSelecting) {
+    if (selection.isSelecting) {
       document.addEventListener("mousemove", handleBoardMouseMove);
       document.addEventListener("mouseup", handleBoardMouseUp);
       return () => {
@@ -1485,10 +1430,10 @@ export function Board({ user }: BoardProps) {
         document.removeEventListener("mouseup", handleBoardMouseUp);
       };
     }
-  }, [isSelecting, handleBoardMouseMove, handleBoardMouseUp]);
+  }, [selection.isSelecting, handleBoardMouseMove, handleBoardMouseUp]);
 
   useEffect(() => {
-    if (isDraggingMultiple) {
+    if (dragAndDrop.isDraggingMultiple) {
       document.addEventListener("mousemove", handleBulkDragMove);
       document.addEventListener("mouseup", handleBulkDragEnd);
       return () => {
@@ -1496,11 +1441,11 @@ export function Board({ user }: BoardProps) {
         document.removeEventListener("mouseup", handleBulkDragEnd);
       };
     }
-  }, [isDraggingMultiple, handleBulkDragMove, handleBulkDragEnd]);
+  }, [dragAndDrop.isDraggingMultiple, handleBulkDragMove, handleBulkDragEnd]);
 
   // グループドラッグのイベントリスナー
   useEffect(() => {
-    if (isDraggingGroup) {
+    if (dragAndDrop.isDraggingGroup) {
       document.addEventListener("mousemove", handleGroupDragMove);
       document.addEventListener("mouseup", handleGroupDragEnd);
       return () => {
@@ -1508,11 +1453,11 @@ export function Board({ user }: BoardProps) {
         document.removeEventListener("mouseup", handleGroupDragEnd);
       };
     }
-  }, [isDraggingGroup, handleGroupDragMove, handleGroupDragEnd]);
+  }, [dragAndDrop.isDraggingGroup, handleGroupDragMove, handleGroupDragEnd]);
 
   // パン操作のイベントリスナー
   useEffect(() => {
-    if (isPanning) {
+    if (panZoom.isPanning) {
       document.addEventListener("mousemove", handlePanMove);
       document.addEventListener("mouseup", handlePanEnd);
       return () => {
@@ -1520,7 +1465,7 @@ export function Board({ user }: BoardProps) {
         document.removeEventListener("mouseup", handlePanEnd);
       };
     }
-  }, [isPanning, handlePanMove, handlePanEnd]);
+  }, [panZoom.isPanning, handlePanMove, handlePanEnd]);
 
   // ボード要素でのスクロール防止
   useEffect(() => {
@@ -1590,11 +1535,11 @@ export function Board({ user }: BoardProps) {
 
   // 付箋を画像としてクリップボードにコピー
   const copyNotesAsImage = async () => {
-    if (selectedNoteIds.size === 0) {
+    if (selection.selectedNoteIds.size === 0) {
       return;
     }
 
-    const noteIds = Array.from(selectedNoteIds);
+    const noteIds = Array.from(selection.selectedNoteIds);
     if (noteIds.length === 1) {
       await copyStickyNoteToClipboard(noteIds[0]);
     } else {
@@ -1604,11 +1549,11 @@ export function Board({ user }: BoardProps) {
 
   // 付箋データを内部状態にコピー
   const copyNotesAsData = () => {
-    if (selectedNoteIds.size === 0) {
+    if (selection.selectedNoteIds.size === 0) {
       return;
     }
 
-    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
+    const selectedNotes = notes.filter((note) => selection.selectedNoteIds.has(note.id));
     setCopiedNotes(selectedNotes);
     // 複数選択の場合は単一コピーをクリア
     setCopiedNote(null);
@@ -1616,7 +1561,7 @@ export function Board({ user }: BoardProps) {
 
   // 統合されたコピー機能（画像とデータの両方）
   const copyNotesComplete = async () => {
-    if (selectedNoteIds.size === 0) {
+    if (selection.selectedNoteIds.size === 0) {
       return;
     }
 
@@ -1627,8 +1572,8 @@ export function Board({ user }: BoardProps) {
     copyNotesAsData();
 
     // 単一選択の場合はcopiedNoteも設定（後方互換性のため）
-    if (selectedNoteIds.size === 1) {
-      const noteId = Array.from(selectedNoteIds)[0];
+    if (selection.selectedNoteIds.size === 1) {
+      const noteId = Array.from(selection.selectedNoteIds)[0];
       const note = notes.find((n) => n.id === noteId);
       if (note) {
         setCopiedNote(note);
@@ -1645,7 +1590,7 @@ export function Board({ user }: BoardProps) {
     if (!user?.uid) return;
 
     const notesToDelete: Note[] = [];
-    selectedNoteIds.forEach((noteId) => {
+    selection.selectedNoteIds.forEach((noteId) => {
       const note = notes.find((n) => n.id === noteId);
       if (note && note.userId === user.uid) {
         notesToDelete.push(note);
@@ -1667,7 +1612,7 @@ export function Board({ user }: BoardProps) {
       remove(noteRef);
     });
 
-    setSelectedNoteIds(new Set());
+    selection.setSelectedNoteIds(new Set());
     updateUrlForNote(null);
   };
 
@@ -1676,14 +1621,14 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーは矢印を削除できない
     if (!user?.uid) return;
 
-    selectedItemIds.forEach((arrowId) => {
+    selection.selectedItemIds.forEach((arrowId) => {
       const arrow = arrows.find((a) => a.id === arrowId);
       if (arrow && arrow.userId === user.uid) {
         deleteArrow(arrowId);
       }
     });
 
-    setSelectedItemIds(new Set());
+    selection.setSelectedItemIds(new Set());
   };
 
   // 複数選択されたグループを削除
@@ -1691,14 +1636,14 @@ export function Board({ user }: BoardProps) {
     // 未ログインユーザーはグループを削除できない
     if (!user?.uid) return;
 
-    selectedGroupIds.forEach((groupId) => {
+    selection.selectedGroupIds.forEach((groupId) => {
       const group = groups.find((g) => g.id === groupId);
       if (group && group.userId === user.uid) {
         deleteGroup(groupId);
       }
     });
 
-    setSelectedGroupIds(new Set());
+    selection.setSelectedGroupIds(new Set());
   };
 
   // 単一グループを削除
@@ -1721,8 +1666,8 @@ export function Board({ user }: BoardProps) {
     });
 
     // 選択状態も削除
-    if (selectedGroupIds.has(groupId)) {
-      setSelectedGroupIds((prev) => {
+    if (selection.selectedGroupIds.has(groupId)) {
+      selection.setSelectedGroupIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(groupId);
         return newSet;
@@ -1782,7 +1727,7 @@ export function Board({ user }: BoardProps) {
 
     // 新しく作成された付箋を選択状態にする
     const newNoteIds = new Set(createdNotes.map((note) => note.id));
-    setSelectedNoteIds(newNoteIds);
+    selection.setSelectedNoteIds(newNoteIds);
   };
 
   const pasteNote = () => {
@@ -1825,7 +1770,7 @@ export function Board({ user }: BoardProps) {
       setNextZIndex((prev) => prev + 1);
 
       // 作成された付箋を選択状態にする
-      setSelectedNoteIds(new Set([noteId]));
+      selection.setSelectedNoteIds(new Set([noteId]));
     }
   };
 
@@ -2095,7 +2040,7 @@ export function Board({ user }: BoardProps) {
 
   // Copy handler
   const handleCopyKey = useCallback(async (e: KeyboardEvent) => {
-    if (!isInputFocused() && selectedNoteIds.size > 0) {
+    if (!isInputFocused() && selection.selectedNoteIds.size > 0) {
       e.preventDefault();
 
       if (e.shiftKey) {
@@ -2103,8 +2048,8 @@ export function Board({ user }: BoardProps) {
       } else {
         copyNotesAsData();
 
-        if (selectedNoteIds.size === 1) {
-          const noteId = Array.from(selectedNoteIds)[0];
+        if (selection.selectedNoteIds.size === 1) {
+          const noteId = Array.from(selection.selectedNoteIds)[0];
           const note = notes.find((n) => n.id === noteId);
           if (note) {
             setCopiedNote(note);
@@ -2114,7 +2059,7 @@ export function Board({ user }: BoardProps) {
         }
       }
     }
-  }, [isInputFocused, selectedNoteIds, copyNotesComplete, copyNotesAsData, notes, setCopiedNote]);
+  }, [isInputFocused, selection.selectedNoteIds, copyNotesComplete, copyNotesAsData, notes, setCopiedNote]);
 
   // Text to notes creation function
   const createNotesFromText = useCallback(
@@ -2132,8 +2077,8 @@ export function Board({ user }: BoardProps) {
       }
 
       // ビューポートの中央を基準点として設定
-      const viewportCenterX = -panX / zoom + window.innerWidth / 2 / zoom;
-      const viewportCenterY = -panY / zoom + window.innerHeight / 2 / zoom;
+      const viewportCenterX = -panZoom.panX / panZoom.zoom + window.innerWidth / 2 / panZoom.zoom;
+      const viewportCenterY = -panZoom.panY / panZoom.zoom + window.innerHeight / 2 / panZoom.zoom;
 
       // 複数の付箋を格子状に配置
       const cols = Math.ceil(Math.sqrt(lines.length));
@@ -2190,12 +2135,12 @@ export function Board({ user }: BoardProps) {
 
       // 作成された付箋を選択状態にする
       const newNoteIds = new Set(createdNotes.map((note) => note.id));
-      setSelectedNoteIds(newNoteIds);
+      selection.setSelectedNoteIds(newNoteIds);
     },
     [
-      panX,
-      panY,
-      zoom,
+      panZoom.panX,
+      panZoom.panY,
+      panZoom.zoom,
       user?.uid,
       boardId,
       nanoid,
@@ -2203,7 +2148,7 @@ export function Board({ user }: BoardProps) {
       isUndoRedoOperation,
       addToHistory,
       setNextZIndex,
-      setSelectedNoteIds
+      selection.setSelectedNoteIds
     ]
   );
 
@@ -2230,9 +2175,9 @@ export function Board({ user }: BoardProps) {
     if (!isInputFocused()) {
       e.preventDefault();
       const allNoteIds = new Set(notes.map((note) => note.id));
-      setSelectedNoteIds(allNoteIds);
+      selection.setSelectedNoteIds(allNoteIds);
     }
-  }, [isInputFocused, notes, setSelectedNoteIds]);
+  }, [isInputFocused, notes, selection.setSelectedNoteIds]);
 
   // New note handler
   const handleNewNoteKey = useCallback((e: KeyboardEvent) => {
@@ -2247,8 +2192,8 @@ export function Board({ user }: BoardProps) {
     e.preventDefault();
     const newNoteId = addNote();
     setNoteToFocus(newNoteId);
-    setSelectedNoteIds(new Set([newNoteId]));
-  }, [addNote, setNoteToFocus, setSelectedNoteIds]);
+    selection.setSelectedNoteIds(new Set([newNoteId]));
+  }, [addNote, setNoteToFocus, selection.setSelectedNoteIds]);
 
   // Add arrow handler
   const handleAddArrowKey = useCallback((e: KeyboardEvent) => {
@@ -2258,11 +2203,11 @@ export function Board({ user }: BoardProps) {
 
   // Create group handler
   const handleCreateGroupKey = useCallback((e: KeyboardEvent) => {
-    if (!isInputFocused() && selectedNoteIds.size >= 2) {
+    if (!isInputFocused() && selection.selectedNoteIds.size >= 2) {
       e.preventDefault();
       createGroup();
     }
-  }, [isInputFocused, selectedNoteIds, createGroup]);
+  }, [isInputFocused, selection.selectedNoteIds, createGroup]);
 
   // Key hint mode handler
   const handleKeyHintModeKey = useCallback((e: KeyboardEvent) => {
@@ -2270,10 +2215,10 @@ export function Board({ user }: BoardProps) {
       e.preventDefault();
       const visibleNoteIds = notes.map((note) => note.id);
       const hintKeys = generateHintKeys(visibleNoteIds);
-      setNoteHintKeys(hintKeys);
-      setIsKeyHintMode(true);
+      keyHints.setNoteHintKeys(hintKeys);
+      keyHints.setIsKeyHintMode(true);
     }
-  }, [isInputFocused, notes, generateHintKeys, setNoteHintKeys, setIsKeyHintMode]);
+  }, [isInputFocused, notes, generateHintKeys, keyHints.setNoteHintKeys, keyHints.setIsKeyHintMode]);
 
   // Arrow keys handler
   const handleArrowKeys = useCallback((e: KeyboardEvent) => {
@@ -2282,8 +2227,8 @@ export function Board({ user }: BoardProps) {
 
       if (e.shiftKey) {
         const panDistance = 50;
-        let newPanX = panX;
-        let newPanY = panY;
+        let newPanX = panZoom.panX;
+        let newPanY = panZoom.panY;
 
         switch (e.key) {
           case "ArrowUp":
@@ -2300,9 +2245,9 @@ export function Board({ user }: BoardProps) {
             break;
         }
 
-        setPanX(newPanX);
-        setPanY(newPanY);
-      } else if (selectedNoteIds.size > 0) {
+        panZoom.setPanX(newPanX);
+        panZoom.setPanY(newPanY);
+      } else if (selection.selectedNoteIds.size > 0) {
         const moveDistance = 10;
         let deltaX = 0;
         let deltaY = 0;
@@ -2322,7 +2267,7 @@ export function Board({ user }: BoardProps) {
             break;
         }
 
-        selectedNoteIds.forEach((noteId) => {
+        selection.selectedNoteIds.forEach((noteId) => {
           const note = notes.find((n) => n.id === noteId);
           if (note) {
             updateNote(noteId, {
@@ -2333,34 +2278,34 @@ export function Board({ user }: BoardProps) {
         });
       } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
-        const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+        const newZoom = Math.max(0.1, Math.min(5, panZoom.zoom * zoomFactor));
 
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
 
-        const worldCenterX = (centerX - panX) / zoom;
-        const worldCenterY = (centerY - panY) / zoom;
+        const worldCenterX = (centerX - panZoom.panX) / panZoom.zoom;
+        const worldCenterY = (centerY - panZoom.panY) / panZoom.zoom;
 
         const newPanX = centerX - worldCenterX * newZoom;
         const newPanY = centerY - worldCenterY * newZoom;
 
-        setZoom(newZoom);
-        setPanX(newPanX);
-        setPanY(newPanY);
+        panZoom.setZoom(newZoom);
+        panZoom.setPanX(newPanX);
+        panZoom.setPanY(newPanY);
       }
     }
-  }, [isInputFocused, panX, panY, setPanX, setPanY, selectedNoteIds, notes, updateNote, zoom, setZoom]);
+  }, [isInputFocused, panZoom.panX, panZoom.panY, panZoom.setPanX, panZoom.setPanY, selection.selectedNoteIds, notes, updateNote, panZoom.zoom, panZoom.setZoom]);
 
   // Delete handler
   const handleDeleteKey = useCallback((e: KeyboardEvent) => {
     if (!isInputFocused() && 
-        (selectedNoteIds.size > 0 || selectedItemIds.size > 0 || selectedGroupIds.size > 0)) {
+        (selection.selectedNoteIds.size > 0 || selection.selectedItemIds.size > 0 || selection.selectedGroupIds.size > 0)) {
       e.preventDefault();
       deleteSelectedNotes();
       deleteSelectedArrows();
       deleteSelectedGroups();
     }
-  }, [isInputFocused, selectedNoteIds, selectedItemIds, selectedGroupIds, deleteSelectedNotes, deleteSelectedArrows, deleteSelectedGroups]);
+  }, [isInputFocused, selection.selectedNoteIds, selection.selectedItemIds, selection.selectedGroupIds, deleteSelectedNotes, deleteSelectedArrows, deleteSelectedGroups]);
 
   // Key hint mode processing handler
   const handleKeyHintModeProcessing = useCallback((e: KeyboardEvent) => {
@@ -2368,11 +2313,11 @@ export function Board({ user }: BoardProps) {
     const pressedKey = e.key.toLowerCase();
 
     let targetNoteId = null;
-    for (const [noteId, hintKey] of noteHintKeys) {
+    for (const [noteId, hintKey] of keyHints.noteHintKeys) {
       for (let keyLength = 0; keyLength < 32; keyLength++) {
         if (
           hintKey ===
-          pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
+          keyHints.pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
         ) {
           targetNoteId = noteId;
           break;
@@ -2382,23 +2327,23 @@ export function Board({ user }: BoardProps) {
     }
 
     if (targetNoteId) {
-      setSelectedNoteIds(new Set([targetNoteId]));
-      setIsKeyHintMode(false);
-      setNoteHintKeys(new Map());
-      setPressedKeyHistory([]);
+      selection.setSelectedNoteIds(new Set([targetNoteId]));
+      keyHints.setIsKeyHintMode(false);
+      keyHints.setNoteHintKeys(new Map());
+      keyHints.setPressedKeyHistory([]);
     } else {
-      setPressedKeyHistory((prev) => [...prev, pressedKey]);
+      keyHints.setPressedKeyHistory((prev) => [...prev, pressedKey]);
     }
-  }, [noteHintKeys, pressedKeyHistory, setSelectedNoteIds, setIsKeyHintMode, setNoteHintKeys, setPressedKeyHistory]);
+  }, [keyHints.noteHintKeys, keyHints.pressedKeyHistory, selection.setSelectedNoteIds, keyHints.setIsKeyHintMode, keyHints.setNoteHintKeys, keyHints.setPressedKeyHistory]);
 
   // WASD keys handler
   const handleWASDKeys = useCallback((e: KeyboardEvent) => {
-    if (!isInputFocused() && !isKeyHintMode) {
+    if (!isInputFocused() && !keyHints.isKeyHintMode) {
       e.preventDefault();
       
       const panDistance = 50;
-      let newPanX = panX;
-      let newPanY = panY;
+      let newPanX = panZoom.panX;
+      let newPanY = panZoom.panY;
 
       switch (e.key.toLowerCase()) {
         case "w":
@@ -2415,34 +2360,34 @@ export function Board({ user }: BoardProps) {
           break;
       }
 
-      setPanX(newPanX);
-      setPanY(newPanY);
+      panZoom.setPanX(newPanX);
+      panZoom.setPanY(newPanY);
     }
-  }, [isInputFocused, isKeyHintMode, panX, panY, setPanX, setPanY]);
+  }, [isInputFocused, keyHints.isKeyHintMode, panZoom.panX, panZoom.panY, panZoom.setPanX, panZoom.setPanY]);
 
   // Escape handler
   const handleEscapeKey = useCallback((e: KeyboardEvent) => {
     if (!isInputFocused()) {
       e.preventDefault();
-      if (isKeyHintMode) {
-        setIsKeyHintMode(false);
-        setNoteHintKeys(new Map());
+      if (keyHints.isKeyHintMode) {
+        keyHints.setIsKeyHintMode(false);
+        keyHints.setNoteHintKeys(new Map());
       } else {
-        setSelectedNoteIds(new Set());
-        setSelectedItemIds(new Set());
-        setSelectedGroupIds(new Set());
+        selection.setSelectedNoteIds(new Set());
+        selection.setSelectedItemIds(new Set());
+        selection.setSelectedGroupIds(new Set());
       }
     }
-  }, [isInputFocused, isKeyHintMode, setIsKeyHintMode, setNoteHintKeys, setSelectedNoteIds, setSelectedItemIds, setSelectedGroupIds]);
+  }, [isInputFocused, keyHints.isKeyHintMode, keyHints.setIsKeyHintMode, keyHints.setNoteHintKeys, selection.setSelectedNoteIds, selection.setSelectedItemIds, selection.setSelectedGroupIds]);
 
   // Enter handler
   const handleEnterKey = useCallback((e: KeyboardEvent) => {
-    if (!isInputFocused() && selectedNoteIds.size === 1) {
+    if (!isInputFocused() && selection.selectedNoteIds.size === 1) {
       e.preventDefault();
-      const noteId = Array.from(selectedNoteIds)[0];
+      const noteId = Array.from(selection.selectedNoteIds)[0];
       setNoteToFocus(noteId);
     }
-  }, [isInputFocused, selectedNoteIds, setNoteToFocus]);
+  }, [isInputFocused, selection.selectedNoteIds, setNoteToFocus]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -2478,12 +2423,12 @@ export function Board({ user }: BoardProps) {
         handleArrowKeys(e);
       } else if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        (selectedNoteIds.size > 0 ||
-          selectedItemIds.size > 0 ||
-          selectedGroupIds.size > 0)
+        (selection.selectedNoteIds.size > 0 ||
+          selection.selectedItemIds.size > 0 ||
+          selection.selectedGroupIds.size > 0)
       ) {
         handleDeleteKey(e);
-      } else if (isKeyHintMode) {
+      } else if (keyHints.isKeyHintMode) {
         handleKeyHintModeProcessing(e);
       } else if ((e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
                  e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") && !e.shiftKey) {
@@ -2528,10 +2473,10 @@ export function Board({ user }: BoardProps) {
     handleWASDKeys,
     handleEscapeKey,
     handleEnterKey,
-    selectedNoteIds,
-    selectedItemIds,
-    selectedGroupIds,
-    isKeyHintMode,
+    selection.selectedNoteIds,
+    selection.selectedItemIds,
+    selection.selectedGroupIds,
+    keyHints.isKeyHintMode,
   ]);
 
   // 単一の付箋の移動完了時のコールバック
@@ -2603,12 +2548,12 @@ export function Board({ user }: BoardProps) {
 
   // 選択範囲の描画
   const renderSelectionBox = () => {
-    if (!isSelecting || !selectionStart || !selectionEnd) return null;
+    if (!selection.isSelecting || !selection.selectionStart || !selection.selectionEnd) return null;
 
-    const minX = Math.min(selectionStart.x, selectionEnd.x);
-    const minY = Math.min(selectionStart.y, selectionEnd.y);
-    const width = Math.abs(selectionEnd.x - selectionStart.x);
-    const height = Math.abs(selectionEnd.y - selectionStart.y);
+    const minX = Math.min(selection.selectionStart.x, selection.selectionEnd.x);
+    const minY = Math.min(selection.selectionStart.y, selection.selectionEnd.y);
+    const width = Math.abs(selection.selectionEnd.x - selection.selectionStart.x);
+    const height = Math.abs(selection.selectionEnd.y - selection.selectionStart.y);
 
     return (
       <div
@@ -2639,12 +2584,12 @@ export function Board({ user }: BoardProps) {
         onWheel={handleWheel}
         style={{
           overflow: "hidden",
-          backgroundImage: `radial-gradient(circle, #aaa ${zoom}px, transparent 1px)`,
-          backgroundSize: `${getDotSpacing(zoom) * zoom}px ${
-            getDotSpacing(zoom) * zoom
+          backgroundImage: `radial-gradient(circle, #aaa ${panZoom.zoom}px, transparent 1px)`,
+          backgroundSize: `${getDotSpacing(panZoom.zoom) * panZoom.zoom}px ${
+            getDotSpacing(panZoom.zoom) * panZoom.zoom
           }px`,
-          backgroundPosition: `${panX % (getDotSpacing(zoom) * zoom)}px ${
-            panY % (getDotSpacing(zoom) * zoom)
+          backgroundPosition: `${panZoom.panX % (getDotSpacing(panZoom.zoom) * panZoom.zoom)}px ${
+            panZoom.panY % (getDotSpacing(panZoom.zoom) * panZoom.zoom)
           }px`,
         }}
       >
@@ -2652,7 +2597,7 @@ export function Board({ user }: BoardProps) {
           ref={notesContainerRef}
           className="notes-container"
           style={{
-            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+            transform: `translate(${panZoom.panX}px, ${panZoom.panY}px) scale(${panZoom.zoom})`,
             transformOrigin: "0 0",
           }}
         >
@@ -2663,19 +2608,19 @@ export function Board({ user }: BoardProps) {
               onUpdate={updateNote}
               onDelete={deleteNote}
               isActive={
-                selectedNoteIds.has(note.id) && selectedNoteIds.size === 1
+                selection.selectedNoteIds.has(note.id) && selection.selectedNoteIds.size === 1
               }
-              isSelected={selectedNoteIds.has(note.id)}
+              isSelected={selection.selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
               onStartBulkDrag={startBulkDrag}
               currentUserId={user?.uid || "anonymous"}
               getUserColor={getUserColor}
-              isDraggingMultiple={isDraggingMultiple}
-              zoom={zoom}
-              panX={panX}
-              panY={panY}
+              isDraggingMultiple={dragAndDrop.isDraggingMultiple}
+              zoom={panZoom.zoom}
+              panX={panZoom.panX}
+              panY={panZoom.panY}
               onDragEnd={handleNoteDragEnd}
-              hasMultipleSelected={selectedNoteIds.size > 1}
+              hasMultipleSelected={selection.selectedNoteIds.size > 1}
               shouldFocus={noteToFocus === note.id}
               onFocused={() => setNoteToFocus(null)}
               board={board!}
@@ -2687,7 +2632,7 @@ export function Board({ user }: BoardProps) {
                   updateBoardMetadata();
                 }, 500); // throttleの影響を考慮して少し遅延
               }}
-              hintKey={isKeyHintMode ? noteHintKeys.get(note.id) : undefined}
+              hintKey={keyHints.isKeyHintMode ? keyHints.noteHintKeys.get(note.id) : undefined}
             />
           ))}
 
@@ -2698,8 +2643,8 @@ export function Board({ user }: BoardProps) {
               group={group}
               notes={notes}
               onSelect={handleSelectGroup}
-              isSelected={selectedGroupIds.has(group.id)}
-              zoom={zoom}
+              isSelected={selection.selectedGroupIds.has(group.id)}
+              zoom={panZoom.zoom}
               onStartGroupDrag={startGroupDrag}
             />
           ))}
@@ -2722,9 +2667,9 @@ export function Board({ user }: BoardProps) {
                   key={arrow.id}
                   arrow={arrow}
                   onUpdate={updateArrow}
-                  isSelected={selectedItemIds.has(arrow.id)}
+                  isSelected={selection.selectedItemIds.has(arrow.id)}
                   onSelect={handleSelectArrow}
-                  zoom={zoom}
+                  zoom={panZoom.zoom}
                   notes={notes}
                 />
               ))}
@@ -2741,14 +2686,14 @@ export function Board({ user }: BoardProps) {
             onClick={() => {
               const newNoteId = addNote();
               setNoteToFocus(newNoteId);
-              setSelectedNoteIds(new Set([newNoteId]));
+              selection.setSelectedNoteIds(new Set([newNoteId]));
             }}
             className="fab-add-btn"
           >
             <LuPlus />
           </button>
         )}
-      {selectedNoteIds.size === 2 && user && (
+      {selection.selectedNoteIds.size === 2 && user && (
         <button
           onClick={() => addArrow()}
           className="fab-add-arrow-btn"
@@ -2774,7 +2719,7 @@ export function Board({ user }: BoardProps) {
           ↗
         </button>
       )}
-      {selectedNoteIds.size > 1 && user && (
+      {selection.selectedNoteIds.size > 1 && user && (
         <div
           style={{
             position: "fixed",
