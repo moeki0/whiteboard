@@ -151,10 +151,13 @@ export function useKeyboardHandlers({
     [onCreateGroup]
   );
 
-  // キーヒントモード機能を無効化
   const handleKeyHintModeKey = useCallback(
     (e: KeyboardEvent) => {
-      // 機能を無効化
+      if (e.shiftKey && e.code === "KeyS") {
+        e.preventDefault();
+        setIsKeyHintMode(true);
+        generateHintKeys(notes.map((note) => note.id));
+      }
     },
     [setIsKeyHintMode, notes, generateHintKeys]
   );
@@ -387,10 +390,12 @@ export function useKeyboardHandlers({
           }
           break;
         case "KeyS":
-          // Shift+S: キーヒントモード機能を無効化
-          console.log("Shift+S detected but disabled");
-          // 機能を無効化
-          break;
+          // Shift+S: キーヒントモードを開始
+          console.log("Shift+S detected");
+          e.preventDefault();
+          setIsKeyHintMode(true);
+          generateHintKeys(notes.map((note) => note.id));
+          return true;
         case "KeyA":
           // Shift+A: 矢印を挿入
           console.log("Shift+A detected");
