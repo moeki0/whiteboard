@@ -15,7 +15,7 @@
     "preview": "npm run preview --prefix client",
     "functions:build": "npm run build --prefix functions",
     "functions:serve": "npm run serve --prefix functions",
-    "functions:deploy": "npm run deploy --prefix functions",
+    "functions:deploy": "firebase deploy --only functions",
     "functions:logs": "npm run logs --prefix functions",
     "emulators": "firebase emulators:start --only database,auth",
     "emulators:functions": "firebase emulators:start --only functions",
@@ -23,7 +23,7 @@
     "deploy": "npm run build --prefix client && npm run build --prefix functions && firebase deploy",
     "install:all": "npm install && npm install --prefix client && npm install --prefix functions",
     "clean": "rm -rf client/node_modules client/dist functions/node_modules functions/lib node_modules",
-    "postinstall": "npm install --prefix client && npm install --prefix functions"
+    "postinstall": "cd client && (npm ci || npm install) && cd ../functions && (npm ci || npm install)"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

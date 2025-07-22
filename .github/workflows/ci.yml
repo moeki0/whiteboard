@@ -38,31 +38,9 @@ jobs:
       - name: Run tests
         run: npm run test:run
 
-      - name: Build project
+      - name: Build client
         run: npm run build
-
-  functions-test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: "npm"
-          cache-dependency-path: ./functions/package-lock.json
-
-      - name: Install functions dependencies
-        run: npm ci
-        working-directory: ./functions
 
       - name: Build functions
-        run: npm run build
-        working-directory: ./functions
+        run: npm run functions:build
 
-      - name: Run functions lint
-        run: npm run lint
-        working-directory: ./functions

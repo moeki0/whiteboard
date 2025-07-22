@@ -31,6 +31,9 @@ jobs:
         env:
           VITE_ALGOLIA_APP_ID: ${{ secrets.VITE_ALGOLIA_APP_ID }}
           VITE_ALGOLIA_SEARCH_API_KEY: ${{ secrets.VITE_ALGOLIA_SEARCH_API_KEY }}
+        
+      - name: Build functions
+        run: npm run functions:build
           
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -40,11 +43,7 @@ jobs:
           channelId: live
           projectId: maplap-41b08
           
-      # Functions deployment can be added here if needed
-      # - name: Deploy Functions
-      #   run: |
-      #     cd functions
-      #     npm ci
-      #     npm run deploy
-      #   env:
-      #     FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      - name: Deploy Functions
+        run: npm run functions:deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
