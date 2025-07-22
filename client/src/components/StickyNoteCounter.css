@@ -1,0 +1,11 @@
+.sticky-note-counter {
+  position: fixed;
+  bottom: 0px;
+  left: 0px;
+  padding: 4px;
+  font-size: 10px;
+  color: #111;
+  background-color: #eee;
+  pointer-events: none;
+  z-index: 1000;
+}

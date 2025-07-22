@@ -7,6 +7,7 @@ import { ref, onValue, set, remove, get, update } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
+import { StickyNoteCounter } from "./StickyNoteCounter";
 import { ArrowSVG } from "./ArrowSVG";
 import { CursorDisplay } from "./CursorDisplay";
 import { Group } from "./Group";
@@ -2550,6 +2551,9 @@ export function Board({ user }: BoardProps) {
           Open Cosense page
         </a>
       )}
+
+      {/* 付箋数カウンター */}
+      <StickyNoteCounter noteCount={notes.length} />
     </div>
   );
 }
