@@ -79,28 +79,6 @@ button {
   font-size: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .pagination-btn {
-    background-color: #2a2a2a;
-    color: #fff;
-    border-color: #555;
-  }
-
-  .pagination-btn:hover {
-    background-color: #3a3a3a;
-    border-color: #777;
-  }
-
-  .pagination-btn.active {
-    background-color: #0056b3;
-    border-color: #0056b3;
-  }
-
-  .pagination-ellipsis {
-    color: #aaa;
-  }
-}
-
 /* Infinite scroll styles */
 .boards-stats {
   font-size: 14px;
@@ -131,8 +109,12 @@ button {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .load-more-placeholder {
@@ -166,39 +148,6 @@ button {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
-}
-
-@media (prefers-color-scheme: dark) {
-  .boards-stats {
-    color: #aaa;
-  }
-
-  .loading-spinner {
-    color: #aaa;
-  }
-
-  .spinner {
-    border: 2px solid #555;
-    border-top: 2px solid #0056b3;
-  }
-
-  .load-more-placeholder {
-    color: #666;
-  }
-
-  .end-message {
-    color: #aaa;
-  }
-
-  .error-message {
-    background-color: #4a1f1f;
-    border-color: #8b4444;
-    color: #ffaaaa;
-  }
-
-  .error-message button {
-    background-color: #cc3333;
-  }
 }
 
 @media (prefers-color-scheme: light) {

@@ -2073,7 +2073,6 @@ export function Board({ user }: BoardProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      console.log("🔍 Key event:", e.key, "isKeyHintMode:", isKeyHintMode);
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z" && !e.shiftKey) {
           // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
@@ -2335,7 +2334,6 @@ export function Board({ user }: BoardProps) {
         }
       } else if (isKeyHintMode) {
         // キーヒントモード中の処理（最優先）
-        console.log("🎯 Key hint mode processing:", e.key);
         e.preventDefault();
         const pressedKey = e.key.toLowerCase();
 
@@ -2367,16 +2365,13 @@ export function Board({ user }: BoardProps) {
                  e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") && !e.shiftKey) {
         // WASDキーでボードをパン（カクカク移動）
         // Shiftキーが押されていない場合のみ処理
-        console.log("📍 WASD block reached:", e.key);
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
           (activeElement.tagName === "TEXTAREA" ||
             activeElement.tagName === "INPUT");
 
-        console.log("📍 Conditions:", "isInputFocused:", isInputFocused, "isKeyHintMode:", isKeyHintMode);
         if (!isInputFocused && !isKeyHintMode) {
-          console.log("✅ WASD pan executing");
           e.preventDefault();
           
           // 矢印キーと同じ距離（50px）でカクカク移動
