@@ -1468,7 +1468,7 @@ export function StickyNote({
   };
 
   // テキスト内のリンクを処理
-  const renderTextWithLinks = (text: string) => {
+  const renderTextWithLinks = (text: string, fontSize?: number) => {
     // 通常のリンクとScrapbox記法の両方を処理
     const parts = text.split(
       /(__LINK__[^_]+__LINK__|__SCRAPBOX__.+?__SCRAPBOX__)/
@@ -1483,6 +1483,7 @@ export function StickyNote({
             style={{
               color: "#0066cc",
               textDecoration: "underline",
+              fontSize: fontSize ? `${fontSize}px` : undefined,
             }}
           >
             {url}
@@ -1500,6 +1501,7 @@ export function StickyNote({
             style={{
               color: "#0066cc",
               textDecoration: "underline",
+              fontSize: fontSize ? `${fontSize}px` : undefined,
             }}
           >
             {linkText}
@@ -2276,7 +2278,7 @@ export function StickyNote({
                         fontSize: `${fontSize}px`,
                       }}
                     >
-                      {renderTextWithLinks(displayContent || "")}
+                      {renderTextWithLinks(displayContent || "", fontSize)}
                     </span>
                   );
                 }

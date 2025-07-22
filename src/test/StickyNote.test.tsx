@@ -358,6 +358,110 @@ describe("StickyNote", () => {
     });
   });
 
+  describe("アスタリスクとリンクのサイズ処理", () => {
+    it("末尾アスタリスクでリンクのサイズが縮小される", () => {
+      const noteWithLinkAndAsterisk = {
+        ...mockNote,
+        content: "https://example.com*",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithLinkAndAsterisk} />
+      );
+
+      // リンク要素が生成されることを確認
+      const linkElement = container.querySelector('span[style*="color: rgb(0, 102, 204)"]');
+      expect(linkElement).toBeInTheDocument();
+
+      // リンク要素のフォントサイズが縮小されることを確認（11px: 13px - 2px）
+      expect(linkElement?.style.fontSize).toBe('11px');
+    });
+
+    it("末尾に複数アスタリスクでリンクのサイズがさらに縮小される", () => {
+      const noteWithLinkAndAsterisks = {
+        ...mockNote,
+        content: "https://example.com**",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithLinkAndAsterisks} />
+      );
+
+      // リンク要素が生成されることを確認
+      const linkElement = container.querySelector('span[style*="color: rgb(0, 102, 204)"]');
+      expect(linkElement).toBeInTheDocument();
+
+      // リンク要素のフォントサイズがさらに縮小されることを確認（9px: 13px - 4px）
+      expect(linkElement?.style.fontSize).toBe('9px');
+    });
+
+    it("先頭アスタリスクでリンクのサイズが拡大される", () => {
+      const noteWithLinkAndAsterisk = {
+        ...mockNote,
+        content: "*https://example.com",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithLinkAndAsterisk} />
+      );
+
+      // リンク要素が生成されることを確認
+      const linkElement = container.querySelector('span[style*="color: rgb(0, 102, 204)"]');
+      expect(linkElement).toBeInTheDocument();
+
+      // リンク要素のフォントサイズが拡大されることを確認（15px: 13px + 2px）
+      expect(linkElement?.style.fontSize).toBe('15px');
+    });
+
+    it("Scrapbox記法のリンクも末尾アスタリスクでサイズが縮小される", () => {
+      const noteWithScrapboxLink = {
+        ...mockNote,
+        content: "[Example https://example.com]*",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithScrapboxLink} />
+      );
+
+      // Scrapboxリンク要素が生成されることを確認
+      const linkElement = container.querySelector('span[style*="color: rgb(0, 102, 204)"]');
+      expect(linkElement).toBeInTheDocument();
+
+      // リンク要素のフォントサイズが縮小されることを確認
+      expect(linkElement?.style.fontSize).toBe('11px');
+    });
+
+    it("テキストとリンクが混在している場合、両方のサイズが変更される", () => {
+      const noteWithMixedContent = {
+        ...mockNote,
+        content: "テキスト https://example.com もっとテキスト*",
+      };
+
+      const { container } = render(
+        <StickyNote {...mockProps} note={noteWithMixedContent} />
+      );
+
+      // リンク要素と通常テキストが生成されることを確認
+      const linkElement = container.querySelector('span[style*="color: rgb(0, 102, 204)"]');
+      expect(linkElement).toBeInTheDocument();
+      expect(container.textContent).toContain("テキスト");
+      expect(container.textContent).toContain("もっとテキスト");
+
+      // テキスト部分のフォントサイズが縮小されることを確認
+      const textSpans = container.querySelectorAll('span');
+      const textSpan = Array.from(textSpans).find(span => 
+        span.textContent?.includes("テキスト") && !span.style.color
+      );
+      
+      if (textSpan) {
+        expect(textSpan.style.fontSize).toBe('11px');
+      }
+
+      // リンク要素のフォントサイズも縮小されることを確認
+      expect(linkElement?.style.fontSize).toBe('11px');
+    });
+  });
+
   describe("透明付箋の背面固定機能", () => {
     it("透明色の付箋がzIndex: -1で背面に固定される", () => {
       const transparentNote = {
