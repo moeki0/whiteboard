@@ -41,12 +41,11 @@ interface AlgoliaBoard {
 
 export const syncBoard = functions
   .region("us-central1")
-  .runtime("nodejs20")
   .runWith({
     timeoutSeconds: 60,
     memory: "256MB",
   })
-  .https.onCall(async (data, context) => {
+  .https.onCall(async (data: any, context: any) => {
     // 認証チェック - 開発時は認証をスキップ
     if (!context.auth && process.env.NODE_ENV !== "development") {
       console.warn("User not authenticated, skipping sync");
@@ -71,9 +70,7 @@ export const syncBoard = functions
     }
   });
 
-export const removeBoard = functions
-  .runtime("nodejs20")
-  .https.onCall(async (data, context) => {
+export const removeBoard = functions.https.onCall(async (data: any, context: any) => {
   // 認証チェック
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -102,9 +99,7 @@ export const removeBoard = functions
   }
 });
 
-export const syncProject = functions
-  .runtime("nodejs20")
-  .https.onCall(async (data, context) => {
+export const syncProject = functions.https.onCall(async (data: any, context: any) => {
   // 認証チェック
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -134,9 +129,7 @@ export const syncProject = functions
 });
 
 // onRequest版の関数（CORS対応）
-export const syncBoardHttp = functions
-  .runtime("nodejs20")
-  .https.onRequest(async (req, res) => {
+export const syncBoardHttp = functions.https.onRequest(async (req: any, res: any) => {
   return corsHandler(req, res, async () => {
     try {
       // プリフライトリクエストの処理
@@ -178,9 +171,7 @@ export const syncBoardHttp = functions
   });
 });
 
-export const removeBoardHttp = functions
-  .runtime("nodejs20")
-  .https.onRequest(async (req, res) => {
+export const removeBoardHttp = functions.https.onRequest(async (req: any, res: any) => {
   return corsHandler(req, res, async () => {
     try {
       if (req.method === "OPTIONS") {
@@ -220,9 +211,7 @@ export const removeBoardHttp = functions
 });
 
 // Scrapbox APIプロキシ
-export const searchScrapboxTitles = functions
-  .runtime("nodejs20")
-  .https.onRequest(async (req, res) => {
+export const searchScrapboxTitles = functions.https.onRequest(async (req: any, res: any) => {
   return corsHandler(req, res, async () => {
     try {
       if (req.method === "OPTIONS") {
