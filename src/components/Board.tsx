@@ -2073,6 +2073,7 @@ export function Board({ user }: BoardProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      console.log("🔍 Key event:", e.key, "isKeyHintMode:", isKeyHintMode);
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z" && !e.shiftKey) {
           // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
@@ -2332,17 +2333,50 @@ export function Board({ user }: BoardProps) {
           deleteSelectedArrows();
           deleteSelectedGroups();
         }
+      } else if (isKeyHintMode) {
+        // キーヒントモード中の処理（最優先）
+        console.log("🎯 Key hint mode processing:", e.key);
+        e.preventDefault();
+        const pressedKey = e.key.toLowerCase();
+
+        // 押されたキーに対応するノートIDを検索
+        let targetNoteId = null;
+        for (const [noteId, hintKey] of noteHintKeys) {
+          for (let keyLength = 0; keyLength < 32; keyLength++) {
+            if (
+              hintKey ===
+              pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
+            ) {
+              targetNoteId = noteId;
+              break;
+            }
+          }
+          if (targetNoteId) break;
+        }
+
+        if (targetNoteId) {
+          // ノートを選択状態にする
+          setSelectedNoteIds(new Set([targetNoteId]));
+          setIsKeyHintMode(false);
+          setNoteHintKeys(new Map());
+          setPressedKeyHistory([]);
+        } else {
+          setPressedKeyHistory((prev) => [...prev, pressedKey]);
+        }
       } else if ((e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
                  e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") && !e.shiftKey) {
         // WASDキーでボードをパン（カクカク移動）
         // Shiftキーが押されていない場合のみ処理
+        console.log("📍 WASD block reached:", e.key);
         const activeElement = document.activeElement;
         const isInputFocused =
           activeElement &&
           (activeElement.tagName === "TEXTAREA" ||
             activeElement.tagName === "INPUT");
 
+        console.log("📍 Conditions:", "isInputFocused:", isInputFocused, "isKeyHintMode:", isKeyHintMode);
         if (!isInputFocused && !isKeyHintMode) {
+          console.log("✅ WASD pan executing");
           e.preventDefault();
           
           // 矢印キーと同じ距離（50px）でカクカク移動
@@ -2386,34 +2420,6 @@ export function Board({ user }: BoardProps) {
             setSelectedItemIds(new Set());
             setSelectedGroupIds(new Set());
           }
-        }
-      } else if (isKeyHintMode) {
-        // キーヒントモード中の処理
-        e.preventDefault();
-        const pressedKey = e.key.toLowerCase();
-
-        // 押されたキーに対応するノートIDを検索
-        let targetNoteId = null;
-        for (const [noteId, hintKey] of noteHintKeys) {
-          for (let keyLength = 0; keyLength < 32; keyLength++) {
-            if (
-              hintKey ===
-              pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
-            ) {
-              targetNoteId = noteId;
-              break;
-            }
-          }
-        }
-
-        if (targetNoteId) {
-          // ノートを選択状態にする
-          setSelectedNoteIds(new Set([targetNoteId]));
-          setIsKeyHintMode(false);
-          setNoteHintKeys(new Map());
-          setPressedKeyHistory([]);
-        } else {
-          setPressedKeyHistory((prev) => [...prev, pressedKey]);
         }
       } else if (e.key === "Enter") {
         // Enterキーで選択された付箋をエディットモードに

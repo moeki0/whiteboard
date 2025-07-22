@@ -263,55 +263,55 @@ export function useBoardEventHandlers({
     setPanY(newPanY);
   }, [zoom, panX, panY, setZoom, setPanX, setPanY]);
 
-  // キーボードショートカット
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case "c":
-            if (selectedNoteIds.size > 0) {
-              e.preventDefault();
-              copyNotesAsData();
-            }
-            break;
-          case "v":
-            e.preventDefault();
-            pasteCopiedNotes();
-            break;
-          case "a":
-            if (!document.activeElement || 
-                (document.activeElement.tagName !== "TEXTAREA" && 
-                 document.activeElement.tagName !== "INPUT")) {
-              e.preventDefault();
-              setSelectedNoteIds(new Set(notes.map((note) => note.id)));
-            }
-            break;
-        }
-      } else if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedNoteIds.size > 0 && 
-            (!document.activeElement || 
-             (document.activeElement.tagName !== "TEXTAREA" && 
-              document.activeElement.tagName !== "INPUT"))) {
-          e.preventDefault();
-          deleteSelectedNotes();
-        }
-      } else if (e.key === "Escape") {
-        setSelectedNoteIds(new Set());
-      }
-    };
+  // キーボードショートカット（Board.tsxの統合ハンドラーに移行したため無効化）
+  // useEffect(() => {
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     if (e.ctrlKey || e.metaKey) {
+  //       switch (e.key) {
+  //         case "c":
+  //           if (selectedNoteIds.size > 0) {
+  //             e.preventDefault();
+  //             copyNotesAsData();
+  //           }
+  //           break;
+  //         case "v":
+  //           e.preventDefault();
+  //           pasteCopiedNotes();
+  //           break;
+  //         case "a":
+  //           if (!document.activeElement || 
+  //               (document.activeElement.tagName !== "TEXTAREA" && 
+  //                document.activeElement.tagName !== "INPUT")) {
+  //             e.preventDefault();
+  //             setSelectedNoteIds(new Set(notes.map((note) => note.id)));
+  //           }
+  //           break;
+  //       }
+  //     } else if (e.key === "Delete" || e.key === "Backspace") {
+  //       if (selectedNoteIds.size > 0 && 
+  //           (!document.activeElement || 
+  //            (document.activeElement.tagName !== "TEXTAREA" && 
+  //             document.activeElement.tagName !== "INPUT"))) {
+  //         e.preventDefault();
+  //         deleteSelectedNotes();
+  //       }
+  //     } else if (e.key === "Escape") {
+  //       setSelectedNoteIds(new Set());
+  //     }
+  //   };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [
-    selectedNoteIds,
-    notes,
-    copyNotesAsData,
-    pasteCopiedNotes,
-    deleteSelectedNotes,
-    setSelectedNoteIds,
-  ]);
+  //   document.addEventListener("keydown", handleKeyDown);
+  //   return () => {
+  //     document.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, [
+  //   selectedNoteIds,
+  //   notes,
+  //   copyNotesAsData,
+  //   pasteCopiedNotes,
+  //   deleteSelectedNotes,
+  //   setSelectedNoteIds,
+  // ]);
 
   return {
     handleBoardClick,
