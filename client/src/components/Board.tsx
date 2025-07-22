@@ -85,6 +85,7 @@ export function Board({ user }: BoardProps) {
 
   const boardRef = useRef<HTMLDivElement>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
+  const lastMousePos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const nanoid = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 21);
 
@@ -968,6 +969,9 @@ export function Board({ user }: BoardProps) {
   // 範囲選択の更新
   const handleBoardMouseMove = useCallback(
     (e: MouseEvent) => {
+      // マウス位置を常に記録（ズーム用）
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+      
       if (!selection.isSelecting || !selection.selectionStart) return;
 
       const rect = boardRef.current?.getBoundingClientRect() || {
@@ -1427,6 +1431,18 @@ export function Board({ user }: BoardProps) {
   //     };
   //   }
   // }, [panZoom.zoomVelocity, panZoom.zoomTarget]);
+
+  // マウス位置追跡（常時）
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+    };
+    
+    document.addEventListener("mousemove", handleGlobalMouseMove);
+    return () => {
+      document.removeEventListener("mousemove", handleGlobalMouseMove);
+    };
+  }, []);
 
   // マウスイベントのリスナー設定
   useEffect(() => {
@@ -2098,6 +2114,7 @@ export function Board({ user }: BoardProps) {
     zoom: panZoom.zoom,
     setZoom: panZoom.setZoom,
     boardRef,
+    lastMousePos,
     onUndo: performUndo,
     onRedo: performRedo,
     onCopy: async () => {

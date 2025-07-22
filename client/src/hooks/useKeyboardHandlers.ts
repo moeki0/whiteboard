@@ -18,6 +18,7 @@ interface KeyboardHandlerProps {
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   boardRef: React.RefObject<HTMLDivElement | null>; // ボード要素の参照を追加
+  lastMousePos: React.MutableRefObject<{ x: number; y: number }>; // 最後のマウス位置を追加
   onUndo: () => void;
   onRedo: () => void;
   onCopy: () => void;
@@ -50,6 +51,7 @@ export function useKeyboardHandlers({
   zoom,
   setZoom,
   boardRef,
+  lastMousePos,
   onUndo,
   onRedo,
   onCopy,
@@ -188,20 +190,20 @@ export function useKeyboardHandlers({
             // Shift+上矢印：上パン
             setPanY((prev) => prev + panSpeed);
           } else {
-            // 上矢印：ズームイン（ブラウザの画面中央を基準）
+            // 上矢印：ズームイン（カーソル位置を基準）
             if (boardRef.current) {
               const rect = boardRef.current.getBoundingClientRect();
-              // ボード要素内での画面中央座標を計算
-              const boardCenterX = rect.width / 2;
-              const boardCenterY = rect.height / 2;
+              // 最後のマウス位置をボード内の相対座標として使用
+              const mouseX = lastMousePos.current.x - rect.left;
+              const mouseY = lastMousePos.current.y - rect.top;
               
               const zoomInFactor = 1.1;
               const newZoomIn = Math.max(0.1, Math.min(5, zoom * zoomInFactor));
               const deltaZoom = newZoomIn - zoom;
               
-              // ボード中央を基準にパンを調整（ホイールズームと同じ計算）
-              const newPanX = panX - (boardCenterX * deltaZoom) / zoom;
-              const newPanY = panY - (boardCenterY * deltaZoom) / zoom;
+              // カーソル位置を基準にパンを調整（ホイールズームと同じ計算）
+              const newPanX = panX - (mouseX * deltaZoom) / zoom;
+              const newPanY = panY - (mouseY * deltaZoom) / zoom;
               
               setZoom(newZoomIn);
               setPanX(newPanX);
@@ -215,20 +217,20 @@ export function useKeyboardHandlers({
             // Shift+下矢印：下パン
             setPanY((prev) => prev - panSpeed);
           } else {
-            // 下矢印：ズームアウト（ブラウザの画面中央を基準）
+            // 下矢印：ズームアウト（カーソル位置を基準）
             if (boardRef.current) {
               const rect = boardRef.current.getBoundingClientRect();
-              // ボード要素内での画面中央座標を計算
-              const boardCenterX = rect.width / 2;
-              const boardCenterY = rect.height / 2;
+              // 最後のマウス位置をボード内の相対座標として使用
+              const mouseX = lastMousePos.current.x - rect.left;
+              const mouseY = lastMousePos.current.y - rect.top;
               
               const zoomOutFactor = 0.9;
               const newZoomOut = Math.max(0.1, Math.min(5, zoom * zoomOutFactor));
               const deltaZoomOut = newZoomOut - zoom;
               
-              // ボード中央を基準にパンを調整（ホイールズームと同じ計算）
-              const newPanXDown = panX - (boardCenterX * deltaZoomOut) / zoom;
-              const newPanYDown = panY - (boardCenterY * deltaZoomOut) / zoom;
+              // カーソル位置を基準にパンを調整（ホイールズームと同じ計算）
+              const newPanXDown = panX - (mouseX * deltaZoomOut) / zoom;
+              const newPanYDown = panY - (mouseY * deltaZoomOut) / zoom;
               
               setZoom(newZoomOut);
               setPanX(newPanXDown);
@@ -238,7 +240,7 @@ export function useKeyboardHandlers({
           break;
       }
     },
-    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef]
+    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef, lastMousePos]
   );
 
   const handleDeleteKey = useCallback(
