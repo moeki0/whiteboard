@@ -2402,16 +2402,100 @@ export function Board({ user }: BoardProps) {
     onUndo: performUndo,
     onRedo: performRedo,
     onCopy: async () => {
-      if (selection.selectedNoteIds.size === 1) {
-        const noteId = Array.from(selection.selectedNoteIds)[0];
-        await copyStickyNoteToClipboard(noteId);
-      } else if (selection.selectedNoteIds.size > 1) {
+      console.log("onCopy function called");
+      if (selection.selectedNoteIds.size > 0) {
         const selectedNoteIds = Array.from(selection.selectedNoteIds);
-        await copyMultipleStickyNotesToClipboard(selectedNoteIds);
+        console.log("Selected note IDs:", selectedNoteIds);
+        const selectedNotes = notes.filter(note => selectedNoteIds.includes(note.id));
+        console.log("Selected notes:", selectedNotes);
+        
+        // JSONデータとしてクリップボードにコピー
+        const copyData = {
+          type: 'maplap-notes',
+          notes: selectedNotes
+        };
+        
+        try {
+          const jsonString = JSON.stringify(copyData);
+          console.log("Copying to clipboard:", jsonString);
+          await navigator.clipboard.writeText(jsonString);
+          console.log("Copy successful");
+        } catch (error) {
+          console.error('Failed to copy notes:', error);
+        }
+      } else {
+        console.log("No notes selected for copy");
       }
     },
     onPaste: async () => {
-      // ペースト処理の実装
+      console.log("onPaste function called");
+      try {
+        const clipboardText = await navigator.clipboard.readText();
+        console.log("Clipboard content:", clipboardText);
+        const copyData = JSON.parse(clipboardText);
+        console.log("Parsed copy data:", copyData);
+        
+        if (copyData.type === 'maplap-notes' && Array.isArray(copyData.notes)) {
+          console.log("Valid maplap notes data, proceeding with paste");
+          // マウス位置をボード座標に変換してペースト
+          const pasteX = (lastMousePos.current.x - panZoom.panX) / panZoom.zoom;
+          const pasteY = (lastMousePos.current.y - panZoom.panY) / panZoom.zoom;
+          console.log("Paste position:", { pasteX, pasteY });
+          
+          copyData.notes.forEach((note: Note, index: number) => {
+            console.log(`Processing note ${index}:`, note);
+            // 権限チェック
+            if (!user?.uid || !board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
+              console.log("Permission check failed:", { user: !!user?.uid, board: !!board, canEdit: board ? checkBoardEditPermission(board, project, user?.uid || null).canEdit : false });
+              return;
+            }
+            console.log("Permission check passed");
+            
+            const offsetX = pasteX + (index * 20);
+            const offsetY = pasteY + (index * 20);
+            const noteId = nanoid();
+            console.log("Creating note with ID:", noteId, "at position:", { offsetX, offsetY });
+            
+            const newNote: Omit<Note, "id"> = {
+              type: "note",
+              content: note.content, // 元のコンテンツを直接設定
+              x: offsetX,
+              y: offsetY,
+              color: note.color || "white",
+              textSize: note.textSize || "medium",
+              userId: user.uid,
+              createdAt: Date.now(),
+              zIndex: nextZIndex + index,
+              width: note.width || "auto",
+              isDragging: false,
+              draggedBy: null,
+            };
+            
+            // 履歴に追加
+            if (!isUndoRedoOperation) {
+              addToHistory({
+                type: "CREATE_NOTES",
+                noteId: noteId,
+                notes: [{ ...newNote, id: noteId }],
+                userId: user.uid,
+              });
+            }
+            
+            // Firebase Realtime Databaseに直接保存
+            const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+            console.log("Saving note to Firebase:", newNote);
+            set(noteRef, newNote);
+          });
+          
+          // zIndexを更新
+          setNextZIndex((prev) => prev + copyData.notes.length);
+          console.log("Paste operation completed successfully");
+        } else {
+          console.log("Invalid clipboard data format");
+        }
+      } catch (error) {
+        console.error('Failed to paste notes:', error);
+      }
     },
     onSelectAll: () => {
       const allNoteIds = new Set(notes.map(note => note.id));

@@ -104,6 +104,7 @@ export function useKeyboardHandlers({
   const handlePasteKey = useCallback(
     async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        console.log("Paste key detected, calling onPaste()");
         e.preventDefault();
         onPaste();
       }
@@ -409,6 +410,13 @@ export function useKeyboardHandlers({
           }
           break;
         case "KeyC":
+          // Shift+Cmd+C: コピー
+          if (e.metaKey || e.ctrlKey) {
+            console.log("Shift+Cmd+C detected for copy");
+            e.preventDefault();
+            onCopy();
+            return true;
+          }
           // Shift+C: 新しい付箋を追加してフォーカス
           console.log("Shift+C detected");
           e.preventDefault();
@@ -422,6 +430,7 @@ export function useKeyboardHandlers({
     },
     [
       selectedNoteIds,
+      selectedGroupIds,
       onCreateGroup,
       setIsKeyHintMode,
       notes,
@@ -429,6 +438,7 @@ export function useKeyboardHandlers({
       onAddArrow,
       onAddNote,
       setNoteToFocus,
+      onCopy,
     ]
   );
 
