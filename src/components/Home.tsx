@@ -16,6 +16,7 @@ export function Home({ user }: HomeProps) {
   const { currentProjectId, updateCurrentProject } = useProject();
   const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingRecent, setCheckingRecent] = useState(true);
   const { getRecentProject } = useRecentProject();
   const navigate = useNavigate();
   const nanoid = customAlphabet(
@@ -63,18 +64,43 @@ export function Home({ user }: HomeProps) {
   // Check for recent project and redirect
   useEffect(() => {
     const checkRecentProject = async () => {
-      const recent = getRecentProject();
-      if (recent.id && recent.slug) {
-        // Verify project still exists
-        const projectRef = ref(rtdb, `projects/${recent.id}`);
-        const projectSnapshot = await get(projectRef);
-        if (projectSnapshot.exists()) {
-          navigate(`/${recent.slug}`);
+      try {
+        console.log('Checking for recent project...');
+        const recent = getRecentProject();
+        console.log('Recent project data:', recent);
+        
+        if (recent.id && recent.slug) {
+          console.log(`Verifying project ${recent.id} exists...`);
+          // Verify project still exists and user has access
+          const [projectSnapshot, userProjectSnapshot] = await Promise.all([
+            get(ref(rtdb, `projects/${recent.id}`)),
+            get(ref(rtdb, `userProjects/${user.uid}/${recent.id}`))
+          ]);
+          
+          if (projectSnapshot.exists() && userProjectSnapshot.exists()) {
+            console.log(`Redirecting to /${recent.slug}`);
+            navigate(`/${recent.slug}`, { replace: true });
+            return;
+          } else {
+            console.log('Project no longer exists or no access, clearing recent project');
+            // Clear invalid recent project
+            localStorage.removeItem('recentProjectId');
+            localStorage.removeItem('recentProjectSlug');
+          }
+        } else {
+          console.log('No recent project found');
         }
+      } catch (error) {
+        console.error('Error checking recent project:', error);
+      } finally {
+        setCheckingRecent(false);
       }
     };
-    checkRecentProject();
-  }, [getRecentProject, navigate]);
+    
+    // Add delay to ensure Firebase is ready
+    const timer = setTimeout(checkRecentProject, 100);
+    return () => clearTimeout(timer);
+  }, [user.uid, navigate]);
 
   useEffect(() => {
     // Listen to user's projects
@@ -104,6 +130,14 @@ export function Home({ user }: HomeProps) {
         const validProjects = projectResults.filter((p) => p !== null);
 
         setProjects(validProjects as (Project & { id: string })[]);
+
+        // Check if we should redirect to recent project first
+        const recent = getRecentProject();
+        if (recent.id && recent.slug && validProjects.some(p => p.id === recent.id)) {
+          console.log('Recent project found in user projects, redirecting...');
+          navigate(`/${recent.slug}`, { replace: true });
+          return;
+        }
 
         // If user has no current project but has projects, set the first one
         if (!currentProjectId && validProjects.length > 0) {
@@ -172,7 +206,7 @@ export function Home({ user }: HomeProps) {
     }
   }, [projects]);
 
-  if (loading) {
+  if (loading || checkingRecent) {
     return <div className="loading"></div>;
   }
 
