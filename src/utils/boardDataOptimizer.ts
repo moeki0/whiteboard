@@ -195,11 +195,14 @@ export async function getPaginatedBoards(
     }
     
     // Get all board IDs and their timestamps
-    const allBoardEntries = Object.entries(projectBoardsData).map(([id, data]: [string, any]) => ({
+    const allBoardEntries = Object.entries(projectBoardsData).map(([id, data]: [string, unknown]) => {
+      const boardData = data as { updatedAt?: number; createdAt?: number; isPinned?: boolean; };
+      return ({
       id,
-      timestamp: data.updatedAt || data.createdAt || 0,
-      isPinned: data.isPinned || false
-    }));
+      timestamp: boardData.updatedAt || boardData.createdAt || 0,
+      isPinned: boardData.isPinned || false
+    });
+    });
     
     // Sort all boards
     allBoardEntries.sort((a, b) => {
@@ -314,7 +317,7 @@ export async function updateDenormalizedBoard(
   boardData: Partial<Board>
 ): Promise<void> {
   try {
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
     
     // Update denormalized data if it exists
     const denormalizedPath = `projectBoardsDenormalized/${projectId}/${boardId}`;

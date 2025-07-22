@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from "react";
 
 export interface SelectionState {
   selectedNoteIds: Set<string>;
@@ -10,9 +10,13 @@ export interface SelectionState {
   isSelecting: boolean;
   setIsSelecting: React.Dispatch<React.SetStateAction<boolean>>;
   selectionStart: { x: number; y: number } | null;
-  setSelectionStart: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setSelectionStart: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   selectionEnd: { x: number; y: number } | null;
-  setSelectionEnd: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setSelectionEnd: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   isMultiSelectMode: boolean;
   setIsMultiSelectMode: React.Dispatch<React.SetStateAction<boolean>>;
   justFinishedSelection: boolean;

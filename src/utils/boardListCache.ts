@@ -1,7 +1,7 @@
 import { Board } from "../types";
 
 interface CacheEntry {
-  data: any;
+  data: unknown;
   timestamp: number;
   ttl: number;
 }
@@ -10,7 +10,7 @@ class BoardListCache {
   private cache: Map<string, CacheEntry> = new Map();
   private readonly DEFAULT_TTL = 60000; // 1 minute
 
-  set(key: string, data: any, ttl: number = this.DEFAULT_TTL): void {
+  set(key: string, data: unknown, ttl: number = this.DEFAULT_TTL): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -18,7 +18,7 @@ class BoardListCache {
     });
   }
 
-  get(key: string): any | null {
+  get(key: string): unknown | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
 

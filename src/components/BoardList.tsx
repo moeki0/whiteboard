@@ -171,7 +171,6 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
             // Only show recent cursors (active users)
             if (now - cursor.timestamp < CURSOR_TIMEOUT) {

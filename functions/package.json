@@ -8,7 +8,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src"
   },
   "engines": {
     "node": "18"

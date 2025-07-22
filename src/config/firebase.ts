@@ -28,11 +28,11 @@ if (
   import.meta.env.DEV &&
   typeof window !== "undefined" &&
   window.location.hostname === "localhost" &&
-  !(globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED
+  !((globalThis as unknown) as { FIREBASE_FUNCTIONS_EMULATOR_CONNECTED?: boolean }).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED
 ) {
   try {
     connectFunctionsEmulator(functions, "localhost", 5001);
-    (globalThis as any).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
+    ((globalThis as unknown) as { FIREBASE_FUNCTIONS_EMULATOR_CONNECTED: boolean }).FIREBASE_FUNCTIONS_EMULATOR_CONNECTED = true;
   } catch (error) {
     console.warn("Failed to connect to Functions emulator:", error);
   }

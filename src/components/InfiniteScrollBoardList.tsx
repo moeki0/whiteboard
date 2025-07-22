@@ -29,11 +29,11 @@ interface InfiniteScrollBoardListProps {
   projectId?: string;
 }
 
-interface PaginationCursor {
-  lastKey: string;
-  lastValue: number;
-  direction: "forward" | "backward";
-}
+// interface PaginationCursor {
+//   lastKey: string;
+//   lastValue: number;
+//   direction: "forward" | "backward";
+// }
 
 export function InfiniteScrollBoardList({
   user,
@@ -361,14 +361,15 @@ export function InfiniteScrollBoardList({
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
 
-          Object.entries(data).forEach(([cursorId, cursor]: [string, any]) => {
-            if (now - cursor.timestamp < CURSOR_TIMEOUT) {
+          Object.entries(data).forEach(([cursorId, cursor]: [string, unknown]) => {
+            const cursorData = cursor as { timestamp: number; x: number; y: number; name: string; fullName: string; color: string; };
+            if (now - cursorData.timestamp < CURSOR_TIMEOUT) {
               const userId = cursorId.split("-")[0];
               if (
                 !activeCursors[userId] ||
-                cursor.timestamp > activeCursors[userId].timestamp
+                cursorData.timestamp > activeCursors[userId].timestamp
               ) {
-                activeCursors[userId] = cursor as Cursor;
+                activeCursors[userId] = cursorData as Cursor;
               }
             }
           });

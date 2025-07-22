@@ -11,7 +11,7 @@ interface CacheEntry<T> {
 }
 
 class AggressiveCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private readonly DEFAULT_TTL = 300000; // 5分
   private readonly AGGRESSIVE_TTL = 600000; // 10分
   
@@ -141,6 +141,6 @@ export const aggressiveCache = new AggressiveCache();
 
 // グローバルに公開（開発環境のみ）
 if (import.meta.env.DEV) {
-  (window as any).aggressiveCache = aggressiveCache;
+  ((window as unknown) as { aggressiveCache: typeof aggressiveCache }).aggressiveCache = aggressiveCache;
   console.log('⚡ Aggressive cache loaded! Type aggressiveCache.getStats() to see performance.');
 }

@@ -235,7 +235,7 @@ class MigrationControlPanel {
 
 // グローバルに公開
 const migrationPanel = new MigrationControlPanel();
-(window as any).migrationPanel = migrationPanel;
+((window as unknown) as { migrationPanel: typeof migrationPanel }).migrationPanel = migrationPanel;
 
 console.log('🎛️  Migration Control Panel loaded! Type migrationPanel.help() for usage instructions.');
 

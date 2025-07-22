@@ -13,10 +13,10 @@ interface SearchBoardsProps {
   user: User;
 }
 
-export function SearchBoards({ user }: SearchBoardsProps) {
+export function SearchBoards() {
   const { currentProjectId } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // 現在未使用
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<AlgoliaBoard[]>([]);
   const [isSearching, setIsSearching] = useState(false);

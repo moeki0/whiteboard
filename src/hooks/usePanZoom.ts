@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from "react";
 
 export interface PanZoomState {
   panX: number;
@@ -10,9 +10,13 @@ export interface PanZoomState {
   isPanning: boolean;
   setIsPanning: React.Dispatch<React.SetStateAction<boolean>>;
   panStartPos: { x: number; y: number } | null;
-  setPanStartPos: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setPanStartPos: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   initialPan: { x: number; y: number } | null;
-  setInitialPan: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setInitialPan: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   lastWheelTime: number;
   setLastWheelTime: React.Dispatch<React.SetStateAction<number>>;
 }

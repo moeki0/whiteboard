@@ -74,7 +74,7 @@ export async function updateBoardListItem(
   const updatedAt = boardData.updatedAt || Date.now();
   const isPinned = boardData.isPinned ?? existingData.isPinned ?? false;
   
-  const listItem: any = {
+  const listItem: Record<string, unknown> = {
     ...existingData,
     ...boardData,
     id: boardId,
@@ -184,7 +184,7 @@ export async function migrateToNewStructure(projectId: string): Promise<void> {
     console.log(`Migrating ${boardIds.length} boards for project ${projectId}`);
     
     // 2. 各ボードの詳細データを取得して新構造に保存
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
     
     for (const boardId of boardIds) {
       const boardRef = ref(rtdb, `boards/${boardId}`);

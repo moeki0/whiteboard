@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from "react";
 
 export interface DragAndDropState {
   isDraggingMultiple: boolean;
   setIsDraggingMultiple: React.Dispatch<React.SetStateAction<boolean>>;
   dragStartPos: { x: number; y: number } | null;
-  setDragStartPos: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setDragStartPos: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   initialSelectedPositions: Record<string, { x: number; y: number }>;
-  setInitialSelectedPositions: React.Dispatch<React.SetStateAction<Record<string, { x: number; y: number }>>>;
+  setInitialSelectedPositions: React.Dispatch<
+    React.SetStateAction<Record<string, { x: number; y: number }>>
+  >;
   justFinishedBulkDrag: boolean;
   setJustFinishedBulkDrag: React.Dispatch<React.SetStateAction<boolean>>;
   isDraggingGroup: boolean;
@@ -14,9 +18,13 @@ export interface DragAndDropState {
   draggingGroupId: string | null;
   setDraggingGroupId: React.Dispatch<React.SetStateAction<string | null>>;
   groupDragStartPos: { x: number; y: number } | null;
-  setGroupDragStartPos: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
+  setGroupDragStartPos: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
   initialGroupNotePositions: Record<string, { x: number; y: number }>;
-  setInitialGroupNotePositions: React.Dispatch<React.SetStateAction<Record<string, { x: number; y: number }>>>;
+  setInitialGroupNotePositions: React.Dispatch<
+    React.SetStateAction<Record<string, { x: number; y: number }>>
+  >;
 }
 
 export function useDragAndDrop(): DragAndDropState {

@@ -121,13 +121,14 @@ export async function generateLightweightStructure(projectId: string): Promise<v
     const fullData = snapshot.val();
     const updates: Record<string, LightweightBoard> = {};
     
-    Object.entries(fullData).forEach(([boardId, boardData]: [string, any]) => {
+    Object.entries(fullData).forEach(([boardId, boardData]: [string, unknown]) => {
+      const board = boardData as { name: string; title?: string; updatedAt?: number; createdAt?: number; isPinned?: boolean; };
       updates[`lightweightBoardsList/${projectId}/${boardId}`] = {
         id: boardId,
-        name: boardData.name,
-        title: boardData.title || boardData.name,
-        updatedAt: boardData.updatedAt || boardData.createdAt,
-        isPinned: boardData.isPinned || false
+        name: board.name,
+        title: board.title || board.name,
+        updatedAt: board.updatedAt || board.createdAt,
+        isPinned: board.isPinned || false
       };
     });
     

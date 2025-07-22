@@ -12,9 +12,8 @@ export function OpenStreetMapEmbed({
   latitude, 
   longitude, 
   width = '100%', 
-  height = '200px',
-  zoom = 15
-}: OpenStreetMapEmbedProps) {
+  height = '200px'
+}: Omit<OpenStreetMapEmbedProps, 'zoom'>) {
   // OpenStreetMapベースのuMapサービスを使用（APIキー不要）
   const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude-0.01},${latitude-0.01},${longitude+0.01},${latitude+0.01}&layer=mapnik&marker=${latitude},${longitude}`;
   

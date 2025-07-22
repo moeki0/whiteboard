@@ -5,7 +5,7 @@
 export interface ScrapboxSearchResult {
   title: string;
   url?: string;
-  matches?: any;
+  matches?: unknown;
 }
 
 // シンプルなメモリキャッシュ

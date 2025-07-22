@@ -102,7 +102,7 @@ export async function findBoardIdByHistoricalName(
       
       // Check names directly from projectBoards data (faster than individual queries)
       for (const [boardId, boardData] of Object.entries(projectBoardsData)) {
-        if ((boardData as any).name === name) {
+        if ((boardData as { name?: string }).name === name) {
           return boardId;
         }
       }

@@ -105,7 +105,7 @@ export async function updateMigrationStatus(
   errorMessage?: string
 ): Promise<void> {
   try {
-    const migrationStatus: any = {
+    const migrationStatus: Record<string, unknown> = {
       projectId,
       status,
       version: '1.0'

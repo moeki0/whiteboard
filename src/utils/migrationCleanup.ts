@@ -63,8 +63,14 @@ export async function cleanupAllErrorProjects(): Promise<void> {
     
     const statuses = snapshot.val();
     const errorProjects = Object.values(statuses)
-      .filter((status: any) => status.status === 'error')
-      .map((status: any) => status.projectId);
+      .filter((status: unknown) => {
+        const s = status as { status?: string };
+        return s.status === 'error';
+      })
+      .map((status: unknown) => {
+        const s = status as { projectId: string };
+        return s.projectId;
+      });
     
     if (errorProjects.length === 0) {
       console.log('📊 No error projects found');
@@ -85,7 +91,7 @@ export async function cleanupAllErrorProjects(): Promise<void> {
 
 // グローバルに公開（開発環境のみ）
 if (import.meta.env.DEV) {
-  (window as any).migrationCleanup = {
+  ((window as unknown) as { migrationCleanup: { cleanupErrorProjects: typeof cleanupErrorProjects } }).migrationCleanup = {
     cleanupFailedMigration,
     safeMigrateProject,
     cleanupAllErrorProjects,

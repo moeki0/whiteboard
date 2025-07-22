@@ -107,7 +107,7 @@ export async function migrateMoekiProject(): Promise<void> {
 
 // グローバルに公開（開発環境のみ）
 if (import.meta.env.DEV) {
-  (window as any).migrateMoekiProject = migrateMoekiProject;
+  ((window as unknown) as { migrateMoekiProject: typeof migrateMoekiProject }).migrateMoekiProject = migrateMoekiProject;
   
   console.log(`
 🎯 moeki Migration Ready!

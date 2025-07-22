@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, NavigateFunction } from "react-router-dom";
 import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
@@ -25,7 +25,7 @@ import {
 } from "../utils/clipboardUtils";
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
-import { User, Note, Arrow as ArrowType, Group as GroupType } from "../types";
+import { User, Note, Arrow as ArrowType, Group as GroupType, Board as BoardType, Project } from "../types";
 import { generateNewBoardName, generateUniqueBoardName } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
@@ -49,8 +49,9 @@ export function Board({ user }: BoardProps) {
   
   // activeNoteIdを削除 - selection.selectedNoteIdsで管理
   const [nextZIndex, setNextZIndex] = useState<number>(100);
-  const [copiedNote, setCopiedNote] = useState<Note | null>(null);
-  const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
+  // 現在未使用だがコメントアウトで保持
+  // const [copiedNote, setCopiedNote] = useState<Note | null>(null);
+  // const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
   const [sessionId] = useState<string>(() =>
     Math.random().toString(36).substr(2, 9)
   );
@@ -113,7 +114,7 @@ export function Board({ user }: BoardProps) {
 
     keyHints.setNoteHintKeys(hintMap);
     return hintMap;
-  }, [keyHints.setNoteHintKeys]);
+  }, [keyHints]);
 
   const { addToHistory, undo, redo } = useHistory();
   const {
@@ -148,7 +149,7 @@ export function Board({ user }: BoardProps) {
       if (snapshot.exists()) {
         const groupsData = snapshot.val();
         const groupsList = Object.entries(groupsData).map(
-          ([id, group]: [string, any]) => ({
+          ([id, group]: [string, unknown]) => ({
             ...group,
             id,
           })
@@ -564,7 +565,7 @@ export function Board({ user }: BoardProps) {
     }
   };
 
-  const updateNote = (noteId: string, updates: Partial<Note>) => {
+  const updateNote = useCallback((noteId: string, updates: Partial<Note>) => {
     // 未ログインユーザーは付箋を更新できない
     if (!user?.uid) return;
 
@@ -630,7 +631,7 @@ export function Board({ user }: BoardProps) {
         }, 100);
       }
     }
-  };
+  }, [user?.uid, boardId, notes, isUndoRedoOperation, currentUndoRedoNoteId, addToHistory]);
 
   const deleteNote = (noteId: string) => {
     // 未ログインユーザーは付箋を削除できない
@@ -1540,7 +1541,8 @@ export function Board({ user }: BoardProps) {
 
   // copyNote関数を削除 - copyNotesCompleteで統一
 
-  // 付箋を画像としてクリップボードにコピー
+  // 付箋を画像としてクリップボードにコピー - 現在未使用だがコメントアウトで保持
+  /*
   const copyNotesAsImage = async () => {
     if (selection.selectedNoteIds.size === 0) {
       return;
@@ -1553,8 +1555,10 @@ export function Board({ user }: BoardProps) {
       await copyMultipleStickyNotesToClipboard(noteIds);
     }
   };
+  */
 
-  // 付箋データを内部状態にコピー
+  // 付箋データを内部状態にコピー - 現在未使用だがコメントアウトで保持
+  /*
   const copyNotesAsData = () => {
     if (selection.selectedNoteIds.size === 0) {
       return;
@@ -1565,8 +1569,10 @@ export function Board({ user }: BoardProps) {
     // 複数選択の場合は単一コピーをクリア
     setCopiedNote(null);
   };
+  */
 
-  // 統合されたコピー機能（画像とデータの両方）
+  // 統合されたコピー機能（画像とデータの両方） - 現在未使用だがコメントアウトで保持
+  /*
   const copyNotesComplete = async () => {
     if (selection.selectedNoteIds.size === 0) {
       return;
@@ -1590,8 +1596,10 @@ export function Board({ user }: BoardProps) {
       setCopiedNote(null);
     }
   };
+  */
 
-  // 複数選択された付箋を削除
+  // 複数選択された付箋を削除 - 現在未使用だがコメントアウトで保持
+  /*
   const deleteSelectedNotes = () => {
     // 未ログインユーザーは付箋を削除できない
     if (!user?.uid) return;
@@ -1635,8 +1643,10 @@ export function Board({ user }: BoardProps) {
     selection.setSelectedNoteIds(new Set());
     updateUrlForNote(null);
   };
+  */
 
-  // 複数選択された矢印を削除
+  // 複数選択された矢印を削除 - 現在未使用だがコメントアウトで保持
+  /*
   const deleteSelectedArrows = () => {
     // 未ログインユーザーは矢印を削除できない
     if (!user?.uid) return;
@@ -1650,8 +1660,10 @@ export function Board({ user }: BoardProps) {
 
     selection.setSelectedItemIds(new Set());
   };
+  */
 
-  // 複数選択されたグループを削除
+  // 複数選択されたグループを削除 - 現在未使用だがコメントアウトで保持
+  /*
   const deleteSelectedGroups = () => {
     // 未ログインユーザーはグループを削除できない
     if (!user?.uid) return;
@@ -1665,6 +1677,7 @@ export function Board({ user }: BoardProps) {
 
     selection.setSelectedGroupIds(new Set());
   };
+  */
 
   // 単一グループを削除
   const deleteGroup = (groupId: string) => {
@@ -1695,7 +1708,8 @@ export function Board({ user }: BoardProps) {
     }
   };
 
-  // コピーされた複数付箋を貼り付け
+  // コピーされた複数付箋を貼り付け - 現在未使用だがコメントアウトで保持
+  /*
   const pasteCopiedNotes = () => {
     // 未ログインユーザーは付箋を貼り付けできない
     if (!user?.uid) return;
@@ -1749,7 +1763,10 @@ export function Board({ user }: BoardProps) {
     const newNoteIds = new Set(createdNotes.map((note) => note.id));
     selection.setSelectedNoteIds(newNoteIds);
   };
+  */
 
+  // 現在未使用だがコメントアウトで保持
+  /*
   const pasteNote = () => {
     // 未ログインユーザーは付箋を貼り付けできない
     if (!user?.uid) return;
@@ -1793,6 +1810,7 @@ export function Board({ user }: BoardProps) {
       selection.setSelectedNoteIds(new Set([noteId]));
     }
   };
+  */
 
   // Undo/Redo functions
   const performUndo = useCallback(async () => {
@@ -2521,13 +2539,13 @@ export function Board({ user }: BoardProps) {
 // Auto-create missing board hook (moved outside component to avoid hooks order issues)
 function useAutoCreateBoard(
   boardId: string | undefined,
-  board: any,
+  board: BoardType | null,
   isCheckingAccess: boolean,
-  user: any,
+  user: User | null,
   projectId: string | null,
   urlBoardName: string | undefined,
   legacyBoardId: string | undefined,
-  navigate: any
+  navigate: NavigateFunction
 ) {
   const [isCreatingMissingBoard, setIsCreatingMissingBoard] = useState<boolean>(false);
 
@@ -2549,7 +2567,7 @@ function useAutoCreateBoard(
           const projects = projectsSnapshot.val();
           // Find first project where user is a member
           for (const [pid, project] of Object.entries(projects)) {
-            const projectData = project as any;
+            const projectData = project as Project;
             if (projectData.members && projectData.members[user.uid]) {
               targetProjectId = pid;
               break;
@@ -2591,7 +2609,7 @@ function useAutoCreateBoard(
           projectId: targetProjectId,
         };
 
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
         updates[`boards/${boardId}`] = boardData;
         updates[`projectBoards/${targetProjectId}/${boardId}`] = boardData;
 
