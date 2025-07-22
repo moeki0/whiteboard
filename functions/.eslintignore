@@ -1,0 +1,6 @@
+lib/**/*
+generated/**/*
+../node_modules/**/*
+../.git/**/*
+../dist/**/*
+../eslint.config.js

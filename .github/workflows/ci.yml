@@ -43,9 +43,6 @@ jobs:
 
   functions-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./functions
 
     steps:
       - name: Checkout code
@@ -60,9 +57,12 @@ jobs:
 
       - name: Install functions dependencies
         run: npm ci
+        working-directory: ./functions
 
       - name: Build functions
         run: npm run build
+        working-directory: ./functions
 
       - name: Run functions lint
         run: npm run lint
+        working-directory: ./functions

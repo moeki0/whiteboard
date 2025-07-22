@@ -1,5 +1,5 @@
 module.exports = {
-  root: true,
+  root: true, // 親ディレクトリの設定を無視
   env: {
     es6: true,
     node: true,
