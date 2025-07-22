@@ -15,18 +15,19 @@
     "preview": "npm run preview --prefix client",
     "functions:build": "npm run build --prefix functions",
     "functions:serve": "npm run serve --prefix functions",
-    "functions:deploy": "firebase deploy --only functions",
+    "functions:deploy": "npx firebase deploy --only functions",
     "functions:logs": "npm run logs --prefix functions",
-    "emulators": "firebase emulators:start --only database,auth",
-    "emulators:functions": "firebase emulators:start --only functions",
+    "emulators": "npx firebase emulators:start --only database,auth",
+    "emulators:functions": "npx firebase emulators:start --only functions",
     "dev:full": "concurrently \"npm run dev --prefix client\" \"npm run emulators\"",
-    "deploy": "npm run build --prefix client && npm run build --prefix functions && firebase deploy",
+    "deploy": "npm run build --prefix client && npm run build --prefix functions && npx firebase deploy",
     "install:all": "npm install && npm install --prefix client && npm install --prefix functions",
     "clean": "rm -rf client/node_modules client/dist functions/node_modules functions/lib node_modules",
     "postinstall": "npm install --prefix client && npm install --prefix functions"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "firebase-tools": "^13.35.1"
   },
   "workspaces": [
     "client",
