@@ -2070,497 +2070,53 @@ export function Board({ user }: BoardProps) {
     }
   }, [redo, user?.uid, boardId, notes]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === "z" && !e.shiftKey) {
-          // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
+  // Helper function to check if an input is focused
+  const isInputFocused = useCallback(() => {
+    const activeElement = document.activeElement;
+    return activeElement && 
+      (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+  }, []);
 
-          if (!isInputFocused) {
-            e.preventDefault();
-            performUndo();
-          }
-        } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
-          // テキストエリアやインプットにフォーカスがある場合は通常のUndo/Redoを許可
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
+  // Undo handler
+  const handleUndoKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      performUndo();
+    }
+  }, [isInputFocused, performUndo]);
 
-          if (!isInputFocused) {
-            e.preventDefault();
-            performRedo();
-          }
-        } else if (e.key === "c") {
-          // Check if a textarea or input is focused
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
+  // Redo handler
+  const handleRedoKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      performRedo();
+    }
+  }, [isInputFocused, performRedo]);
 
-          // Only copy if no input is focused
-          if (!isInputFocused && selectedNoteIds.size > 0) {
-            e.preventDefault();
+  // Copy handler
+  const handleCopyKey = useCallback(async (e: KeyboardEvent) => {
+    if (!isInputFocused() && selectedNoteIds.size > 0) {
+      e.preventDefault();
 
-            if (e.shiftKey) {
-              // Shift+Cmd+C: Copy as image and data
-              await copyNotesComplete();
-            } else {
-              // Cmd+C: Copy data only (lightweight)
-              copyNotesAsData();
+      if (e.shiftKey) {
+        await copyNotesComplete();
+      } else {
+        copyNotesAsData();
 
-              // 単一選択の場合はcopiedNoteも設定
-              if (selectedNoteIds.size === 1) {
-                const noteId = Array.from(selectedNoteIds)[0];
-                const note = notes.find((n) => n.id === noteId);
-                if (note) {
-                  setCopiedNote(note);
-                }
-              } else {
-                setCopiedNote(null);
-              }
-            }
-          }
-          // If textarea is focused, let the default copy behavior happen
-        } else if (e.key === "v") {
-          // Check if a textarea or input is focused
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          // Only paste note if no input is focused
-          if (!isInputFocused) {
-            e.preventDefault();
-
-            // Try to paste copied notes first, fallback to single copiedNote
-            if (copiedNotes.length > 0) {
-              pasteCopiedNotes();
-            } else if (copiedNote) {
-              pasteNote();
-            } else {
-              // If no internal notes are copied, try to paste from clipboard
-              navigator.clipboard.readText().then((text) => {
-                if (text.trim()) {
-                  createNotesFromText(text);
-                }
-              });
-            }
-          }
-          // If input is focused, let the default paste behavior happen
-        } else if (e.key === "a") {
-          // テキストエリアやインプットにフォーカスがある場合は通常のテキスト選択を許可
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused) {
-            e.preventDefault();
-            // Select all notes in current scene
-            const allNoteIds = new Set(notes.map((note) => note.id));
-            setSelectedNoteIds(allNoteIds);
-          }
-        } else if (e.key === "n") {
-          // Check if a textarea or input is focused
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          // Only create new note if no input is focused
-          if (!isInputFocused) {
-            e.preventDefault();
-            addNote();
-          }
-        } else if (e.key === "j") {
-          // Ctrl+J: 新しい付箋を追加
-          e.preventDefault();
-          const newNoteId = addNote();
-          setNoteToFocus(newNoteId);
-          setSelectedNoteIds(new Set([newNoteId]));
-        } else if (e.key === "k") {
-          // Ctrl+K: 矢印を挿入
-          e.preventDefault();
-          addArrow();
-        } else if (e.key === "g") {
-          // Ctrl+G: グループを作成
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused && selectedNoteIds.size >= 2) {
-            e.preventDefault();
-            createGroup();
-          }
-        } else if (e.key === "u") {
-          // Ctrl+U: キーヒントモード
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused) {
-            e.preventDefault();
-            const visibleNoteIds = notes.map((note) => note.id);
-            const hintKeys = generateHintKeys(visibleNoteIds);
-            setNoteHintKeys(hintKeys);
-            setIsKeyHintMode(true);
-          }
-        }
-      } else if (
-        e.key === "ArrowUp" ||
-        e.key === "ArrowDown" ||
-        e.key === "ArrowLeft" ||
-        e.key === "ArrowRight"
-      ) {
-        const activeElement = document.activeElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "TEXTAREA" ||
-            activeElement.tagName === "INPUT");
-
-        if (!isInputFocused) {
-          e.preventDefault();
-
-          if (e.shiftKey) {
-            // Shift+矢印でパン
-            const panDistance = 50; // パン距離
-            let newPanX = panX;
-            let newPanY = panY;
-
-            switch (e.key) {
-              case "ArrowUp":
-                newPanY += panDistance;
-                break;
-              case "ArrowDown":
-                newPanY -= panDistance;
-                break;
-              case "ArrowLeft":
-                newPanX += panDistance;
-                break;
-              case "ArrowRight":
-                newPanX -= panDistance;
-                break;
-            }
-
-            setPanX(newPanX);
-            setPanY(newPanY);
-          } else if (selectedNoteIds.size > 0) {
-            // 選択された付箋を矢印キーで移動
-            const moveDistance = 10; // 移動距離
-            let deltaX = 0;
-            let deltaY = 0;
-
-            switch (e.key) {
-              case "ArrowUp":
-                deltaY = -moveDistance;
-                break;
-              case "ArrowDown":
-                deltaY = moveDistance;
-                break;
-              case "ArrowLeft":
-                deltaX = -moveDistance;
-                break;
-              case "ArrowRight":
-                deltaX = moveDistance;
-                break;
-            }
-
-            // 選択されたすべての付箋を移動
-            selectedNoteIds.forEach((noteId) => {
-              const note = notes.find((n) => n.id === noteId);
-              if (note) {
-                updateNote(noteId, {
-                  x: note.x + deltaX,
-                  y: note.y + deltaY,
-                });
-              }
-            });
-          } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            // 上下キーでズーム
-            const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
-            const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-
-            // ビューポート中心でズーム
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-
-            // ズーム前の中心位置（ワールド座標）
-            const worldCenterX = (centerX - panX) / zoom;
-            const worldCenterY = (centerY - panY) / zoom;
-
-            // ズーム後にビューポート中心が同じ場所を指すようにパンを調整
-            const newPanX = centerX - worldCenterX * newZoom;
-            const newPanY = centerY - worldCenterY * newZoom;
-
-            setZoom(newZoom);
-            setPanX(newPanX);
-            setPanY(newPanY);
-          }
-        }
-      } else if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        (selectedNoteIds.size > 0 ||
-          selectedItemIds.size > 0 ||
-          selectedGroupIds.size > 0)
-      ) {
-        // Delete selected notes, arrows, and groups if no input is focused
-        const activeElement = document.activeElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "TEXTAREA" ||
-            activeElement.tagName === "INPUT");
-
-        if (!isInputFocused) {
-          e.preventDefault();
-          deleteSelectedNotes();
-          deleteSelectedArrows();
-          deleteSelectedGroups();
-        }
-      } else if (isKeyHintMode) {
-        // キーヒントモード中の処理（最優先）
-        e.preventDefault();
-        const pressedKey = e.key.toLowerCase();
-
-        // 押されたキーに対応するノートIDを検索
-        let targetNoteId = null;
-        for (const [noteId, hintKey] of noteHintKeys) {
-          for (let keyLength = 0; keyLength < 32; keyLength++) {
-            if (
-              hintKey ===
-              pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
-            ) {
-              targetNoteId = noteId;
-              break;
-            }
-          }
-          if (targetNoteId) break;
-        }
-
-        if (targetNoteId) {
-          // ノートを選択状態にする
-          setSelectedNoteIds(new Set([targetNoteId]));
-          setIsKeyHintMode(false);
-          setNoteHintKeys(new Map());
-          setPressedKeyHistory([]);
-        } else {
-          setPressedKeyHistory((prev) => [...prev, pressedKey]);
-        }
-      } else if ((e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
-                 e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") && !e.shiftKey) {
-        // WASDキーでボードをパン（カクカク移動）
-        // Shiftキーが押されていない場合のみ処理
-        const activeElement = document.activeElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "TEXTAREA" ||
-            activeElement.tagName === "INPUT");
-
-        if (!isInputFocused && !isKeyHintMode) {
-          e.preventDefault();
-          
-          // 矢印キーと同じ距離（50px）でカクカク移動
-          const panDistance = 50;
-          let newPanX = panX;
-          let newPanY = panY;
-
-          switch (e.key.toLowerCase()) {
-            case "w":
-              newPanY += panDistance; // 上方向への移動
-              break;
-            case "s":
-              newPanY -= panDistance; // 下方向への移動
-              break;
-            case "a":
-              newPanX += panDistance; // 左方向への移動
-              break;
-            case "d":
-              newPanX -= panDistance; // 右方向への移動
-              break;
-          }
-
-          setPanX(newPanX);
-          setPanY(newPanY);
-        }
-      } else if (e.key === "Escape") {
-        // Escapeで選択状態をクリアまたはキーヒントモードを終了
-        const activeElement = document.activeElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "TEXTAREA" ||
-            activeElement.tagName === "INPUT");
-
-        if (!isInputFocused) {
-          e.preventDefault();
-          if (isKeyHintMode) {
-            setIsKeyHintMode(false);
-            setNoteHintKeys(new Map());
-          } else {
-            setSelectedNoteIds(new Set());
-            setSelectedItemIds(new Set());
-            setSelectedGroupIds(new Set());
-          }
-        }
-      } else if (e.key === "Enter") {
-        // Enterキーで選択された付箋をエディットモードに
-        const activeElement = document.activeElement;
-        const isInputFocused =
-          activeElement &&
-          (activeElement.tagName === "TEXTAREA" ||
-            activeElement.tagName === "INPUT");
-
-        if (!isInputFocused && selectedNoteIds.size === 1) {
-          e.preventDefault();
+        if (selectedNoteIds.size === 1) {
           const noteId = Array.from(selectedNoteIds)[0];
-          // 付箋をダブルクリックしたのと同じ効果を発生させる
-          // ここではsetNoteToFocusを使って付箋にフォーカスを当てる
-          setNoteToFocus(noteId);
-        }
-      } else if (e.shiftKey) {
-        // Shift+文字キーの組み合わせ
-        if (e.key === "G") {
-          // Shift+G: グループを作成
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused && selectedNoteIds.size >= 2) {
-            e.preventDefault();
-            createGroup();
+          const note = notes.find((n) => n.id === noteId);
+          if (note) {
+            setCopiedNote(note);
           }
-        } else if (e.key === "S") {
-          // Ctrl+U: キーヒントモード
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused) {
-            e.preventDefault();
-            const visibleNoteIds = notes.map((note) => note.id);
-            const hintKeys = generateHintKeys(visibleNoteIds);
-            setNoteHintKeys(hintKeys);
-            setIsKeyHintMode(true);
-          }
-        } else if (e.key === "A") {
-          // Shift+A: 矢印を挿入
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused) {
-            e.preventDefault();
-            addArrow();
-          }
-        } else if (e.key === "C") {
-          // Shift+S: 新しい付箋を追加してフォーカス
-          const activeElement = document.activeElement;
-          const isInputFocused =
-            activeElement &&
-            (activeElement.tagName === "TEXTAREA" ||
-              activeElement.tagName === "INPUT");
-
-          if (!isInputFocused) {
-            e.preventDefault();
-            const newNoteId = addNote();
-            setNoteToFocus(newNoteId);
-            setSelectedNoteIds(new Set([newNoteId]));
-          }
+        } else {
+          setCopiedNote(null);
         }
       }
-    };
+    }
+  }, [isInputFocused, selectedNoteIds, copyNotesComplete, copyNotesAsData, notes, setCopiedNote]);
 
-    // handleKeyUpとhandleBlur削除（WASD用のpressedKeys管理が不要のため）
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [
-    // activeNoteId削除済み
-    copiedNote,
-    copiedNotes,
-    nextZIndex,
-    user?.uid,
-    performUndo,
-    performRedo,
-    selectedNoteIds,
-    selectedItemIds,
-    selectedGroupIds,
-    notes,
-    arrows,
-    groups,
-    deleteSelectedNotes,
-    deleteSelectedArrows,
-    deleteSelectedGroups,
-    addArrow,
-    createGroup,
-    zoom,
-    panX,
-    panY,
-    setZoom,
-    setPanX,
-    setPanY,
-    updateNote,
-    setSelectedNoteIds,
-    setSelectedItemIds,
-    setSelectedGroupIds,
-    isKeyHintMode,
-    noteHintKeys,
-    generateHintKeys,
-    setNoteToFocus,
-  ]);
-
-  // 単一の付箋の移動完了時のコールバック
-  const handleNoteDragEnd = useCallback(
-    (
-      noteId: string,
-      oldPosition: { x: number; y: number },
-      newPosition: { x: number; y: number }
-    ) => {
-      if (
-        !isUndoRedoOperation &&
-        user?.uid &&
-        (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)
-      ) {
-        addToHistory({
-          type: "MOVE_NOTES",
-          noteId: noteId,
-          userId: user.uid,
-          moves: [
-            {
-              noteId,
-              oldPosition,
-              newPosition,
-            },
-          ],
-        });
-      }
-    },
-    [isUndoRedoOperation, addToHistory, user?.uid]
-  );
-
-  // テキストから付箋を作成する関数
+  // Text to notes creation function
   const createNotesFromText = useCallback(
     (text: string) => {
       // 未ログインユーザーは付箋を作成できない
@@ -2646,8 +2202,367 @@ export function Board({ user }: BoardProps) {
       nextZIndex,
       isUndoRedoOperation,
       addToHistory,
+      setNextZIndex,
+      setSelectedNoteIds
     ]
   );
+
+  // Paste handler
+  const handlePasteKey = useCallback(async (e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+
+      if (copiedNotes.length > 0) {
+        pasteCopiedNotes();
+      } else if (copiedNote) {
+        pasteNote();
+      } else {
+        const text = await navigator.clipboard.readText();
+        if (text.trim()) {
+          createNotesFromText(text);
+        }
+      }
+    }
+  }, [isInputFocused, copiedNotes, copiedNote, pasteCopiedNotes, pasteNote, createNotesFromText]);
+
+  // Select all handler
+  const handleSelectAllKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      const allNoteIds = new Set(notes.map((note) => note.id));
+      setSelectedNoteIds(allNoteIds);
+    }
+  }, [isInputFocused, notes, setSelectedNoteIds]);
+
+  // New note handler
+  const handleNewNoteKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      addNote();
+    }
+  }, [isInputFocused, addNote]);
+
+  // New note with focus handler
+  const handleNewNoteWithFocusKey = useCallback((e: KeyboardEvent) => {
+    e.preventDefault();
+    const newNoteId = addNote();
+    setNoteToFocus(newNoteId);
+    setSelectedNoteIds(new Set([newNoteId]));
+  }, [addNote, setNoteToFocus, setSelectedNoteIds]);
+
+  // Add arrow handler
+  const handleAddArrowKey = useCallback((e: KeyboardEvent) => {
+    e.preventDefault();
+    addArrow();
+  }, [addArrow]);
+
+  // Create group handler
+  const handleCreateGroupKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused() && selectedNoteIds.size >= 2) {
+      e.preventDefault();
+      createGroup();
+    }
+  }, [isInputFocused, selectedNoteIds, createGroup]);
+
+  // Key hint mode handler
+  const handleKeyHintModeKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      const visibleNoteIds = notes.map((note) => note.id);
+      const hintKeys = generateHintKeys(visibleNoteIds);
+      setNoteHintKeys(hintKeys);
+      setIsKeyHintMode(true);
+    }
+  }, [isInputFocused, notes, generateHintKeys, setNoteHintKeys, setIsKeyHintMode]);
+
+  // Arrow keys handler
+  const handleArrowKeys = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+
+      if (e.shiftKey) {
+        const panDistance = 50;
+        let newPanX = panX;
+        let newPanY = panY;
+
+        switch (e.key) {
+          case "ArrowUp":
+            newPanY += panDistance;
+            break;
+          case "ArrowDown":
+            newPanY -= panDistance;
+            break;
+          case "ArrowLeft":
+            newPanX += panDistance;
+            break;
+          case "ArrowRight":
+            newPanX -= panDistance;
+            break;
+        }
+
+        setPanX(newPanX);
+        setPanY(newPanY);
+      } else if (selectedNoteIds.size > 0) {
+        const moveDistance = 10;
+        let deltaX = 0;
+        let deltaY = 0;
+
+        switch (e.key) {
+          case "ArrowUp":
+            deltaY = -moveDistance;
+            break;
+          case "ArrowDown":
+            deltaY = moveDistance;
+            break;
+          case "ArrowLeft":
+            deltaX = -moveDistance;
+            break;
+          case "ArrowRight":
+            deltaX = moveDistance;
+            break;
+        }
+
+        selectedNoteIds.forEach((noteId) => {
+          const note = notes.find((n) => n.id === noteId);
+          if (note) {
+            updateNote(noteId, {
+              x: note.x + deltaX,
+              y: note.y + deltaY,
+            });
+          }
+        });
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const zoomFactor = e.key === "ArrowUp" ? 1.1 : 0.9;
+        const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
+
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+
+        const worldCenterX = (centerX - panX) / zoom;
+        const worldCenterY = (centerY - panY) / zoom;
+
+        const newPanX = centerX - worldCenterX * newZoom;
+        const newPanY = centerY - worldCenterY * newZoom;
+
+        setZoom(newZoom);
+        setPanX(newPanX);
+        setPanY(newPanY);
+      }
+    }
+  }, [isInputFocused, panX, panY, setPanX, setPanY, selectedNoteIds, notes, updateNote, zoom, setZoom]);
+
+  // Delete handler
+  const handleDeleteKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused() && 
+        (selectedNoteIds.size > 0 || selectedItemIds.size > 0 || selectedGroupIds.size > 0)) {
+      e.preventDefault();
+      deleteSelectedNotes();
+      deleteSelectedArrows();
+      deleteSelectedGroups();
+    }
+  }, [isInputFocused, selectedNoteIds, selectedItemIds, selectedGroupIds, deleteSelectedNotes, deleteSelectedArrows, deleteSelectedGroups]);
+
+  // Key hint mode processing handler
+  const handleKeyHintModeProcessing = useCallback((e: KeyboardEvent) => {
+    e.preventDefault();
+    const pressedKey = e.key.toLowerCase();
+
+    let targetNoteId = null;
+    for (const [noteId, hintKey] of noteHintKeys) {
+      for (let keyLength = 0; keyLength < 32; keyLength++) {
+        if (
+          hintKey ===
+          pressedKeyHistory.slice(0, keyLength).join("") + pressedKey
+        ) {
+          targetNoteId = noteId;
+          break;
+        }
+      }
+      if (targetNoteId) break;
+    }
+
+    if (targetNoteId) {
+      setSelectedNoteIds(new Set([targetNoteId]));
+      setIsKeyHintMode(false);
+      setNoteHintKeys(new Map());
+      setPressedKeyHistory([]);
+    } else {
+      setPressedKeyHistory((prev) => [...prev, pressedKey]);
+    }
+  }, [noteHintKeys, pressedKeyHistory, setSelectedNoteIds, setIsKeyHintMode, setNoteHintKeys, setPressedKeyHistory]);
+
+  // WASD keys handler
+  const handleWASDKeys = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused() && !isKeyHintMode) {
+      e.preventDefault();
+      
+      const panDistance = 50;
+      let newPanX = panX;
+      let newPanY = panY;
+
+      switch (e.key.toLowerCase()) {
+        case "w":
+          newPanY += panDistance;
+          break;
+        case "s":
+          newPanY -= panDistance;
+          break;
+        case "a":
+          newPanX += panDistance;
+          break;
+        case "d":
+          newPanX -= panDistance;
+          break;
+      }
+
+      setPanX(newPanX);
+      setPanY(newPanY);
+    }
+  }, [isInputFocused, isKeyHintMode, panX, panY, setPanX, setPanY]);
+
+  // Escape handler
+  const handleEscapeKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused()) {
+      e.preventDefault();
+      if (isKeyHintMode) {
+        setIsKeyHintMode(false);
+        setNoteHintKeys(new Map());
+      } else {
+        setSelectedNoteIds(new Set());
+        setSelectedItemIds(new Set());
+        setSelectedGroupIds(new Set());
+      }
+    }
+  }, [isInputFocused, isKeyHintMode, setIsKeyHintMode, setNoteHintKeys, setSelectedNoteIds, setSelectedItemIds, setSelectedGroupIds]);
+
+  // Enter handler
+  const handleEnterKey = useCallback((e: KeyboardEvent) => {
+    if (!isInputFocused() && selectedNoteIds.size === 1) {
+      e.preventDefault();
+      const noteId = Array.from(selectedNoteIds)[0];
+      setNoteToFocus(noteId);
+    }
+  }, [isInputFocused, selectedNoteIds, setNoteToFocus]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" && !e.shiftKey) {
+          handleUndoKey(e);
+        } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+          handleRedoKey(e);
+        } else if (e.key === "c") {
+          await handleCopyKey(e);
+        } else if (e.key === "v") {
+          await handlePasteKey(e);
+        } else if (e.key === "a") {
+          handleSelectAllKey(e);
+        } else if (e.key === "n") {
+          handleNewNoteKey(e);
+        } else if (e.key === "j") {
+          handleNewNoteWithFocusKey(e);
+        } else if (e.key === "k") {
+          handleAddArrowKey(e);
+        } else if (e.key === "g") {
+          handleCreateGroupKey(e);
+        } else if (e.key === "u") {
+          handleKeyHintModeKey(e);
+        }
+      } else if (
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight"
+      ) {
+        handleArrowKeys(e);
+      } else if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        (selectedNoteIds.size > 0 ||
+          selectedItemIds.size > 0 ||
+          selectedGroupIds.size > 0)
+      ) {
+        handleDeleteKey(e);
+      } else if (isKeyHintMode) {
+        handleKeyHintModeProcessing(e);
+      } else if ((e.key === "w" || e.key === "W" || e.key === "a" || e.key === "A" || 
+                 e.key === "s" || e.key === "S" || e.key === "d" || e.key === "D") && !e.shiftKey) {
+        handleWASDKeys(e);
+      } else if (e.key === "Escape") {
+        handleEscapeKey(e);
+      } else if (e.key === "Enter") {
+        handleEnterKey(e);
+      } else if (e.shiftKey) {
+        if (e.key === "G") {
+          handleCreateGroupKey(e);
+        } else if (e.key === "S") {
+          handleKeyHintModeKey(e);
+        } else if (e.key === "A") {
+          handleAddArrowKey(e);
+        } else if (e.key === "C") {
+          handleNewNoteWithFocusKey(e);
+        }
+      }
+    };
+
+    // handleKeyUpとhandleBlur削除（WASD用のpressedKeys管理が不要のため）
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    handleUndoKey,
+    handleRedoKey,
+    handleCopyKey,
+    handlePasteKey,
+    handleSelectAllKey,
+    handleNewNoteKey,
+    handleNewNoteWithFocusKey,
+    handleAddArrowKey,
+    handleCreateGroupKey,
+    handleKeyHintModeKey,
+    handleArrowKeys,
+    handleDeleteKey,
+    handleKeyHintModeProcessing,
+    handleWASDKeys,
+    handleEscapeKey,
+    handleEnterKey,
+    selectedNoteIds,
+    selectedItemIds,
+    selectedGroupIds,
+    isKeyHintMode,
+  ]);
+
+  // 単一の付箋の移動完了時のコールバック
+  const handleNoteDragEnd = useCallback(
+    (
+      noteId: string,
+      oldPosition: { x: number; y: number },
+      newPosition: { x: number; y: number }
+    ) => {
+      if (
+        !isUndoRedoOperation &&
+        user?.uid &&
+        (oldPosition.x !== newPosition.x || oldPosition.y !== newPosition.y)
+      ) {
+        addToHistory({
+          type: "MOVE_NOTES",
+          noteId: noteId,
+          userId: user.uid,
+          moves: [
+            {
+              noteId,
+              oldPosition,
+              newPosition,
+            },
+          ],
+        });
+      }
+    },
+    [isUndoRedoOperation, addToHistory, user?.uid]
+  );
+
 
   // Show loading state while resolving slug
   if (slugContext?.loading) {
