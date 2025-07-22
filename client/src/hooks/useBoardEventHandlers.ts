@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect } from "react";
 import { Note } from "../types";
+import { useInertialZoom } from "./useInertialZoom";
+import { usePerformanceDetection } from "./usePerformanceDetection";
 
 interface UseBoardEventHandlersProps {
   // 状態
@@ -79,6 +81,46 @@ export function useBoardEventHandlers({
   setNextZIndex,
   setIsMultiSelectMode,
 }: UseBoardEventHandlersProps) {
+
+  // パフォーマンス検出
+  const performance = usePerformanceDetection();
+  
+  // 性能に基づいて慣性ズーム設定を決定
+  const getInertialZoomConfig = () => {
+    if (performance.isHighPerformance) {
+      return {
+        enableInertia: true,
+        inertiaFactor: 0.92,
+        minZoomStep: 0.001,
+        frameSkip: 0, // フレーム間引きなし
+      };
+    } else if (performance.isMediumPerformance) {
+      return {
+        enableInertia: true,
+        inertiaFactor: 0.88,
+        minZoomStep: 0.005,
+        frameSkip: 1, // 1フレームおきに処理
+      };
+    } else {
+      return {
+        enableInertia: false, // 低性能環境では慣性無効
+        inertiaFactor: 0.8,
+        minZoomStep: 0.01,
+        frameSkip: 2, // 2フレームおきに処理
+      };
+    }
+  };
+
+  // 慣性ズーム
+  const { handleWheel: handleInertialWheel } = useInertialZoom({
+    zoom,
+    setZoom,
+    panX,
+    setPanX,
+    panY,
+    setPanY,
+    config: getInertialZoomConfig(),
+  });
 
   // ボードクリック
   const handleBoardClick = useCallback(() => {
@@ -243,25 +285,8 @@ export function useBoardEventHandlers({
     setInitialPan,
   ]);
 
-  // ホイールイベント
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.1), 5);
-
-    const deltaZoom = newZoom - zoom;
-    const newPanX = panX - (mouseX * deltaZoom) / zoom;
-    const newPanY = panY - (mouseY * deltaZoom) / zoom;
-
-    setZoom(newZoom);
-    setPanX(newPanX);
-    setPanY(newPanY);
-  }, [zoom, panX, panY, setZoom, setPanX, setPanY]);
+  // ホイールイベント（慣性ズーム対応）
+  const handleWheel = handleInertialWheel;
 
   // キーボードショートカット（Board.tsxの統合ハンドラーに移行したため無効化）
   // useEffect(() => {

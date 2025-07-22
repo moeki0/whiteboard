@@ -2097,6 +2097,7 @@ export function Board({ user }: BoardProps) {
     setPanY: panZoom.setPanY,
     zoom: panZoom.zoom,
     setZoom: panZoom.setZoom,
+    boardRef,
     onUndo: performUndo,
     onRedo: performRedo,
     onCopy: async () => {

@@ -17,6 +17,7 @@ interface KeyboardHandlerProps {
   setPanY: React.Dispatch<React.SetStateAction<number>>;
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
+  boardRef: React.RefObject<HTMLDivElement | null>; // ボード要素の参照を追加
   onUndo: () => void;
   onRedo: () => void;
   onCopy: () => void;
@@ -48,6 +49,7 @@ export function useKeyboardHandlers({
   setPanY,
   zoom,
   setZoom,
+  boardRef,
   onUndo,
   onRedo,
   onCopy,
@@ -170,37 +172,73 @@ export function useKeyboardHandlers({
       switch (e.key) {
         case "ArrowLeft":
           e.preventDefault();
-          setPanX((prev) => prev + panSpeed);
+          if (e.shiftKey) {
+            setPanX((prev) => prev + panSpeed);
+          }
           break;
         case "ArrowRight":
           e.preventDefault();
-          setPanX((prev) => prev - panSpeed);
+          if (e.shiftKey) {
+            setPanX((prev) => prev - panSpeed);
+          }
           break;
         case "ArrowUp":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            const zoomFactor = 1.1;
-            const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-            setZoom(newZoom);
-          } else {
-            e.preventDefault();
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Shift+上矢印：上パン
             setPanY((prev) => prev + panSpeed);
+          } else {
+            // 上矢印：ズームイン（ブラウザの画面中央を基準）
+            if (boardRef.current) {
+              const rect = boardRef.current.getBoundingClientRect();
+              // ボード要素内での画面中央座標を計算
+              const boardCenterX = rect.width / 2;
+              const boardCenterY = rect.height / 2;
+              
+              const zoomInFactor = 1.1;
+              const newZoomIn = Math.max(0.1, Math.min(5, zoom * zoomInFactor));
+              const deltaZoom = newZoomIn - zoom;
+              
+              // ボード中央を基準にパンを調整（ホイールズームと同じ計算）
+              const newPanX = panX - (boardCenterX * deltaZoom) / zoom;
+              const newPanY = panY - (boardCenterY * deltaZoom) / zoom;
+              
+              setZoom(newZoomIn);
+              setPanX(newPanX);
+              setPanY(newPanY);
+            }
           }
           break;
         case "ArrowDown":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            const zoomFactor = 0.9;
-            const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-            setZoom(newZoom);
-          } else {
-            e.preventDefault();
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Shift+下矢印：下パン
             setPanY((prev) => prev - panSpeed);
+          } else {
+            // 下矢印：ズームアウト（ブラウザの画面中央を基準）
+            if (boardRef.current) {
+              const rect = boardRef.current.getBoundingClientRect();
+              // ボード要素内での画面中央座標を計算
+              const boardCenterX = rect.width / 2;
+              const boardCenterY = rect.height / 2;
+              
+              const zoomOutFactor = 0.9;
+              const newZoomOut = Math.max(0.1, Math.min(5, zoom * zoomOutFactor));
+              const deltaZoomOut = newZoomOut - zoom;
+              
+              // ボード中央を基準にパンを調整（ホイールズームと同じ計算）
+              const newPanXDown = panX - (boardCenterX * deltaZoomOut) / zoom;
+              const newPanYDown = panY - (boardCenterY * deltaZoomOut) / zoom;
+              
+              setZoom(newZoomOut);
+              setPanX(newPanXDown);
+              setPanY(newPanYDown);
+            }
           }
           break;
       }
     },
-    [zoom, setPanX, setPanY, setZoom]
+    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef]
   );
 
   const handleDeleteKey = useCallback(
