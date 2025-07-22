@@ -1511,8 +1511,8 @@ const StickyNoteComponent = function StickyNote({
   };
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // 一括ドラッグ中はクリックを無視
-    if (isDraggingMultiple) {
+    // 一括ドラッグ中はクリックを無視（ただし、Shift+クリックは許可）
+    if (isDraggingMultiple && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -1550,6 +1550,13 @@ const StickyNoteComponent = function StickyNote({
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Shiftキーが押されている場合はダブルクリックを無視
+    if (e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
     if (isEditing) {
       return;
     }

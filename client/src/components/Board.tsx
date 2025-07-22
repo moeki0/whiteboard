@@ -704,8 +704,8 @@ export function Board({ user }: BoardProps) {
     isMultiSelect: boolean = false,
     isShiftSelect: boolean = false
   ) => {
-    // 一括ドラッグ直後や範囲選択直後はアクティベートを無視
-    if (dragAndDrop.isDraggingMultiple || dragAndDrop.justFinishedBulkDrag || selection.justFinishedSelection) {
+    // 一括ドラッグ直後や範囲選択直後はアクティベートを無視（ただし、Shift+クリックは許可）
+    if (!isShiftSelect && (dragAndDrop.isDraggingMultiple || dragAndDrop.justFinishedBulkDrag || selection.justFinishedSelection)) {
       return;
     }
 
