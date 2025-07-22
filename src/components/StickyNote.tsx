@@ -605,6 +605,7 @@ export function StickyNote({
     const now = Date.now();
     const timeDiff = now - lastUpdate;
 
+
     // 影の強度を時間経過に応じて調整（計算のみ、タイマー不要）
     let shadowIntensity = 1;
     if (timeDiff < 60 * 1000) {
@@ -730,6 +731,11 @@ export function StickyNote({
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     const oldContent = content;
+
+    // 実際にコンテンツが変更されていない場合は何もしない
+    if (newContent === oldContent) {
+      return;
+    }
 
     // [の補完機能
     const completion = handleBracketCompletion(oldContent, newContent);
@@ -886,13 +892,30 @@ export function StickyNote({
     setIsEditing(false);
     setShowToolbar(false);
     setShowBoardSuggestions(false);
-    onUpdate(note.id, {
+    
+    // コンテンツが実際に変更された場合のみupdatedAtを更新
+    const hasContentChanged = content !== note.content;
+    console.log('handleBlur - content comparison:', {
+      currentContent: content,
+      originalContent: note.content,
+      hasContentChanged,
+      willUpdateTimestamp: hasContentChanged
+    });
+    
+    const updateData: any = {
       content,
       width: dimensions.width,
       isEditing: false,
       editedBy: null,
-      updatedAt: Date.now(),
-    });
+    };
+    
+    if (hasContentChanged) {
+      updateData.updatedAt = Date.now();
+    }
+    
+    console.log('handleBlur - updateData:', updateData);
+    onUpdate(note.id, updateData);
+    
     // 編集完了時のコールバックを実行
     if (onBlur) {
       onBlur();
@@ -1508,6 +1531,17 @@ export function StickyNote({
     ) {
       setIsEditing(true);
       setShowToolbar(true);
+      // 編集状態を他のユーザーに同期（updatedAtは更新しない）
+      onUpdate(note.id, {
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+      // フォーカスを設定
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+      }, 0);
       return;
     }
 
@@ -1537,6 +1571,17 @@ export function StickyNote({
     if (canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
+      // 編集状態を他のユーザーに同期（updatedAtは更新しない）
+      onUpdate(note.id, {
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+      // フォーカスを設定
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+      }, 0);
     } else {
       // 編集権限がない場合は何もしない
       return;
@@ -1565,6 +1610,17 @@ export function StickyNote({
     if (canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
+      // 編集状態を他のユーザーに同期（updatedAtは更新しない）
+      onUpdate(note.id, {
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+      // フォーカスを設定
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+      }, 0);
     }
     setShowContextMenu(false);
   };
@@ -1598,12 +1654,24 @@ export function StickyNote({
     if (shouldFocus && !isEditing && canEditNote) {
       setIsEditing(true);
       setShowToolbar(true);
+      // 編集状態を他のユーザーに同期（updatedAtは更新しない）
+      onUpdate(note.id, {
+        isEditing: true,
+        editedBy: currentUserId,
+      });
+      // フォーカスを設定
+      setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+      }, 0);
       // フォーカス完了を通知
       if (onFocused) {
         onFocused();
       }
     }
-  }, [shouldFocus, isEditing, onFocused, canEditNote]);
+  }, [shouldFocus, isEditing, onFocused, canEditNote, onUpdate, note.id, currentUserId]);
+
 
   // コンテキストメニューを閉じる処理
   useEffect(() => {
@@ -2006,7 +2074,6 @@ export function StickyNote({
             onKeyDown={handleKeyDown}
             onSelect={handleSelectionChange}
             onWheel={(e) => e.stopPropagation()}
-            autoFocus
             minRows={1}
             maxRows={10}
           />

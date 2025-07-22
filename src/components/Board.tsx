@@ -624,15 +624,24 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     const note = notes.find((n) => n.id === noteId);
     if (note) {
-      // updatedAtを追加（contentが変更された場合、またはupdatedAtが明示的に指定された場合のみ）
-      const shouldUpdateTimestamp =
-        updates.content !== undefined || updates.updatedAt !== undefined;
+      // updatedAtを追加（updatedAtが明示的に指定された場合のみ）
+      const shouldUpdateTimestamp = updates.updatedAt !== undefined;
+
+      console.log('Board updateNote:', {
+        noteId,
+        updates: JSON.stringify(updates),
+        shouldUpdateTimestamp,
+        hasUpdatedAtInUpdates: 'updatedAt' in updates,
+        updatedAtValue: updates.updatedAt
+      });
 
       const updatedNote = {
         ...note,
         ...updates,
         ...(shouldUpdateTimestamp && { updatedAt: updates.updatedAt || Date.now() }),
       };
+      
+      console.log('Final updatedNote updatedAt:', updatedNote.updatedAt);
 
       // Add to history only for significant changes by the current user
       // Skip history tracking if this is an undo/redo operation for this specific note
