@@ -99,7 +99,7 @@ export interface Cursor {
 }
 
 export interface HistoryAction {
-  type: "CREATE_NOTES" | "DELETE_NOTES" | "MOVE_NOTES" | "EDIT_NOTE" | "CREATE_ARROW" | "DELETE_ARROW" | "CREATE_GROUP" | "DELETE_GROUP";
+  type: "CREATE_NOTES" | "DELETE_NOTES" | "MOVE_NOTES" | "EDIT_NOTE" | "CREATE_ARROW" | "DELETE_ARROW" | "CREATE_GROUP" | "DELETE_GROUP" | "UPDATE_GROUP";
   noteId?: string;
   userId: string;
   notes?: Note[];
@@ -115,6 +115,9 @@ export interface HistoryAction {
   arrows?: Arrow[]; // 付箋削除時に一緒に削除される矢印リスト
   // グループ関連
   group?: Group;
+  groupId?: string;
+  oldNoteIds?: string[];
+  newNoteIds?: string[];
 }
 
 export interface SlugHistory {

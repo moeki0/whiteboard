@@ -381,9 +381,12 @@ export function useKeyboardHandlers({
       // e.codeを使用してキーを判別
       switch (e.code) {
         case "KeyG":
-          // Shift+G: グループを作成
+          // Shift+G: グループを作成または既存グループに追加
           console.log("Shift+G detected");
-          if (selectedNoteIds.size >= 2) {
+          // 2つ以上の付箋が選択されている、または
+          // 1つのグループと1つ以上の付箋が選択されている場合
+          if (selectedNoteIds.size >= 2 || 
+              (selectedGroupIds.size === 1 && selectedNoteIds.size > 0)) {
             e.preventDefault();
             onCreateGroup();
             return true;

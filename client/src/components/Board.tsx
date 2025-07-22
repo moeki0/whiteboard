@@ -479,6 +479,39 @@ export function Board({ user }: BoardProps) {
     return arrowId;
   };
 
+  // グループに付箋を追加する関数
+  const addNotesToGroup = (groupId: string, noteIds: string[]): boolean => {
+    // 未ログインユーザーは操作できない
+    if (!user?.uid) return false;
+
+    // 権限チェック
+    if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
+      return false;
+    }
+    
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return false;
+    
+    // 既存のnoteIdsと新しいnoteIdsをマージ（重複を除く）
+    const updatedNoteIds = [...new Set([...group.noteIds, ...noteIds])];
+    
+    // 履歴に追加
+    if (!isUndoRedoOperation) {
+      addToHistory({
+        type: "UPDATE_GROUP",
+        userId: user.uid,
+        groupId: groupId,
+        oldNoteIds: group.noteIds,
+        newNoteIds: updatedNoteIds,
+      });
+    }
+    
+    const groupRef = ref(rtdb, `boards/${boardId}/groups/${groupId}`);
+    update(groupRef, { noteIds: updatedNoteIds });
+    
+    return true;
+  };
+
   // グループ作成関数
   const createGroup = (): string => {
     // 未ログインユーザーはグループを作成できない
@@ -488,9 +521,21 @@ export function Board({ user }: BoardProps) {
     if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
       return "";
     }
-
-    // 2つ以上の付箋が選択されている必要がある
+    
     const selectedNoteArray = Array.from(selection.selectedNoteIds);
+    const selectedGroupArray = Array.from(selection.selectedGroupIds);
+    
+    // グループが1つ選択されていて、付箋も選択されている場合は、既存グループに追加
+    if (selectedGroupArray.length === 1 && selectedNoteArray.length > 0) {
+      const targetGroupId = selectedGroupArray[0];
+      if (addNotesToGroup(targetGroupId, selectedNoteArray)) {
+        // 付箋の選択をクリア
+        selection.setSelectedNoteIds(new Set());
+        return targetGroupId;
+      }
+    }
+
+    // 2つ以上の付箋が選択されている必要がある（新規グループ作成時）
     if (selectedNoteArray.length < 2) {
       console.warn("グループを作成するには、2つ以上の付箋を選択してください。");
       return "";
@@ -579,6 +624,98 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     const note = notes.find((n) => n.id === noteId);
     if (note) {
+      // ドラッグ中の場合、グループからの距離をチェック
+      if (updates.isDragging && updates.x !== undefined && updates.y !== undefined) {
+        const DISTANCE_THRESHOLD_LEAVE = 200; // 200px以上離れたらグループから削除
+        const DISTANCE_THRESHOLD_JOIN = 100; // 100px以内に近づいたらグループに追加
+        const noteX = updates.x; // TypeScriptの型推論のために変数に格納
+        const noteY = updates.y;
+        
+        // この付箋が属しているグループを探す
+        const belongingGroups = groups.filter(group => group.noteIds.includes(noteId));
+        
+        // 既存グループからの離脱チェック
+        belongingGroups.forEach(group => {
+          const otherNotes = notes.filter(n => 
+            n.id !== noteId && group.noteIds.includes(n.id)
+          );
+          
+          if (otherNotes.length === 0) return; // 他に付箋がない場合はスキップ
+          
+          // 他のグループメンバーとの最小距離を計算
+          let minDistance = Infinity;
+          otherNotes.forEach(otherNote => {
+            const distance = Math.sqrt(
+              Math.pow(noteX - otherNote.x, 2) + 
+              Math.pow(noteY - otherNote.y, 2)
+            );
+            minDistance = Math.min(minDistance, distance);
+          });
+          
+          // 閾値を超えたらグループから削除
+          if (minDistance > DISTANCE_THRESHOLD_LEAVE) {
+            const updatedNoteIds = group.noteIds.filter(id => id !== noteId);
+            
+            // 履歴に追加
+            if (!isUndoRedoOperation) {
+              addToHistory({
+                type: "UPDATE_GROUP",
+                userId: user.uid,
+                groupId: group.id,
+                oldNoteIds: group.noteIds,
+                newNoteIds: updatedNoteIds,
+              });
+            }
+            
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${group.id}`);
+            
+            if (updatedNoteIds.length === 1) {
+              // グループに付箋が1つしか残らない場合はグループを削除
+              remove(groupRef);
+            } else {
+              update(groupRef, { noteIds: updatedNoteIds });
+            }
+          }
+        });
+        
+        // 所属していないグループへの参加チェック
+        const nonBelongingGroups = groups.filter(group => !group.noteIds.includes(noteId));
+        
+        nonBelongingGroups.forEach(group => {
+          const groupNotes = notes.filter(n => group.noteIds.includes(n.id));
+          
+          if (groupNotes.length === 0) return; // グループに付箋がない場合はスキップ
+          
+          // グループメンバーとの最小距離を計算
+          let minDistance = Infinity;
+          groupNotes.forEach(groupNote => {
+            const distance = Math.sqrt(
+              Math.pow(noteX - groupNote.x, 2) + 
+              Math.pow(noteY - groupNote.y, 2)
+            );
+            minDistance = Math.min(minDistance, distance);
+          });
+          
+          // 閾値以内に近づいたらグループに追加
+          if (minDistance < DISTANCE_THRESHOLD_JOIN) {
+            const updatedNoteIds = [...group.noteIds, noteId];
+            
+            // 履歴に追加
+            if (!isUndoRedoOperation) {
+              addToHistory({
+                type: "UPDATE_GROUP",
+                userId: user.uid,
+                groupId: group.id,
+                oldNoteIds: group.noteIds,
+                newNoteIds: updatedNoteIds,
+              });
+            }
+            
+            const groupRef = ref(rtdb, `boards/${boardId}/groups/${group.id}`);
+            update(groupRef, { noteIds: updatedNoteIds });
+          }
+        });
+      }
       // updatedAtを追加（updatedAtが明示的に指定された場合のみ）
       const shouldUpdateTimestamp = updates.updatedAt !== undefined;
 
@@ -638,7 +775,7 @@ export function Board({ user }: BoardProps) {
         }, 100);
       }
     }
-  }, [user?.uid, boardId, notes, isUndoRedoOperation, currentUndoRedoNoteId, addToHistory]);
+  }, [user?.uid, boardId, notes, groups, isUndoRedoOperation, currentUndoRedoNoteId, addToHistory]);
 
   const deleteNote = (noteId: string) => {
     // 未ログインユーザーは付箋を削除できない
@@ -768,6 +905,7 @@ export function Board({ user }: BoardProps) {
         newSelectedIds.add(groupId);
       }
       selection.setSelectedGroupIds(newSelectedIds);
+      // Shiftキーの場合は付箋の選択を維持
     } else {
       // 通常の単一選択
       selection.setSelectedGroupIds(new Set([groupId]));
@@ -2078,6 +2216,17 @@ export function Board({ user }: BoardProps) {
             set(groupRef, action.group);
           }
           break;
+
+        case "UPDATE_GROUP":
+          // グループの更新をundo（元のnoteIdsに戻す）
+          if (action.groupId && action.oldNoteIds) {
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.groupId}`
+            );
+            update(groupRef, { noteIds: action.oldNoteIds });
+          }
+          break;
       }
     } finally {
       setTimeout(() => {
@@ -2202,6 +2351,17 @@ export function Board({ user }: BoardProps) {
               `boards/${boardId}/groups/${action.group.id}`
             );
             remove(groupRef);
+          }
+          break;
+
+        case "UPDATE_GROUP":
+          // グループの更新をredo（新しいnoteIdsに更新）
+          if (action.groupId && action.newNoteIds) {
+            const groupRef = ref(
+              rtdb,
+              `boards/${boardId}/groups/${action.groupId}`
+            );
+            update(groupRef, { noteIds: action.newNoteIds });
           }
           break;
       }
@@ -2595,7 +2755,8 @@ export function Board({ user }: BoardProps) {
           ↗
         </button>
       )}
-      {selection.selectedNoteIds.size > 1 && user && (
+      {((selection.selectedNoteIds.size > 1) || 
+        (selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0)) && user && (
         <div
           style={{
             position: "fixed",
@@ -2609,7 +2770,11 @@ export function Board({ user }: BoardProps) {
           <button
             onClick={() => createGroup()}
             className="fab-create-group-btn"
-            title="Create group from selected notes"
+            title={
+              selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0
+                ? "Add selected notes to group"
+                : "Create group from selected notes"
+            }
             style={{
               display: "flex",
               alignItems: "center",
