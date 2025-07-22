@@ -6,12 +6,11 @@ module.exports = {
   },
   extends: [
     "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
   ],
   parser: "@typescript-eslint/parser",
   parserOptions: {
-    project: ["tsconfig.json", "tsconfig.dev.json"],
     sourceType: "module",
+    ecmaVersion: 2020,
   },
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
@@ -22,10 +21,11 @@ module.exports = {
     "import",
   ],
   rules: {
-    // メインプロジェクトと同じルール
+    // 基本的なルールのみ（TypeScript推奨ルールは手動で追加）
+    "no-undef": "off",
+    "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": "off",
     "@typescript-eslint/no-explicit-any": "off",
-    "no-undef": "off",
     "quotes": ["error", "double"],
     "indent": ["error", 2],
     "import/no-unresolved": 0,

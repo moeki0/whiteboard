@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "client/dist",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -35,7 +35,7 @@
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "../functions",
       "codebase": "default",
       "ignore": [
         "node_modules",
@@ -50,20 +50,20 @@
       "port": 5001
     },
     "database": {
-      "port": 8010
+      "port": 9010
     },
     "auth": {
-      "port": 8099
+      "port": 9199
     },
     "ui": {
       "enabled": true,
-      "port": 8004
+      "port": 4104
     },
     "hub": {
-      "port": 8404
+      "port": 4504
     },
     "logging": {
-      "port": 8502
+      "port": 4602
     }
   }
 }

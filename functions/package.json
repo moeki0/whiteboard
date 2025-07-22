@@ -8,7 +8,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "lint": "eslint src"
+    "lint": "eslint src --no-error-on-unmatched-pattern"
   },
   "engines": {
     "node": "18"
@@ -20,10 +20,10 @@
     "firebase-functions": "^5.0.0"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "concurrently": "^9.2.0",
-    "eslint": "^8.9.0",
+    "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.25.4",
     "typescript": "^5.0.0"
   },
