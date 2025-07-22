@@ -32,8 +32,9 @@ jobs:
           VITE_ALGOLIA_APP_ID: ${{ secrets.VITE_ALGOLIA_APP_ID }}
           VITE_ALGOLIA_SEARCH_API_KEY: ${{ secrets.VITE_ALGOLIA_SEARCH_API_KEY }}
         
-      - name: Build functions
-        run: npm run functions:build
+      # Functions build removed since deployment is disabled
+      # - name: Build functions
+      #   run: npm run functions:build
           
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -43,11 +44,6 @@ jobs:
           channelId: live
           projectId: maplap-41b08
           
-      - name: Setup Firebase Service Account
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAPLAP_41B08 }}' > /tmp/gcloud-service-key.json
-          
-      - name: Deploy Functions
-        run: npm run functions:deploy
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcloud-service-key.json
+      # Functions deployment disabled due to IAM permission issues
+      # - name: Deploy Functions
+      #   run: npm run functions:deploy
