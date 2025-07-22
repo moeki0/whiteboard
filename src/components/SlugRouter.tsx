@@ -12,6 +12,7 @@ import { useProject } from "../contexts/ProjectContext";
 import { auth, rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
 import { createBoardFromTitle } from "../utils/boardCreator";
+import { useTrackProjectAccess } from "../hooks/useRecentProject";
 
 interface SlugRouterProps {
   type: "project" | "board";
@@ -66,6 +67,12 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
         // Project not found, redirect to home
         navigate("/", { replace: true });
         return;
+      }
+
+      // Track project access when we have both projectId and slug
+      if (projectId && projectSlug) {
+        // Note: useTrackProjectAccess hook will be called in child component
+        // since hooks can't be called conditionally
       }
 
       let boardId: string | null = null;

@@ -3,7 +3,6 @@ import {
   useParams,
   useNavigate,
   Link,
-  useSearchParams,
 } from "react-router-dom";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
@@ -18,6 +17,7 @@ import { normalizeTitle } from "../utils/boardTitleIndex";
 import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
 import { isProjectMember } from "../utils/permissions";
+import { useTrackProjectAccess } from "../hooks/useRecentProject";
 // import { getTruePaginatedBoards } from "../utils/truePagination";
 // import { updateBoardListItem } from "../utils/boardDataStructure";
 import { ref, onValue, get, update } from "firebase/database";
@@ -39,11 +39,14 @@ export function InfiniteScrollBoardList({
   user,
   projectId: propProjectId,
 }: InfiniteScrollBoardListProps) {
-  const { projectId: paramProjectId } = useParams();
+  const { projectId: paramProjectId, projectSlug } = useParams();
   const { resolvedProjectId } = useSlug();
   const projectId = resolvedProjectId || propProjectId || paramProjectId;
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
+  
+  // Track project access
+  useTrackProjectAccess(projectId || null, projectSlug || null);
 
   // State
   const [boards, setBoards] = useState<Board[]>([]);

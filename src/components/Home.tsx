@@ -5,6 +5,8 @@ import { customAlphabet } from "nanoid";
 import { useProject } from "../contexts/ProjectContext";
 import { getBoardInfo } from "../utils/boardInfo";
 import { User, Project } from "../types";
+import { useRecentProject } from "../hooks/useRecentProject";
+import { useNavigate } from "react-router-dom";
 
 interface HomeProps {
   user: User;
@@ -14,6 +16,8 @@ export function Home({ user }: HomeProps) {
   const { currentProjectId, updateCurrentProject } = useProject();
   const [projects, setProjects] = useState<(Project & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const { getRecentProject } = useRecentProject();
+  const navigate = useNavigate();
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
@@ -55,6 +59,22 @@ export function Home({ user }: HomeProps) {
 
     updateCurrentProject(projectId, project.name);
   };
+
+  // Check for recent project and redirect
+  useEffect(() => {
+    const checkRecentProject = async () => {
+      const recent = getRecentProject();
+      if (recent.id && recent.slug) {
+        // Verify project still exists
+        const projectRef = ref(rtdb, `projects/${recent.id}`);
+        const projectSnapshot = await get(projectRef);
+        if (projectSnapshot.exists()) {
+          navigate(`/${recent.slug}`);
+        }
+      }
+    };
+    checkRecentProject();
+  }, [getRecentProject, navigate]);
 
   useEffect(() => {
     // Listen to user's projects
