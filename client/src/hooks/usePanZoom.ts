@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 export interface PanZoomState {
   panX: number;
@@ -19,6 +19,13 @@ export interface PanZoomState {
   >;
   lastWheelTime: number;
   setLastWheelTime: React.Dispatch<React.SetStateAction<number>>;
+  // タッチ関連の状態
+  isZooming: boolean;
+  setIsZooming: React.Dispatch<React.SetStateAction<boolean>>;
+  lastTouchDistance: number | null;
+  setLastTouchDistance: React.Dispatch<React.SetStateAction<number | null>>;
+  touchCenter: { x: number; y: number } | null;
+  setTouchCenter: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>;
 }
 
 export function usePanZoom(): PanZoomState {
@@ -34,6 +41,12 @@ export function usePanZoom(): PanZoomState {
     null
   );
   const [lastWheelTime, setLastWheelTime] = useState<number>(0);
+  
+  // タッチ関連の状態
+  const [isZooming, setIsZooming] = useState<boolean>(false);
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const [touchCenter, setTouchCenter] = useState<{ x: number; y: number } | null>(null);
+  
 
   return {
     panX,
@@ -50,5 +63,11 @@ export function usePanZoom(): PanZoomState {
     setInitialPan,
     lastWheelTime,
     setLastWheelTime,
+    isZooming,
+    setIsZooming,
+    lastTouchDistance,
+    setLastTouchDistance,
+    touchCenter,
+    setTouchCenter,
   };
 }

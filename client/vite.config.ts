@@ -7,6 +7,10 @@ export default defineConfig({
   define: {
     'import.meta.env': 'import.meta.env'
   },
+  server: {
+    host: '0.0.0.0',
+    port: 5173
+  },
   test: {
     globals: true,
     environment: 'jsdom',

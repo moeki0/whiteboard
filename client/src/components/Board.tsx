@@ -1433,6 +1433,123 @@ export function Board({ user }: BoardProps) {
   //   }
   // }, [panZoom.zoomVelocity, panZoom.zoomTarget]);
 
+  // タッチイベントハンドラ（スマホ対応）
+  const getTouchDistance = useCallback((touches: React.TouchList) => {
+    if (touches.length < 2) return null;
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    return Math.sqrt(
+      Math.pow(touch2.clientX - touch1.clientX, 2) + 
+      Math.pow(touch2.clientY - touch1.clientY, 2)
+    );
+  }, []);
+
+  const getTouchCenter = useCallback((touches: React.TouchList) => {
+    if (touches.length === 0) return null;
+    let x = 0;
+    let y = 0;
+    for (let i = 0; i < touches.length; i++) {
+      x += touches[i].clientX;
+      y += touches[i].clientY;
+    }
+    return {
+      x: x / touches.length,
+      y: y / touches.length,
+    };
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    
+    if (e.touches.length === 1) {
+      // 1本指: パン開始
+      if (selection.isSelecting || dragAndDrop.isDraggingMultiple) return;
+      
+      const touch = e.touches[0];
+      
+      panZoom.setIsPanning(true);
+      panZoom.setPanStartPos({ x: touch.clientX, y: touch.clientY });
+      panZoom.setInitialPan({ x: panZoom.panX, y: panZoom.panY });
+    } else if (e.touches.length === 2) {
+      // 2本指: ズーム開始
+      panZoom.setIsPanning(false);
+      panZoom.setIsZooming(true);
+      
+      const distance = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches);
+      
+      panZoom.setLastTouchDistance(distance);
+      panZoom.setTouchCenter(center);
+    }
+  }, [
+    selection.isSelecting,
+    dragAndDrop.isDraggingMultiple,
+    panZoom,
+    getTouchDistance,
+    getTouchCenter,
+  ]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    
+    if (e.touches.length === 1 && panZoom.isPanning) {
+      // 1本指: パン処理
+      if (!panZoom.panStartPos || !panZoom.initialPan) return;
+      
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - panZoom.panStartPos.x;
+      const deltaY = touch.clientY - panZoom.panStartPos.y;
+      
+      panZoom.setPanX(panZoom.initialPan.x + deltaX);
+      panZoom.setPanY(panZoom.initialPan.y + deltaY);
+    } else if (e.touches.length === 2 && panZoom.isZooming) {
+      // 2本指: ピンチズーム処理
+      if (!boardRef.current || !panZoom.lastTouchDistance || !panZoom.touchCenter) return;
+      
+      const distance = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches);
+      
+      if (distance && center) {
+        // ズーム倍率を計算
+        const zoomFactor = distance / panZoom.lastTouchDistance;
+        const newZoom = Math.max(0.1, Math.min(5, panZoom.zoom * zoomFactor));
+        
+        // ズーム中心の座標変換
+        const rect = boardRef.current.getBoundingClientRect();
+        const centerX = center.x - rect.left;
+        const centerY = center.y - rect.top;
+        
+        // ワールド座標でのズーム中心
+        const worldCenterX = (centerX - panZoom.panX) / panZoom.zoom;
+        const worldCenterY = (centerY - panZoom.panY) / panZoom.zoom;
+        
+        // 新しいパン位置を計算
+        const newPanX = centerX - worldCenterX * newZoom;
+        const newPanY = centerY - worldCenterY * newZoom;
+        
+        panZoom.setZoom(newZoom);
+        panZoom.setPanX(newPanX);
+        panZoom.setPanY(newPanY);
+        panZoom.setLastTouchDistance(distance);
+        panZoom.setTouchCenter(center);
+      }
+    }
+  }, [
+    panZoom,
+    boardRef,
+    getTouchDistance,
+    getTouchCenter,
+  ]);
+
+  const handleTouchEnd = useCallback(() => {
+    panZoom.setIsPanning(false);
+    panZoom.setIsZooming(false);
+    panZoom.setPanStartPos(null);
+    panZoom.setInitialPan(null);
+    panZoom.setLastTouchDistance(null);
+    panZoom.setTouchCenter(null);
+  }, [panZoom]);
+
   // マウス位置追跡（常時）
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
@@ -1444,6 +1561,7 @@ export function Board({ user }: BoardProps) {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
     };
   }, []);
+
 
   // マウスイベントのリスナー設定
   useEffect(() => {
@@ -2332,6 +2450,9 @@ export function Board({ user }: BoardProps) {
         onMouseDown={handleBoardMouseDown}
         onDoubleClick={handleBoardDoubleClick}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           overflow: "hidden",
           backgroundImage: `radial-gradient(circle, #aaa ${panZoom.zoom}px, transparent 1px)`,
@@ -2347,7 +2468,7 @@ export function Board({ user }: BoardProps) {
           ref={notesContainerRef}
           className="notes-container"
           style={{
-            transform: `translate(${panZoom.panX}px, ${panZoom.panY}px) scale(${panZoom.zoom})`,
+            transform: `translate3d(${panZoom.panX}px, ${panZoom.panY}px, 0) scale(${panZoom.zoom})`,
             transformOrigin: "0 0",
           }}
         >
