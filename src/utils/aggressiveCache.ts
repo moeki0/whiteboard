@@ -31,7 +31,7 @@ class AggressiveCache {
     // アクセス回数を増やして人気度を記録
     entry.accessCount++;
     
-    return entry.data;
+    return entry.data as T;
   }
   
   /**

@@ -127,7 +127,7 @@ export async function generateLightweightStructure(projectId: string): Promise<v
         id: boardId,
         name: board.name,
         title: board.title || board.name,
-        updatedAt: board.updatedAt || board.createdAt,
+        updatedAt: board.updatedAt || board.createdAt || Date.now(),
         isPinned: board.isPinned || false
       };
     });

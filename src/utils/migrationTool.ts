@@ -8,7 +8,7 @@ import "./migrationCleanup";
  */
 
 // グローバルに公開してコンソールから実行可能にする
-((window as unknown) as { migrationTool: { migrateProject: (projectId: string) => Promise<void> } }).migrationTool = {
+((window as unknown) as { migrationTool: { migrateProject: (projectId: string) => Promise<void>, migrateAll: () => Promise<void>, help: () => void } }).migrationTool = {
   /**
    * 特定のプロジェクトをマイグレーション
    * @param projectId プロジェクトID

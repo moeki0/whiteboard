@@ -150,7 +150,7 @@ export function Board({ user }: BoardProps) {
         const groupsData = snapshot.val();
         const groupsList = Object.entries(groupsData).map(
           ([id, group]: [string, unknown]) => ({
-            ...group,
+            ...(group as object),
             id,
           })
         ) as GroupType[];

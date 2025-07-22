@@ -40,7 +40,10 @@ export async function getPaginatedBoards(
     const cachedData = boardListCache.get(cacheKey);
     if (cachedData) {
       console.log(`📋 Cache hit for ${projectId} page ${page}`);
-      return { ...cachedData, usedNewStructure: cachedData.usedNewStructure ?? false };
+      return { 
+        ...(cachedData as { boards: any[], totalCount: number, allBoardIds: string[] }), 
+        usedNewStructure: (cachedData as any)?.usedNewStructure ?? false 
+      };
     }
     
     // 移行管理に基づいて使用する構造を決定

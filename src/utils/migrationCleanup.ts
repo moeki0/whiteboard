@@ -91,7 +91,12 @@ export async function cleanupAllErrorProjects(): Promise<void> {
 
 // グローバルに公開（開発環境のみ）
 if (import.meta.env.DEV) {
-  ((window as unknown) as { migrationCleanup: { cleanupErrorProjects: typeof cleanupErrorProjects } }).migrationCleanup = {
+  ((window as unknown) as { migrationCleanup: { 
+    cleanupAllErrorProjects: typeof cleanupAllErrorProjects, 
+    cleanupFailedMigration: typeof cleanupFailedMigration,
+    safeMigrateProject: typeof safeMigrateProject,
+    help: () => void
+  } }).migrationCleanup = {
     cleanupFailedMigration,
     safeMigrateProject,
     cleanupAllErrorProjects,

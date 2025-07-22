@@ -172,7 +172,7 @@ function App() {
               path="/project/:projectId/search"
               element={
                 <ProtectedRoute>
-                  <SearchBoards user={user!} />
+                  <SearchBoards />
                 </ProtectedRoute>
               }
             />
@@ -254,7 +254,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SlugRouter type="project">
-                    <SearchBoards user={user!} />
+                    <SearchBoards />
                   </SlugRouter>
                 </ProtectedRoute>
               }
