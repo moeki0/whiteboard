@@ -173,6 +173,10 @@ export function handleBracketCompletion(
   oldContent: string,
   newContent: string
 ): { shouldComplete: boolean; completedContent: string; cursorPosition: number } {
+  // null/undefinedチェック
+  if (!oldContent) oldContent = '';
+  if (!newContent) newContent = '';
+  
   // 入力が増えていて、最後に[が入力された場合
   if (newContent.length > oldContent.length && newContent.endsWith('[')) {
     const completedContent = newContent + ']';

@@ -605,7 +605,6 @@ export function StickyNote({
     const now = Date.now();
     const timeDiff = now - lastUpdate;
 
-
     // 影の強度を時間経過に応じて調整（計算のみ、タイマー不要）
     let shadowIntensity = 1;
     if (timeDiff < 60 * 1000) {
@@ -892,30 +891,24 @@ export function StickyNote({
     setIsEditing(false);
     setShowToolbar(false);
     setShowBoardSuggestions(false);
-    
+
     // コンテンツが実際に変更された場合のみupdatedAtを更新
     const hasContentChanged = content !== note.content;
-    console.log('handleBlur - content comparison:', {
-      currentContent: content,
-      originalContent: note.content,
-      hasContentChanged,
-      willUpdateTimestamp: hasContentChanged
-    });
-    
+
     const updateData: any = {
       content,
       width: dimensions.width,
       isEditing: false,
       editedBy: null,
     };
-    
+
     if (hasContentChanged) {
       updateData.updatedAt = Date.now();
     }
-    
-    console.log('handleBlur - updateData:', updateData);
+
+    console.log("handleBlur - updateData:", updateData);
     onUpdate(note.id, updateData);
-    
+
     // 編集完了時のコールバックを実行
     if (onBlur) {
       onBlur();
@@ -1230,6 +1223,11 @@ export function StickyNote({
 
   // コンテンツを解析して画像、リンク、テキストを分離
   const parseContent = (text: string): ParsedContent[] => {
+    // textがundefinedまたはnullの場合は空の配列を返す
+    if (!text) {
+      return [];
+    }
+
     // 末尾のアスタリスクを除去（縮小記法なので表示しない）
     const contentWithoutTrailingAsterisks = text.replace(/\*+$/, "");
 
@@ -1672,8 +1670,15 @@ export function StickyNote({
         onFocused();
       }
     }
-  }, [shouldFocus, isEditing, onFocused, canEditNote, onUpdate, note.id, currentUserId]);
-
+  }, [
+    shouldFocus,
+    isEditing,
+    onFocused,
+    canEditNote,
+    onUpdate,
+    note.id,
+    currentUserId,
+  ]);
 
   // コンテキストメニューを閉じる処理
   useEffect(() => {
@@ -1895,6 +1900,10 @@ export function StickyNote({
   };
 
   const extractLinks = (text: string): string[] => {
+    if (!text) {
+      return [];
+    }
+
     const links: string[] = [];
 
     const urlRegex = /(https?:\/\/[^\s\]]+)/g;
@@ -1912,10 +1921,12 @@ export function StickyNote({
     return [...new Set(links)];
   };
 
-  const parsedContent = useMemo(() => parseContent(content), [content]);
+  const parsedContent = useMemo(() => parseContent(content || ""), [content]);
 
   // 末尾のアスタリスクで縮小サイズを計算
   const calculateShrinkSize = (content: string) => {
+    if (!content) return null;
+
     const trailingAsteriskMatch = content.match(/\*+$/);
     if (!trailingAsteriskMatch) {
       return null;
@@ -1927,7 +1938,7 @@ export function StickyNote({
     return shrinkSize;
   };
 
-  const shrinkSize = calculateShrinkSize(content);
+  const shrinkSize = calculateShrinkSize(content || "");
   const actualFontSize = shrinkSize || getTextSizeStyle(textSize);
 
   // フォントサイズに応じてline-heightを調整
@@ -2443,8 +2454,8 @@ export function StickyNote({
       {/* ポータルでリンクボタンを表示 */}
       {isHovered &&
         !isEditing &&
-        (extractLinks(content).length > 0 ||
-          extractBoardLinks(content, boardLinks).length > 0) &&
+        (extractLinks(content || "").length > 0 ||
+          extractBoardLinks(content || "", boardLinks).length > 0) &&
         createPortal(
           <div
             style={{
@@ -2490,7 +2501,7 @@ export function StickyNote({
                 </button>
               ))}
             {/* ボードリンク */}
-            {extractBoardLinks(content, boardLinks)
+            {extractBoardLinks(content || "", boardLinks)
               .slice(0, 2)
               .map((boardLink, index) => {
                 return (

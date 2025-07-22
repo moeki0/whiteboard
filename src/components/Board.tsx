@@ -638,12 +638,18 @@ export function Board({ user }: BoardProps) {
 
     const note = notes.find((n) => n.id === noteId);
 
+    // 削除される付箋に接続された矢印を取得
+    const relatedArrows = arrows.filter(arrow => 
+      arrow.startNoteId === noteId || arrow.endNoteId === noteId
+    );
+
     // Add to history only if it's user's own note and not undo/redo operation
     if (!isUndoRedoOperation && note && note.userId === user.uid) {
       addToHistory({
         type: "DELETE_NOTES",
         noteId: noteId,
         notes: [note],
+        arrows: relatedArrows, // 関連矢印も一緒に記録
         userId: user.uid,
       });
     }
@@ -651,11 +657,10 @@ export function Board({ user }: BoardProps) {
     const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
     remove(noteRef);
 
-    // 削除された付箋に接続された矢印を削除
-    arrows.forEach((arrow) => {
-      if (arrow.startNoteId === noteId || arrow.endNoteId === noteId) {
-        deleteArrow(arrow.id);
-      }
+    // 削除された付箋に接続された矢印を削除（history記録は無効化）
+    relatedArrows.forEach((arrow) => {
+      const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrow.id}`);
+      remove(arrowRef);
     });
 
     // ボードの更新時刻を更新
@@ -1599,11 +1604,18 @@ export function Board({ user }: BoardProps) {
       }
     });
 
+    // 削除される付箋に関連する矢印を取得
+    const noteIdsToDelete = new Set(notesToDelete.map(note => note.id));
+    const relatedArrows = arrows.filter(arrow => 
+      noteIdsToDelete.has(arrow.startNoteId) || noteIdsToDelete.has(arrow.endNoteId)
+    );
+
     if (notesToDelete.length > 0 && !isUndoRedoOperation) {
       addToHistory({
         type: "DELETE_NOTES",
         noteId: notesToDelete[0].id, // 代表としてひとつめのIDを使用
         notes: notesToDelete,
+        arrows: relatedArrows, // 関連矢印も記録
         userId: user.uid,
       });
     }
@@ -1612,6 +1624,12 @@ export function Board({ user }: BoardProps) {
     notesToDelete.forEach((note) => {
       const noteRef = ref(rtdb, `boards/${boardId}/notes/${note.id}`);
       remove(noteRef);
+    });
+
+    // 関連矢印も削除
+    relatedArrows.forEach((arrow) => {
+      const arrowRef = ref(rtdb, `boards/${boardId}/arrows/${arrow.id}`);
+      remove(arrowRef);
     });
 
     selection.setSelectedNoteIds(new Set());
@@ -1823,6 +1841,16 @@ export function Board({ user }: BoardProps) {
               set(deleteNoteRef, note);
             });
           }
+          // 関連矢印も復元
+          if (action.arrows) {
+            action.arrows.forEach((arrow) => {
+              const deleteArrowRef = ref(
+                rtdb,
+                `boards/${boardId}/arrows/${arrow.id}`
+              );
+              set(deleteArrowRef, arrow);
+            });
+          }
           break;
 
         case "MOVE_NOTES":
@@ -1940,6 +1968,16 @@ export function Board({ user }: BoardProps) {
                 `boards/${boardId}/notes/${note.id}`
               );
               remove(deleteNoteRef);
+            });
+          }
+          // 関連矢印も削除
+          if (action.arrows) {
+            action.arrows.forEach((arrow) => {
+              const deleteArrowRef = ref(
+                rtdb,
+                `boards/${boardId}/arrows/${arrow.id}`
+              );
+              remove(deleteArrowRef);
             });
           }
           break;
@@ -2068,12 +2106,33 @@ export function Board({ user }: BoardProps) {
       createGroup();
     },
     onDelete: () => {
-      // 選択されたアイテムを削除
-      const selectedIds = Array.from(selection.selectedNoteIds);
-      selectedIds.forEach(noteId => {
+      console.log('onDelete called');
+      console.log('selectedNoteIds:', selection.selectedNoteIds);
+      console.log('selectedItemIds:', selection.selectedItemIds);
+      console.log('selectedGroupIds:', selection.selectedGroupIds);
+      
+      // 選択された付箋を削除
+      const selectedNoteIds = Array.from(selection.selectedNoteIds);
+      selectedNoteIds.forEach(noteId => {
         deleteNote(noteId);
       });
+      
+      // 選択された矢印を削除
+      const selectedArrowIds = Array.from(selection.selectedItemIds);
+      selectedArrowIds.forEach(arrowId => {
+        deleteArrow(arrowId);
+      });
+      
+      // 選択されたグループを削除
+      const selectedGroupIds = Array.from(selection.selectedGroupIds);
+      selectedGroupIds.forEach(groupId => {
+        deleteGroup(groupId);
+      });
+      
+      // 選択状態をクリア
       selection.setSelectedNoteIds(new Set());
+      selection.setSelectedItemIds(new Set());
+      selection.setSelectedGroupIds(new Set());
     },
     generateHintKeys,
     setNoteToFocus,

@@ -112,6 +112,7 @@ export interface HistoryAction {
   }>;
   // 矢印関連
   arrow?: Arrow;
+  arrows?: Arrow[]; // 付箋削除時に一緒に削除される矢印リスト
   // グループ関連
   group?: Group;
 }
