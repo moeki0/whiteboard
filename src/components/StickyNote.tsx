@@ -113,6 +113,8 @@ interface StickyNoteProps {
   getUserColor: (userId: string) => string;
   isDraggingMultiple?: boolean;
   zoom?: number;
+  panX?: number;
+  panY?: number;
   onDragEnd?: (
     noteId: string,
     oldPosition: { x: number; y: number },
@@ -141,6 +143,8 @@ export function StickyNote({
   getUserColor,
   isDraggingMultiple = false,
   zoom = 1,
+  panX = 0,
+  panY = 0,
   onDragEnd,
   hasMultipleSelected = false,
   shouldFocus = false,
@@ -298,7 +302,7 @@ export function StickyNote({
     };
 
     updateNotePosition();
-  }, [position]); // 位置変更時のみ更新
+  }, [position, isHovered, showToolbar, panX, panY, zoom]); // 位置変更時、ホバー時、ツールバー表示時、パン・ズーム変更時に更新
 
   // リサイズとスクロールの監視を別のuseEffectに分離
   useEffect(() => {
@@ -1542,9 +1546,10 @@ export function StickyNote({
   const handleContextMenuAddNote = () => {
     if (onAddNote) {
       // ダブルクリックした位置に新しい付箋を追加
-      // contextMenuPositionは既に付箋内の相対位置として保存されている
-      const relativeX = contextMenuPosition.x / (zoom || 1);
-      const relativeY = contextMenuPosition.y / (zoom || 1);
+      // contextMenuPositionは付箋内の相対位置（ピクセル座標）
+      // ワールド座標に変換するためにzoomで割る
+      const relativeX = contextMenuPosition.x / zoom;
+      const relativeY = contextMenuPosition.y / zoom;
       // 付箋の座標に相対位置を加算
       const x = note.x + relativeX;
       const y = note.y + relativeY;
