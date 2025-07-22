@@ -237,42 +237,41 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     }
     
     await update(ref(rtdb), updates);
+
+    // 即座にナビゲーション（最も重要なUX）
+    navigate(`/${boardId}`);
     
-    // 新しいデータ構造にも追加
-    try {
-      await updateBoardListItem(projectId, boardId, board);
-    } catch (error) {
-      console.warn('Failed to update new board structure:', error);
-    }
-    
-    // 作成したボードをキャッシュに追加
-    addToRecentlyCreated(projectId, uniqueName, boardId);
-
-    // Sync to Algolia asynchronously (non-blocking)
-    syncBoardToAlgoliaAsync(boardId, board);
-
-    // Navigate to the new board using slug-based URL
-    try {
-      const projectRef = ref(rtdb, `projects/${projectId}`);
-      const projectSnapshot = await get(projectRef);
-
-      if (projectSnapshot.exists()) {
-        const projectData = projectSnapshot.val();
-        if (projectData.slug) {
-          navigate(`/${projectData.slug}/${encodeURIComponent(uniqueName)}`);
-        } else {
-          // Fallback to legacy route
-          navigate(`/${boardId}`);
+    // 以下の処理を非同期で実行（ユーザーは待たなくて良い）
+    Promise.all([
+      // 新しいデータ構造への追加
+      updateBoardListItem(projectId, boardId, board).catch(error => 
+        console.warn('Failed to update new board structure:', error)
+      ),
+      // Algolia同期
+      syncBoardToAlgoliaAsync(boardId, board),
+      // プロジェクトスラッグ取得とURL更新
+      (async () => {
+        try {
+          const projectRef = ref(rtdb, `projects/${projectId}`);
+          const projectSnapshot = await get(projectRef);
+          
+          if (projectSnapshot.exists()) {
+            const projectData = projectSnapshot.val();
+            if (projectData.slug) {
+              // URLを更新（ページは既に遷移済み）
+              window.history.replaceState(null, '', `/${projectData.slug}/${encodeURIComponent(uniqueName)}`);
+            }
+          }
+        } catch (error) {
+          console.warn("Error updating URL with project slug:", error);
         }
-      } else {
-        // Fallback to legacy route
-        navigate(`/${boardId}`);
-      }
-    } catch (error) {
-      console.error("Error navigating to board:", error);
-      // Fallback to legacy route
-      navigate(`/${boardId}`);
-    }
+      })()
+    ]).catch(error => {
+      console.warn("Some post-creation operations failed:", error);
+    });
+
+    // 作成したボードをキャッシュに追加（同期的に実行して即座にUIに反映）
+    addToRecentlyCreated(projectId, uniqueName, boardId);
   };
 
   // Component to render active members for a board

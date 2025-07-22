@@ -7,6 +7,8 @@ import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { checkBoardAccess } from "../utils/permissions";
 import { recordBoardNameChange } from "../utils/historyManager";
+import { generateNewBoardName } from "../utils/boardNaming";
+import { createBoardFromTitle } from "../utils/boardCreator";
 
 interface UseBoardReturn {
   boardId: string | undefined;
@@ -33,7 +35,7 @@ export function useBoard(
   const { boardId: urlBoardId } = useParams<{ boardId: string }>();
   const { resolvedBoardId } = useSlug();
   const boardId = resolvedBoardId || urlBoardId;
-  const { updateCurrentProject } = useProject();
+  const { updateCurrentProject, currentProjectId } = useProject();
   const [notes, setNotes] = useState<Note[]>([]);
   const [arrows, setArrows] = useState<Arrow[]>([]);
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
@@ -116,6 +118,63 @@ export function useBoard(
     setIsEditingTitle(false);
   };
 
+  // Handle deleted board by creating a new one
+  const handleDeletedBoard = async () => {
+    if (!user?.uid) {
+      alert("This board has been deleted.");
+      navigate("/");
+      return;
+    }
+
+    try {
+      // Try to get project context from current project state
+      let targetProjectId = currentProjectId;
+
+      // If no current project, try to find a project where user is a member
+      if (!targetProjectId) {
+        const projectsRef = ref(rtdb, 'projects');
+        const projectsSnapshot = await get(projectsRef);
+        if (projectsSnapshot.exists()) {
+          const projects = projectsSnapshot.val();
+          // Find first project where user is a member
+          for (const [pid, project] of Object.entries(projects)) {
+            const projectData = project as Project;
+            if (projectData.members && projectData.members[user.uid]) {
+              targetProjectId = pid;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!targetProjectId) {
+        alert("This board has been deleted and no accessible project found.");
+        navigate("/");
+        return;
+      }
+
+      // Generate a new unique board name
+      const newBoardName = await generateNewBoardName(targetProjectId);
+      
+      // Create a new board
+      const newBoardId = await createBoardFromTitle(
+        targetProjectId,
+        newBoardName,
+        user.uid
+      );
+
+      console.log(`Created new board "${newBoardName}" (${newBoardId}) to replace deleted board`);
+      
+      // Navigate to the new board
+      navigate(`/board/${newBoardId}`);
+      
+    } catch (error) {
+      console.error("Error creating replacement board:", error);
+      alert("This board has been deleted and could not create a replacement.");
+      navigate("/");
+    }
+  };
+
   useEffect(() => {
     if (!boardId) return;
 
@@ -147,6 +206,9 @@ export function useBoard(
         if (!hasAccess) return;
 
         // Access check complete, allow rendering
+        setIsCheckingAccess(false);
+      } else {
+        // Board doesn't exist, stop checking access
         setIsCheckingAccess(false);
       }
     };
@@ -180,9 +242,9 @@ export function useBoard(
           await checkAccess(boardData);
         }
       } else {
-        // Board was deleted
-        alert("This board has been deleted.");
-        navigate("/");
+        // Board doesn't exist - this is normal for non-existent board IDs
+        // Let the component handle this case appropriately
+        console.log(`Board ${boardId} does not exist`);
       }
     });
 

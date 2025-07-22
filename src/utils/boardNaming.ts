@@ -42,6 +42,8 @@ export const checkBoardNameDuplicate = async (
   }
 
   try {
+    // 正規化されたタイトルインデックスを使用するが、
+    // 実際のボード名で最終確認を行う
     const existingBoardId = await getBoardIdByTitle(projectId, boardName);
 
     if (!existingBoardId) {
@@ -50,6 +52,20 @@ export const checkBoardNameDuplicate = async (
 
     // 除外するボードIDと一致する場合は重複とみなさない
     if (excludeBoardId && existingBoardId === excludeBoardId) {
+      return false;
+    }
+
+    // インデックスで見つかった場合でも、実際のボード名を確認
+    // （正規化により異なるタイトルが同じインデックスになっている可能性があるため）
+    const boardRef = ref(rtdb, `boards/${existingBoardId}`);
+    const boardSnapshot = await get(boardRef);
+    
+    if (boardSnapshot.exists()) {
+      const actualBoardName = boardSnapshot.val()?.name;
+      if (actualBoardName === boardName) {
+        return true;
+      }
+      // 実際のボード名が異なる場合は重複ではない
       return false;
     }
 

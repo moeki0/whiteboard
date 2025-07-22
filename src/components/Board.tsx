@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
 import { rtdb } from "../config/firebase";
-import { ref, onValue, set, remove, get } from "firebase/database";
+import { ref, onValue, set, remove, get, update } from "firebase/database";
 import { LuPlus } from "react-icons/lu";
 import { MdContentCopy } from "react-icons/md";
 import { StickyNote } from "./StickyNote";
@@ -21,7 +21,7 @@ import {
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { User, Note, Arrow as ArrowType, Group as GroupType } from "../types";
-import { generateNewBoardName } from "../utils/boardNaming";
+import { generateNewBoardName, generateUniqueBoardName } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
 
@@ -32,6 +32,10 @@ interface BoardProps {
 export function Board({ user }: BoardProps) {
   const navigate = useNavigate();
   const slugContext = useSlugContext();
+  const { boardName: urlBoardName, boardId: legacyBoardId } = useParams<{ 
+    boardName?: string; 
+    boardId?: string; 
+  }>();
   // activeNoteIdを削除 - selectedNoteIdsで管理
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(
     new Set()
@@ -175,6 +179,18 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // Auto-create missing board
+  const { isCreatingMissingBoard } = useAutoCreateBoard(
+    boardId,
+    board,
+    isCheckingAccess,
+    user,
+    projectId,
+    urlBoardName,
+    legacyBoardId,
+    navigate
+  );
 
   // グループを読み込む
   useEffect(() => {
@@ -2641,6 +2657,17 @@ export function Board({ user }: BoardProps) {
     );
   }
 
+
+  // Show loading while creating missing board
+  if (boardId && !board && !isCheckingAccess && isCreatingMissingBoard) {
+    return (
+      <div style={{ paddingTop: "60px", padding: "20px", textAlign: "center" }}>
+        <div className="loading"></div>
+        <p>Creating new board...</p>
+      </div>
+    );
+  }
+
   // ズームレベルに応じたドットの間隔を計算
   const getDotSpacing = (zoomLevel: number) => {
     if (zoomLevel <= 0.3) return 80; // 大きくズームアウトした時は間隔を広く
@@ -2906,4 +2933,97 @@ export function Board({ user }: BoardProps) {
       )}
     </div>
   );
+}
+
+// Auto-create missing board hook (moved outside component to avoid hooks order issues)
+function useAutoCreateBoard(
+  boardId: string | undefined,
+  board: any,
+  isCheckingAccess: boolean,
+  user: any,
+  projectId: string | null,
+  urlBoardName: string | undefined,
+  legacyBoardId: string | undefined,
+  navigate: any
+) {
+  const [isCreatingMissingBoard, setIsCreatingMissingBoard] = useState<boolean>(false);
+
+  useEffect(() => {
+    const shouldCreateBoard = boardId && !board && !isCheckingAccess && user?.uid && !isCreatingMissingBoard;
+    
+    if (!shouldCreateBoard) return;
+    
+    setIsCreatingMissingBoard(true);
+    
+    const createNewBoard = async () => {
+      try {
+        // Get current project or find a default project
+        const projectsRef = ref(rtdb, 'projects');
+        const projectsSnapshot = await get(projectsRef);
+        let targetProjectId = projectId;
+
+        if (!targetProjectId && projectsSnapshot.exists()) {
+          const projects = projectsSnapshot.val();
+          // Find first project where user is a member
+          for (const [pid, project] of Object.entries(projects)) {
+            const projectData = project as any;
+            if (projectData.members && projectData.members[user.uid]) {
+              targetProjectId = pid;
+              break;
+            }
+          }
+        }
+
+        if (!targetProjectId) {
+          console.error("No accessible project found for board creation");
+          navigate("/");
+          return;
+        }
+
+        // Create a new board with the requested ID, using URL board name if available
+        let boardName = "Untitled";
+        
+        if (urlBoardName) {
+          // Slug-based route: use the board name from URL
+          boardName = decodeURIComponent(urlBoardName);
+          console.log(`Slug route - URL board name: "${urlBoardName}" -> decoded: "${boardName}"`);
+        } else if (legacyBoardId) {
+          // Legacy route: try to use a meaningful name based on board ID or use default
+          boardName = "Board";
+          console.log(`Legacy route - using default name for board ID: "${legacyBoardId}"`);
+        } else {
+          console.log("No URL board name found, using default 'Untitled'");
+        }
+        
+        // Ensure the name is unique in the project
+        const finalBoardName = await generateUniqueBoardName(targetProjectId, boardName);
+        console.log(`Final board name: "${finalBoardName}"`);
+        boardName = finalBoardName;
+        const boardData = {
+          id: boardId,
+          name: boardName,
+          createdBy: user.uid,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          projectId: targetProjectId,
+        };
+
+        const updates: any = {};
+        updates[`boards/${boardId}`] = boardData;
+        updates[`projectBoards/${targetProjectId}/${boardId}`] = boardData;
+
+        await update(ref(rtdb), updates);
+        
+        console.log(`Created new board "${boardName}" with ID ${boardId}`);
+        // The board will be automatically loaded by the existing listeners
+      } catch (error) {
+        console.error("Error creating new board:", error);
+        navigate("/");
+      }
+    };
+
+    createNewBoard();
+  }, [boardId, board, isCheckingAccess, user?.uid, projectId, isCreatingMissingBoard, navigate, urlBoardName, legacyBoardId]);
+
+  return { isCreatingMissingBoard };
 }

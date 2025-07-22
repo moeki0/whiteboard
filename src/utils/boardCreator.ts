@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { rtdb } from "../config/firebase";
 import { ref, update, get } from "firebase/database";
 import { Board, Project } from "../types";
-import { checkBoardNameDuplicate, addToRecentlyCreated } from "./boardNaming";
+import { generateUniqueBoardName, addToRecentlyCreated } from "./boardNaming";
 import { normalizeTitle } from "./boardTitleIndex";
 import { updateBoardListItem } from "./boardDataStructure";
 import { isProjectMember } from "./permissions";
@@ -29,22 +29,8 @@ export const createBoardFromTitle = async (
       throw new Error('User is not a member of this project');
     }
 
-    // ボード名の重複チェック
-    const isDuplicate = await checkBoardNameDuplicate(projectId, boardTitle);
-
-    // 重複する場合は番号を付けて一意にする
-    let finalBoardName = boardTitle;
-    if (isDuplicate) {
-      let counter = 1;
-      let candidateName = `${boardTitle}_${counter}`;
-
-      while (await checkBoardNameDuplicate(projectId, candidateName)) {
-        counter++;
-        candidateName = `${boardTitle}_${counter}`;
-      }
-
-      finalBoardName = candidateName;
-    }
+    // 一意なボード名を生成（最適化された番号管理を使用）
+    const finalBoardName = await generateUniqueBoardName(projectId, boardTitle);
 
     // 新しいボードIDを生成
     const boardId = nanoid();
