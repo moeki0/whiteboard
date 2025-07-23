@@ -2629,7 +2629,7 @@ export function Board({ user }: BoardProps) {
   // Show loading state while resolving slug
   if (slugContext?.loading) {
     return (
-      <div style={{ paddingTop: "60px" }}>
+      <div className="loading-wrapper">
         <div className="loading"></div>
       </div>
     );
@@ -2638,7 +2638,7 @@ export function Board({ user }: BoardProps) {
   // Show loading state while checking access
   if (isCheckingAccess) {
     return (
-      <div style={{ paddingTop: "60px" }}>
+      <div className="loading-wrapper">
         <div className="loading"></div>
       </div>
     );
@@ -2648,7 +2648,7 @@ export function Board({ user }: BoardProps) {
   // Show loading while creating missing board
   if (boardId && !board && !isCheckingAccess && isCreatingMissingBoard) {
     return (
-      <div style={{ paddingTop: "60px", padding: "20px", textAlign: "center" }}>
+      <div className="creating-board-wrapper">
         <div className="loading"></div>
         <p>Creating new board...</p>
       </div>
@@ -2770,18 +2770,8 @@ export function Board({ user }: BoardProps) {
           ))}
 
           {/* SVGコンテナで矢印を描画 */}
-          <svg
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              overflow: "visible",
-            }}
-          >
-            <g style={{ pointerEvents: "auto" }}>
+          <svg className="svg-arrows-container" style={{ overflow: "visible" }}>
+            <g className="svg-arrows-group">
               {arrows.map((arrow) => (
                 <ArrowSVG
                   key={arrow.id}
@@ -2816,76 +2806,31 @@ export function Board({ user }: BoardProps) {
       {selection.selectedNoteIds.size === 2 && user && (
         <button
           onClick={() => addArrow()}
-          className="fab-add-arrow-btn"
-          style={{
-            position: "fixed",
-            bottom: "100px",
-            right: "30px",
-            width: "56px",
-            height: "56px",
-            borderRadius: "50%",
-            backgroundColor: "#2196F3",
-            color: "white",
-            border: "none",
-            boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            cursor: "pointer",
-            fontSize: "24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className="fab-add-arrow"
         >
           ↗
         </button>
       )}
       {((selection.selectedNoteIds.size > 1) || 
         (selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0)) && user && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "30px",
-            right: "100px",
-            display: "flex",
-            gap: "12px",
-            zIndex: 1000,
-          }}
-        >
+        <div className="group-controls">
           <button
             onClick={() => createGroup()}
-            className="fab-create-group-btn"
+            className="group-button"
             title={
               selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0
                 ? "Add selected notes to group"
                 : "Create group from selected notes"
             }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "12px 16px",
-              borderRadius: "28px",
-              backgroundColor: "#9C27B0", // 紫色でグループを表現
-              color: "white",
-              border: "none",
-              fontSize: "14px",
-              fontWeight: "500",
-              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
           >
-            <span style={{ fontSize: "18px" }}>⬡</span>
+            <span className="group-icon">⬡</span>
             <span>Group</span>
           </button>
           <button
             onClick={createBoardFromSelection}
-            className="fab-create-board-btn"
+            className="group-button create-board-button"
             title="Create new board from selected notes"
             disabled={isCreatingBoard}
-            style={{
-              position: "static", // CSSのfixedポジションを上書き
-            }}
           >
             <MdContentCopy />
             <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
@@ -2900,28 +2845,7 @@ export function Board({ user }: BoardProps) {
           )}/${encodeURIComponent(board.name)}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            position: "fixed",
-            top: "40px",
-            right: "0px",
-            fontSize: "10px",
-            color: "#666",
-            textDecoration: "none",
-            padding: "1px 4px",
-            backgroundColor: "rgba(255, 255, 255, 0.3)",
-            border: "1px solid #ddd",
-            zIndex: 1000,
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLAnchorElement).style.color = "#333";
-            (e.target as HTMLAnchorElement).style.backgroundColor =
-              "rgba(255, 255, 255, 1)";
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLAnchorElement).style.color = "#666";
-            (e.target as HTMLAnchorElement).style.backgroundColor =
-              "rgba(255, 255, 255, 0.9)";
-          }}
+          className="board-link"
         >
           Open Cosense page
         </a>

@@ -176,3 +176,113 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* インラインスタイルからの移行 */
+.loading-wrapper {
+  padding-top: 60px;
+}
+
+.creating-board-wrapper {
+  padding-top: 60px;
+  padding: 20px;
+  text-align: center;
+}
+
+.board-with-dots {
+  overflow: hidden;
+  background-image: radial-gradient(circle, #aaa 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  cursor: grab;
+  touch-action: none;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.svg-arrows-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.svg-arrows-group {
+  pointer-events: auto;
+}
+
+.fab-add-arrow {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: all 0.2s ease;
+}
+
+.group-controls {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.group-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  transition: all 0.2s ease;
+}
+
+.create-board-button {
+  position: static;
+}
+
+.group-icon {
+  font-size: 18px;
+}
+
+.board-link {
+  position: fixed;
+  top: 40px;
+  right: 0px;
+  font-size: 10px;
+  color: #666;
+  text-decoration: none;
+  padding: 1px 4px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border: 1px solid #ddd;
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.board-link:hover {
+  color: #333;
+  background-color: rgba(255, 255, 255, 1);
+}
