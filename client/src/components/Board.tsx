@@ -26,10 +26,6 @@ import { usePanZoom } from "../hooks/usePanZoom";
 import { useKeyHints } from "../hooks/useKeyHints";
 import { useKeyboardHandlers } from "../hooks/useKeyboardHandlers";
 import { getUserColor } from "../utils/colors";
-import {
-  copyStickyNoteToClipboard,
-  copyMultipleStickyNotesToClipboard,
-} from "../utils/clipboardUtils";
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
 import {
