@@ -164,28 +164,6 @@ export const UnifiedMenu = memo(function UnifiedMenu({
     await signOut(auth);
   };
 
-  const generateBookmarklet = useCallback(() => {
-    if (!currentProject?.cosenseProjectName) {
-      return "";
-    }
-
-    const bookmarkletCode = `javascript:(function(){const boardTitle=document.querySelector('.header-subtitle')?.textContent?.trim()||'Untitled Board';const notes=Array.from(document.querySelectorAll('.sticky-note[data-note-content]')).map(el=>el.getAttribute('data-note-content')?.trim()||'').filter(text=>text.includes('[')&&text.includes(']'));const boardUrl=window.location.href;const content='Source: ['+boardTitle+' '+boardUrl+']\\n\\n'+notes.join('\\n');const projectName='${currentProject.cosenseProjectName}';const url='https://scrapbox.io/'+encodeURIComponent(projectName)+'/'+encodeURIComponent(boardTitle)+'?body='+encodeURIComponent(content);window.open(url,'_blank');})();`;
-
-    return bookmarkletCode;
-  }, [currentProject?.cosenseProjectName]);
-
-  const openBookmarkletPage = useCallback(() => {
-    const bookmarkletCode = generateBookmarklet();
-    const html = `<a href="${bookmarkletCode}">${currentProject?.name} Turtle to Cosense</a>`;
-
-    const newWindow = window.open("", "_blank");
-    if (newWindow) {
-      newWindow.document.write(html);
-      newWindow.document.close();
-    }
-    setIsOpen(false);
-  }, [generateBookmarklet, currentProject?.name]);
-
   return (
     <div className="unified-menu" ref={dropdownRef}>
       <button
@@ -208,12 +186,6 @@ export const UnifiedMenu = memo(function UnifiedMenu({
           >
             User Settings
           </Link>
-
-          {currentProject?.cosenseProjectName && (
-            <button className="menu-item" onClick={openBookmarkletPage}>
-              Get Cosense Bookmarklet
-            </button>
-          )}
 
           {/* Project Section */}
           <div className="menu-section project-section">

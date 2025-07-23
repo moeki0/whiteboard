@@ -42,6 +42,8 @@ import {
 } from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
+import { UnreadNoteIndicator } from "./UnreadNoteIndicator";
+import { useUnreadNotes } from "../hooks/useUnreadNotes";
 
 interface BoardProps {
   user: User | null;
@@ -144,6 +146,16 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // 未読付箋管理フック
+  const { unreadNotes, focusNote, markNoteAsRead } = useUnreadNotes({
+    boardId: boardId || '',
+    notes,
+    user,
+    zoom: panZoom.zoom,
+    panX: panZoom.panX,
+    panY: panZoom.panY,
+  });
 
   // Auto-create missing board
   const { isCreatingMissingBoard } = useAutoCreateBoard(
@@ -1801,6 +1813,28 @@ export function Board({ user }: BoardProps) {
     };
   }, []);
 
+  // 未読付箋フォーカス機能のイベントリスナー
+  useEffect(() => {
+    const handleFocusNote = (event: any) => {
+      const { noteId, zoom, panX, panY } = event.detail;
+      
+      // パンとズームを適用
+      panZoom.setZoom(zoom);
+      panZoom.setPanX(panX);
+      panZoom.setPanY(panY);
+      
+      // 付箋を選択状態にし、既読にマーク
+      selection.setSelectedNoteIds(new Set([noteId]));
+      markNoteAsRead(noteId);
+    };
+
+    window.addEventListener('focusNote', handleFocusNote);
+    
+    return () => {
+      window.removeEventListener('focusNote', handleFocusNote);
+    };
+  }, [panZoom, selection, markNoteAsRead]);
+
   // マウスイベントのリスナー設定
   useEffect(() => {
     if (selection.isSelecting) {
@@ -2997,6 +3031,13 @@ export function Board({ user }: BoardProps) {
 
           <CursorDisplay cursors={cursors} projectId={projectId || undefined} />
           {renderSelectionBox()}
+          
+          {/* 未読付箋インジケーター（ズームアウト時のみ表示） */}
+          <UnreadNoteIndicator
+            unreadNotes={unreadNotes}
+            onFocusNote={focusNote}
+            zoom={panZoom.zoom}
+          />
         </div>
       </div>
       {board &&

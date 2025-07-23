@@ -185,6 +185,7 @@ import { useCombinedSuggestions } from "../hooks/useCombinedSuggestions";
 import { extractBoardLinks } from "../utils/extractBoardLinks";
 import { extractCosenseLinks } from "../utils/extractCosenseLinks";
 import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
+import { isNoteUnread, updateNoteViewTime } from "../utils/noteViewHistory";
 import { isYouTubeUrl, getYouTubeEmbedUrl } from "../utils/youtubeEmbed";
 
 interface ImageContent {
@@ -1761,6 +1762,9 @@ const StickyNoteComponent = function StickyNote({
 
     const isMultiSelect = isCommandClick && !isShiftClick;
     onActivate(note.id, isMultiSelect, isShiftClick);
+    
+    // 付箋がクリックされたら既読状態にマーク
+    updateNoteViewTime(board.id, note.id);
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2195,10 +2199,10 @@ const StickyNoteComponent = function StickyNote({
   const borderColor = calculateBorderColor(backgroundColor);
 
   // 新着チェック
-  const isNewNote = isNoteNewerThanLastView(
+  const isNewNote = isNoteUnread(
     board.id,
-    note.createdAt,
-    note.updatedAt
+    note.id,
+    note.updatedAt || note.createdAt
   );
 
   // 更新時間に基づいて影のサイズを計算

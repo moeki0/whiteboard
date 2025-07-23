@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { rtdb } from "../config/firebase";
 import { ref, get, set, remove } from "firebase/database";
@@ -32,6 +32,27 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [canManageAdminsFlag, setCanManageAdminsFlag] = useState(false);
+
+  const generateBookmarklet = useCallback(() => {
+    if (!project?.cosenseProjectName) {
+      return "";
+    }
+
+    const bookmarkletCode = `javascript:(function(){const boardTitle=document.querySelector('.header-subtitle')?.textContent?.trim()||'Untitled Board';const notes=Array.from(document.querySelectorAll('.sticky-note[data-note-content]')).map(el=>el.getAttribute('data-note-content')?.trim()||'').filter(text=>text.includes('[')&&text.includes(']'));const boardUrl=window.location.href;const content='Source: ['+boardTitle+' '+boardUrl+']\\n\\n'+notes.join('\\n');const projectName='${project.cosenseProjectName}';const url='https://scrapbox.io/'+encodeURIComponent(projectName)+'/'+encodeURIComponent(boardTitle)+'?body='+encodeURIComponent(content);window.open(url,'_blank');})();`;
+
+    return bookmarkletCode;
+  }, [project?.cosenseProjectName]);
+
+  const openBookmarkletPage = useCallback(() => {
+    const bookmarkletCode = generateBookmarklet();
+    const html = `<a href="${bookmarkletCode}">${project?.name} Turtle to Cosense</a>`;
+
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write(html);
+      newWindow.document.close();
+    }
+  }, [generateBookmarklet, project?.name]);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -311,7 +332,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
-
   const copyInviteLink = async () => {
     if (!project?.inviteCode) {
       if (isAdmin) {
@@ -545,6 +565,15 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           </div>
         </div>
 
+        <div className="settings-section">
+          <h2>Cosense Bookmarklet</h2>
+          <div>
+            <button onClick={openBookmarkletPage}>
+              Open Cosense Bookmarklet
+            </button>
+          </div>
+        </div>
+
         {/* Invite Link */}
         <div className="settings-section">
           <h2>Invite Members</h2>
@@ -575,7 +604,6 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
             </div>
           </div>
         </div>
-
 
         {/* Members Management */}
         <div className="settings-section">
