@@ -38,7 +38,14 @@ export function updateNoteViewTime(boardId: string, noteId: string): void {
       parsed[boardId] = {};
     }
     
-    parsed[boardId][noteId] = Date.now();
+    const now = Date.now();
+    parsed[boardId][noteId] = now;
+    
+    console.log('updateNoteViewTime:', {
+      boardId,
+      noteId: noteId.substring(0, 8),
+      viewTime: new Date(now).toISOString()
+    });
     
     localStorage.setItem(NOTE_VIEW_HISTORY_KEY, JSON.stringify(parsed));
   } catch (error) {
@@ -57,6 +64,14 @@ export function isNoteUnread(
 ): boolean {
   const noteHistory = getNoteViewHistory(boardId);
   const lastViewTime = noteHistory[noteId];
+  
+  console.log('isNoteUnread check:', {
+    boardId,
+    noteId: noteId.substring(0, 8),
+    noteUpdatedAt: new Date(noteUpdatedAt).toISOString(),
+    lastViewTime: lastViewTime ? new Date(lastViewTime).toISOString() : 'none',
+    isUnread: !lastViewTime || noteUpdatedAt > lastViewTime
+  });
   
   if (!lastViewTime) return true; // 閲覧履歴がない場合は未読
   

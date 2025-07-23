@@ -32,7 +32,14 @@ export function updateBoardViewTime(boardId: string): void {
     const history = localStorage.getItem(BOARD_VIEW_HISTORY_KEY);
     const parsed: BoardViewHistory = history ? JSON.parse(history) : {};
     
-    parsed[boardId] = Date.now();
+    const now = Date.now();
+    parsed[boardId] = now;
+    
+    console.log('updateBoardViewTime called:', {
+      boardId,
+      viewTime: new Date(now).toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
+    });
     
     localStorage.setItem(BOARD_VIEW_HISTORY_KEY, JSON.stringify(parsed));
   } catch (error) {
@@ -50,9 +57,18 @@ export function isNoteNewerThanLastView(
   noteUpdatedAt?: number
 ): boolean {
   const lastViewTime = getLastBoardViewTime(boardId);
+  const noteTime = noteUpdatedAt || noteCreatedAt;
+  
+  console.log('isNoteNewerThanLastView check:', {
+    boardId,
+    noteCreatedAt: new Date(noteCreatedAt).toISOString(),
+    noteUpdatedAt: noteUpdatedAt ? new Date(noteUpdatedAt).toISOString() : 'none',
+    lastViewTime: lastViewTime ? new Date(lastViewTime).toISOString() : 'none',
+    isNewer: !lastViewTime || noteTime > lastViewTime
+  });
+  
   if (!lastViewTime) return true; // 閲覧履歴がない場合は必ずマークを表示
   
-  const noteTime = noteUpdatedAt || noteCreatedAt;
   return noteTime > lastViewTime;
 }
 

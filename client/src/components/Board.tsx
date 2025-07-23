@@ -329,10 +329,7 @@ export function Board({ user }: BoardProps) {
     selection.setSelectedGroupIds(new Set());
     updateUrlForNote(null);
 
-    // ボードアクセス時に閲覧時刻を更新（未読マークをクリア）
-    if (boardId) {
-      updateBoardViewTime(boardId);
-    }
+    // ボードアクセス時の閲覧時刻更新は削除（未読マークを正しく表示するため）
   }, [boardId, updateUrlForNote]);
 
   // WASD パンアニメーション（削除：カクカク移動のため不要）

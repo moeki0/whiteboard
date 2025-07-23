@@ -1762,9 +1762,6 @@ const StickyNoteComponent = function StickyNote({
 
     const isMultiSelect = isCommandClick && !isShiftClick;
     onActivate(note.id, isMultiSelect, isShiftClick);
-    
-    // 付箋がクリックされたら既読状態にマーク
-    updateNoteViewTime(board.id, note.id);
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2198,12 +2195,22 @@ const StickyNoteComponent = function StickyNote({
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
-  // 新着チェック
-  const isNewNote = isNoteUnread(
+  // 新着チェック（ボードレベルの未読判定を使用 - ページリロードまで維持）
+  const isNewNote = isNoteNewerThanLastView(
     board.id,
-    note.id,
-    note.updatedAt || note.createdAt
+    note.createdAt,
+    note.updatedAt
   );
+
+  // 付箋レベルの閲覧履歴記録は一時的に無効化（デバッグ用）
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     console.log('Recording note view (keeping unread mark):', note.id.substring(0, 8));
+  //     updateNoteViewTime(board.id, note.id);
+  //   }, 100);
+
+  //   return () => clearTimeout(timer);
+  // }, [board.id, note.id]);
 
   // 更新時間に基づいて影のサイズを計算
   const calculateShadowByRecency = () => {
