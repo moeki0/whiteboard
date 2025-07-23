@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useNavigate, useParams, NavigateFunction } from "react-router-dom";
 import { useSlugContext } from "../contexts/SlugContext";
 import { customAlphabet } from "nanoid";
@@ -26,8 +32,18 @@ import {
 } from "../utils/clipboardUtils";
 import { saveBoardThumbnail } from "../utils/thumbnailUtils";
 import { checkBoardEditPermission } from "../utils/permissions";
-import { User, Note, Arrow as ArrowType, Group as GroupType, Board as BoardType, Project } from "../types";
-import { generateNewBoardName, generateUniqueBoardName } from "../utils/boardNaming";
+import {
+  User,
+  Note,
+  Arrow as ArrowType,
+  Group as GroupType,
+  Board as BoardType,
+  Project,
+} from "../types";
+import {
+  generateNewBoardName,
+  generateUniqueBoardName,
+} from "../utils/boardNaming";
 import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
 
@@ -38,16 +54,16 @@ interface BoardProps {
 export function Board({ user }: BoardProps) {
   const navigate = useNavigate();
   const slugContext = useSlugContext();
-  const { boardName: urlBoardName, boardId: legacyBoardId } = useParams<{ 
-    boardName?: string; 
-    boardId?: string; 
+  const { boardName: urlBoardName, boardId: legacyBoardId } = useParams<{
+    boardName?: string;
+    boardId?: string;
   }>();
   // 状態管理をカスタムフックに分離
   const selection = useSelection();
   const dragAndDrop = useDragAndDrop();
   const panZoom = usePanZoom();
   const keyHints = useKeyHints();
-  
+
   // activeNoteIdを削除 - selection.selectedNoteIdsで管理
   const [nextZIndex, setNextZIndex] = useState<number>(100);
   // 現在未使用だがコメントアウトで保持
@@ -94,29 +110,32 @@ export function Board({ user }: BoardProps) {
   const HINT_CHARS = "asdfghjklqwertyuiopzxcvbnm";
 
   // キーヒントを生成する関数
-  const generateHintKeys = useCallback((noteIds: string[]) => {
-    const hintMap = new Map<string, string>();
-    const chars = HINT_CHARS.split("");
+  const generateHintKeys = useCallback(
+    (noteIds: string[]) => {
+      const hintMap = new Map<string, string>();
+      const chars = HINT_CHARS.split("");
 
-    // 単一文字でカバーできる場合
-    if (noteIds.length <= chars.length) {
-      noteIds.forEach((id, index) => {
-        hintMap.set(id, chars[index]);
-      });
-    } else {
-      // 2文字の組み合わせが必要な場合
-      let hintIndex = 0;
-      for (let i = 0; i < chars.length && hintIndex < noteIds.length; i++) {
-        for (let j = 0; j < chars.length && hintIndex < noteIds.length; j++) {
-          hintMap.set(noteIds[hintIndex], chars[i] + chars[j]);
-          hintIndex++;
+      // 単一文字でカバーできる場合
+      if (noteIds.length <= chars.length) {
+        noteIds.forEach((id, index) => {
+          hintMap.set(id, chars[index]);
+        });
+      } else {
+        // 2文字の組み合わせが必要な場合
+        let hintIndex = 0;
+        for (let i = 0; i < chars.length && hintIndex < noteIds.length; i++) {
+          for (let j = 0; j < chars.length && hintIndex < noteIds.length; j++) {
+            hintMap.set(noteIds[hintIndex], chars[i] + chars[j]);
+            hintIndex++;
+          }
         }
       }
-    }
 
-    keyHints.setNoteHintKeys(hintMap);
-    return hintMap;
-  }, [keyHints]);
+      keyHints.setNoteHintKeys(hintMap);
+      return hintMap;
+    },
+    [keyHints]
+  );
 
   const { addToHistory, undo, redo } = useHistory();
   const {
@@ -238,7 +257,7 @@ export function Board({ user }: BoardProps) {
 
   // 初期ハッシュ処理（一回のみ実行）
   const initialHashProcessed = useRef(false);
-  
+
   // boardIdが変更されたときにinitialHashProcessedをリセット
   useEffect(() => {
     initialHashProcessed.current = false;
@@ -301,7 +320,7 @@ export function Board({ user }: BoardProps) {
     selection.setSelectedItemIds(new Set());
     selection.setSelectedGroupIds(new Set());
     updateUrlForNote(null);
-    
+
     // ボードアクセス時に閲覧時刻を更新（未読マークをクリア）
     if (boardId) {
       updateBoardViewTime(boardId);
@@ -385,8 +404,10 @@ export function Board({ user }: BoardProps) {
       noteY = y;
     } else {
       // ビューポートの中央付近にランダムに配置
-      const viewportCenterX = -panZoom.panX / panZoom.zoom + window.innerWidth / 2 / panZoom.zoom;
-      const viewportCenterY = -panZoom.panY / panZoom.zoom + window.innerHeight / 2 / panZoom.zoom;
+      const viewportCenterX =
+        -panZoom.panX / panZoom.zoom + window.innerWidth / 2 / panZoom.zoom;
+      const viewportCenterY =
+        -panZoom.panY / panZoom.zoom + window.innerHeight / 2 / panZoom.zoom;
       noteX = viewportCenterX + (Math.random() - 0.5) * 300; // 中央から±150px
       noteY = viewportCenterY + (Math.random() - 0.5) * 300;
     }
@@ -503,13 +524,13 @@ export function Board({ user }: BoardProps) {
     if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
       return false;
     }
-    
-    const group = groups.find(g => g.id === groupId);
+
+    const group = groups.find((g) => g.id === groupId);
     if (!group) return false;
-    
+
     // 既存のnoteIdsと新しいnoteIdsをマージ（重複を除く）
     const updatedNoteIds = [...new Set([...group.noteIds, ...noteIds])];
-    
+
     // 履歴に追加
     if (!isUndoRedoOperation) {
       addToHistory({
@@ -520,10 +541,10 @@ export function Board({ user }: BoardProps) {
         newNoteIds: updatedNoteIds,
       });
     }
-    
+
     const groupRef = ref(rtdb, `boards/${boardId}/groups/${groupId}`);
     update(groupRef, { noteIds: updatedNoteIds });
-    
+
     return true;
   };
 
@@ -536,10 +557,10 @@ export function Board({ user }: BoardProps) {
     if (!board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
       return "";
     }
-    
+
     const selectedNoteArray = Array.from(selection.selectedNoteIds);
     const selectedGroupArray = Array.from(selection.selectedGroupIds);
-    
+
     // グループが1つ選択されていて、付箋も選択されている場合は、既存グループに追加
     if (selectedGroupArray.length === 1 && selectedNoteArray.length > 0) {
       const targetGroupId = selectedGroupArray[0];
@@ -632,165 +653,196 @@ export function Board({ user }: BoardProps) {
     }
   };
 
-  const updateNote = useCallback((noteId: string, updates: Partial<Note>) => {
-    // 未ログインユーザーは付箋を更新できない
-    if (!user?.uid) return;
+  const updateNote = useCallback(
+    (noteId: string, updates: Partial<Note>) => {
+      // 未ログインユーザーは付箋を更新できない
+      if (!user?.uid) return;
 
-    const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
-    const note = notes.find((n) => n.id === noteId);
-    if (note) {
-      // ドラッグ中の場合、グループからの距離をチェック
-      if (updates.isDragging && updates.x !== undefined && updates.y !== undefined) {
-        const DISTANCE_THRESHOLD_LEAVE = 200; // 200px以上離れたらグループから削除
-        const DISTANCE_THRESHOLD_JOIN = 100; // 100px以内に近づいたらグループに追加
-        const noteX = updates.x; // TypeScriptの型推論のために変数に格納
-        const noteY = updates.y;
-        
-        // この付箋が属しているグループを探す
-        const belongingGroups = groups.filter(group => group.noteIds.includes(noteId));
-        
-        // 既存グループからの離脱チェック
-        belongingGroups.forEach(group => {
-          const otherNotes = notes.filter(n => 
-            n.id !== noteId && group.noteIds.includes(n.id)
+      const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
+      const note = notes.find((n) => n.id === noteId);
+      if (note) {
+        // ドラッグ中の場合、グループからの距離をチェック
+        if (
+          updates.isDragging &&
+          updates.x !== undefined &&
+          updates.y !== undefined
+        ) {
+          const DISTANCE_THRESHOLD_LEAVE = 200; // 200px以上離れたらグループから削除
+          const DISTANCE_THRESHOLD_JOIN = 100; // 100px以内に近づいたらグループに追加
+          const noteX = updates.x; // TypeScriptの型推論のために変数に格納
+          const noteY = updates.y;
+
+          // この付箋が属しているグループを探す
+          const belongingGroups = groups.filter((group) =>
+            group.noteIds.includes(noteId)
           );
-          
-          if (otherNotes.length === 0) return; // 他に付箋がない場合はスキップ
-          
-          // 他のグループメンバーとの最小距離を計算
-          let minDistance = Infinity;
-          otherNotes.forEach(otherNote => {
-            const distance = Math.sqrt(
-              Math.pow(noteX - otherNote.x, 2) + 
-              Math.pow(noteY - otherNote.y, 2)
+
+          // 既存グループからの離脱チェック
+          belongingGroups.forEach((group) => {
+            const otherNotes = notes.filter(
+              (n) => n.id !== noteId && group.noteIds.includes(n.id)
             );
-            minDistance = Math.min(minDistance, distance);
-          });
-          
-          // 閾値を超えたらグループから削除
-          if (minDistance > DISTANCE_THRESHOLD_LEAVE) {
-            const updatedNoteIds = group.noteIds.filter(id => id !== noteId);
-            
-            // 履歴に追加
-            if (!isUndoRedoOperation) {
-              addToHistory({
-                type: "UPDATE_GROUP",
-                userId: user.uid,
-                groupId: group.id,
-                oldNoteIds: group.noteIds,
-                newNoteIds: updatedNoteIds,
-              });
+
+            if (otherNotes.length === 0) return; // 他に付箋がない場合はスキップ
+
+            // 他のグループメンバーとの最小距離を計算
+            let minDistance = Infinity;
+            otherNotes.forEach((otherNote) => {
+              const distance = Math.sqrt(
+                Math.pow(noteX - otherNote.x, 2) +
+                  Math.pow(noteY - otherNote.y, 2)
+              );
+              minDistance = Math.min(minDistance, distance);
+            });
+
+            // 閾値を超えたらグループから削除
+            if (minDistance > DISTANCE_THRESHOLD_LEAVE) {
+              const updatedNoteIds = group.noteIds.filter(
+                (id) => id !== noteId
+              );
+
+              // 履歴に追加
+              if (!isUndoRedoOperation) {
+                addToHistory({
+                  type: "UPDATE_GROUP",
+                  userId: user.uid,
+                  groupId: group.id,
+                  oldNoteIds: group.noteIds,
+                  newNoteIds: updatedNoteIds,
+                });
+              }
+
+              const groupRef = ref(
+                rtdb,
+                `boards/${boardId}/groups/${group.id}`
+              );
+
+              if (updatedNoteIds.length === 1) {
+                // グループに付箋が1つしか残らない場合はグループを削除
+                remove(groupRef);
+              } else {
+                update(groupRef, { noteIds: updatedNoteIds });
+              }
             }
-            
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${group.id}`);
-            
-            if (updatedNoteIds.length === 1) {
-              // グループに付箋が1つしか残らない場合はグループを削除
-              remove(groupRef);
-            } else {
+          });
+
+          // 所属していないグループへの参加チェック
+          const nonBelongingGroups = groups.filter(
+            (group) => !group.noteIds.includes(noteId)
+          );
+
+          nonBelongingGroups.forEach((group) => {
+            const groupNotes = notes.filter((n) =>
+              group.noteIds.includes(n.id)
+            );
+
+            if (groupNotes.length === 0) return; // グループに付箋がない場合はスキップ
+
+            // グループメンバーとの最小距離を計算
+            let minDistance = Infinity;
+            groupNotes.forEach((groupNote) => {
+              const distance = Math.sqrt(
+                Math.pow(noteX - groupNote.x, 2) +
+                  Math.pow(noteY - groupNote.y, 2)
+              );
+              minDistance = Math.min(minDistance, distance);
+            });
+
+            // 閾値以内に近づいたらグループに追加
+            if (minDistance < DISTANCE_THRESHOLD_JOIN) {
+              const updatedNoteIds = [...group.noteIds, noteId];
+
+              // 履歴に追加
+              if (!isUndoRedoOperation) {
+                addToHistory({
+                  type: "UPDATE_GROUP",
+                  userId: user.uid,
+                  groupId: group.id,
+                  oldNoteIds: group.noteIds,
+                  newNoteIds: updatedNoteIds,
+                });
+              }
+
+              const groupRef = ref(
+                rtdb,
+                `boards/${boardId}/groups/${group.id}`
+              );
               update(groupRef, { noteIds: updatedNoteIds });
             }
-          }
-        });
-        
-        // 所属していないグループへの参加チェック
-        const nonBelongingGroups = groups.filter(group => !group.noteIds.includes(noteId));
-        
-        nonBelongingGroups.forEach(group => {
-          const groupNotes = notes.filter(n => group.noteIds.includes(n.id));
-          
-          if (groupNotes.length === 0) return; // グループに付箋がない場合はスキップ
-          
-          // グループメンバーとの最小距離を計算
-          let minDistance = Infinity;
-          groupNotes.forEach(groupNote => {
-            const distance = Math.sqrt(
-              Math.pow(noteX - groupNote.x, 2) + 
-              Math.pow(noteY - groupNote.y, 2)
-            );
-            minDistance = Math.min(minDistance, distance);
-          });
-          
-          // 閾値以内に近づいたらグループに追加
-          if (minDistance < DISTANCE_THRESHOLD_JOIN) {
-            const updatedNoteIds = [...group.noteIds, noteId];
-            
-            // 履歴に追加
-            if (!isUndoRedoOperation) {
-              addToHistory({
-                type: "UPDATE_GROUP",
-                userId: user.uid,
-                groupId: group.id,
-                oldNoteIds: group.noteIds,
-                newNoteIds: updatedNoteIds,
-              });
-            }
-            
-            const groupRef = ref(rtdb, `boards/${boardId}/groups/${group.id}`);
-            update(groupRef, { noteIds: updatedNoteIds });
-          }
-        });
-      }
-      // updatedAtを追加（updatedAtが明示的に指定された場合のみ）
-      const shouldUpdateTimestamp = updates.updatedAt !== undefined;
-
-      console.log('Board updateNote:', {
-        noteId,
-        updates: JSON.stringify(updates),
-        shouldUpdateTimestamp,
-        hasUpdatedAtInUpdates: 'updatedAt' in updates,
-        updatedAtValue: updates.updatedAt
-      });
-
-      const updatedNote = {
-        ...note,
-        ...updates,
-        ...(shouldUpdateTimestamp && { updatedAt: updates.updatedAt || Date.now() }),
-      };
-      
-      console.log('Final updatedNote updatedAt:', updatedNote.updatedAt);
-
-      // Add to history only for significant changes by the current user
-      // Skip history tracking if this is an undo/redo operation for this specific note
-      if (
-        !isUndoRedoOperation &&
-        note.userId === user.uid &&
-        currentUndoRedoNoteId !== noteId
-      ) {
-        // Don't track position changes during dragging - will be tracked on drag end
-        // Track content changes
-        if (
-          updates.content !== undefined &&
-          updates.content !== note.content &&
-          !updates.isDragging
-        ) {
-          addToHistory({
-            type: "EDIT_NOTE",
-            noteId: noteId,
-            oldContent: note.content,
-            newContent: updates.content,
-            userId: user.uid,
           });
         }
-      }
+        // updatedAtを追加（updatedAtが明示的に指定された場合のみ）
+        const shouldUpdateTimestamp = updates.updatedAt !== undefined;
 
-      set(noteRef, updatedNote);
+        console.log("Board updateNote:", {
+          noteId,
+          updates: JSON.stringify(updates),
+          shouldUpdateTimestamp,
+          hasUpdatedAtInUpdates: "updatedAt" in updates,
+          updatedAtValue: updates.updatedAt,
+        });
 
-      // ボードの更新時刻を更新（内容が変更された場合のみ）
-      if (updates.content !== undefined && updates.content !== note.content) {
-        setTimeout(() => {
-          try {
-            updateBoardMetadata();
-          } catch (error) {
-            console.error(
-              "Error updating board timestamp after updating note:",
-              error
-            );
+        const updatedNote = {
+          ...note,
+          ...updates,
+          ...(shouldUpdateTimestamp && {
+            updatedAt: updates.updatedAt || Date.now(),
+          }),
+        };
+
+        console.log("Final updatedNote updatedAt:", updatedNote.updatedAt);
+
+        // Add to history only for significant changes by the current user
+        // Skip history tracking if this is an undo/redo operation for this specific note
+        if (
+          !isUndoRedoOperation &&
+          note.userId === user.uid &&
+          currentUndoRedoNoteId !== noteId
+        ) {
+          // Don't track position changes during dragging - will be tracked on drag end
+          // Track content changes
+          if (
+            updates.content !== undefined &&
+            updates.content !== note.content &&
+            !updates.isDragging
+          ) {
+            addToHistory({
+              type: "EDIT_NOTE",
+              noteId: noteId,
+              oldContent: note.content,
+              newContent: updates.content,
+              userId: user.uid,
+            });
           }
-        }, 100);
+        }
+
+        set(noteRef, updatedNote);
+
+        // ボードの更新時刻を更新（内容が変更された場合のみ）
+        if (updates.content !== undefined && updates.content !== note.content) {
+          setTimeout(() => {
+            try {
+              updateBoardMetadata();
+            } catch (error) {
+              console.error(
+                "Error updating board timestamp after updating note:",
+                error
+              );
+            }
+          }, 100);
+        }
       }
-    }
-  }, [user?.uid, boardId, notes, groups, isUndoRedoOperation, currentUndoRedoNoteId, addToHistory]);
+    },
+    [
+      user?.uid,
+      boardId,
+      notes,
+      groups,
+      isUndoRedoOperation,
+      currentUndoRedoNoteId,
+      addToHistory,
+    ]
+  );
 
   const deleteNote = (noteId: string) => {
     // 未ログインユーザーは付箋を削除できない
@@ -799,8 +851,8 @@ export function Board({ user }: BoardProps) {
     const note = notes.find((n) => n.id === noteId);
 
     // 削除される付箋に接続された矢印を取得
-    const relatedArrows = arrows.filter(arrow => 
-      arrow.startNoteId === noteId || arrow.endNoteId === noteId
+    const relatedArrows = arrows.filter(
+      (arrow) => arrow.startNoteId === noteId || arrow.endNoteId === noteId
     );
 
     // Add to history only if it's user's own note and not undo/redo operation
@@ -857,7 +909,12 @@ export function Board({ user }: BoardProps) {
     isShiftSelect: boolean = false
   ) => {
     // 一括ドラッグ直後や範囲選択直後はアクティベートを無視（ただし、Shift+クリックは許可）
-    if (!isShiftSelect && (dragAndDrop.isDraggingMultiple || dragAndDrop.justFinishedBulkDrag || selection.justFinishedSelection)) {
+    if (
+      !isShiftSelect &&
+      (dragAndDrop.isDraggingMultiple ||
+        dragAndDrop.justFinishedBulkDrag ||
+        selection.justFinishedSelection)
+    ) {
       return;
     }
 
@@ -932,7 +989,11 @@ export function Board({ user }: BoardProps) {
 
   const handleBoardClick = () => {
     // 範囲選択終了直後や一括ドラッグ終了直後はクリックを無視
-    if (selection.isSelecting || selection.justFinishedSelection || dragAndDrop.justFinishedBulkDrag) {
+    if (
+      selection.isSelecting ||
+      selection.justFinishedSelection ||
+      dragAndDrop.justFinishedBulkDrag
+    ) {
       return;
     }
 
@@ -947,7 +1008,9 @@ export function Board({ user }: BoardProps) {
     if (!user || !boardId || !project || isCreatingBoard) return;
 
     // 選択された付箋を取得
-    const selectedNotes = notes.filter((note) => selection.selectedNoteIds.has(note.id));
+    const selectedNotes = notes.filter((note) =>
+      selection.selectedNoteIds.has(note.id)
+    );
 
     if (selectedNotes.length === 0) return;
 
@@ -1130,7 +1193,7 @@ export function Board({ user }: BoardProps) {
     (e: MouseEvent) => {
       // マウス位置を常に記録（ズーム用）
       lastMousePos.current = { x: e.clientX, y: e.clientY };
-      
+
       if (!selection.isSelecting || !selection.selectionStart) return;
 
       const rect = boardRef.current?.getBoundingClientRect() || {
@@ -1181,7 +1244,11 @@ export function Board({ user }: BoardProps) {
 
   // 範囲選択の終了
   const handleBoardMouseUp = useCallback(() => {
-    if (selection.isSelecting && selection.selectionStart && selection.selectionEnd) {
+    if (
+      selection.isSelecting &&
+      selection.selectionStart &&
+      selection.selectionEnd
+    ) {
       // 実際にドラッグが行われたかを確認（5px以上の移動で選択とみなす）
       const dragDistance = Math.sqrt(
         Math.pow(selection.selectionEnd.x - selection.selectionStart.x, 2) +
@@ -1289,11 +1356,18 @@ export function Board({ user }: BoardProps) {
   // グループドラッグの処理
   const handleGroupDragMove = useCallback(
     (e: MouseEvent) => {
-      if (!dragAndDrop.isDraggingGroup || !dragAndDrop.groupDragStartPos || !dragAndDrop.draggingGroupId) return;
+      if (
+        !dragAndDrop.isDraggingGroup ||
+        !dragAndDrop.groupDragStartPos ||
+        !dragAndDrop.draggingGroupId
+      )
+        return;
 
       // ズームを考慮した移動距離計算
-      const deltaX = (e.clientX - dragAndDrop.groupDragStartPos.x) / panZoom.zoom;
-      const deltaY = (e.clientY - dragAndDrop.groupDragStartPos.y) / panZoom.zoom;
+      const deltaX =
+        (e.clientX - dragAndDrop.groupDragStartPos.x) / panZoom.zoom;
+      const deltaY =
+        (e.clientY - dragAndDrop.groupDragStartPos.y) / panZoom.zoom;
 
       const group = groups.find((g) => g.id === dragAndDrop.draggingGroupId);
       if (!group) return;
@@ -1397,7 +1471,11 @@ export function Board({ user }: BoardProps) {
 
   // グループドラッグの終了
   const handleGroupDragEnd = useCallback(() => {
-    if (dragAndDrop.isDraggingGroup && dragAndDrop.groupDragStartPos && dragAndDrop.draggingGroupId) {
+    if (
+      dragAndDrop.isDraggingGroup &&
+      dragAndDrop.groupDragStartPos &&
+      dragAndDrop.draggingGroupId
+    ) {
       const group = groups.find((g) => g.id === dragAndDrop.draggingGroupId);
       if (!group) return;
 
@@ -1474,7 +1552,8 @@ export function Board({ user }: BoardProps) {
   // パン操作の処理
   const handlePanMove = useCallback(
     (e: MouseEvent) => {
-      if (!panZoom.isPanning || !panZoom.panStartPos || !panZoom.initialPan) return;
+      if (!panZoom.isPanning || !panZoom.panStartPos || !panZoom.initialPan)
+        return;
 
       const deltaX = e.clientX - panZoom.panStartPos.x;
       const deltaY = e.clientY - panZoom.panStartPos.y;
@@ -1597,8 +1676,8 @@ export function Board({ user }: BoardProps) {
     const touch1 = touches[0];
     const touch2 = touches[1];
     return Math.sqrt(
-      Math.pow(touch2.clientX - touch1.clientX, 2) + 
-      Math.pow(touch2.clientY - touch1.clientY, 2)
+      Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
     );
   }, []);
 
@@ -1616,88 +1695,94 @@ export function Board({ user }: BoardProps) {
     };
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    
-    if (e.touches.length === 1) {
-      // 1本指: パン開始
-      if (selection.isSelecting || dragAndDrop.isDraggingMultiple) return;
-      
-      const touch = e.touches[0];
-      
-      panZoom.setIsPanning(true);
-      panZoom.setPanStartPos({ x: touch.clientX, y: touch.clientY });
-      panZoom.setInitialPan({ x: panZoom.panX, y: panZoom.panY });
-    } else if (e.touches.length === 2) {
-      // 2本指: ズーム開始
-      panZoom.setIsPanning(false);
-      panZoom.setIsZooming(true);
-      
-      const distance = getTouchDistance(e.touches);
-      const center = getTouchCenter(e.touches);
-      
-      panZoom.setLastTouchDistance(distance);
-      panZoom.setTouchCenter(center);
-    }
-  }, [
-    selection.isSelecting,
-    dragAndDrop.isDraggingMultiple,
-    panZoom,
-    getTouchDistance,
-    getTouchCenter,
-  ]);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    
-    if (e.touches.length === 1 && panZoom.isPanning) {
-      // 1本指: パン処理
-      if (!panZoom.panStartPos || !panZoom.initialPan) return;
-      
-      const touch = e.touches[0];
-      const deltaX = touch.clientX - panZoom.panStartPos.x;
-      const deltaY = touch.clientY - panZoom.panStartPos.y;
-      
-      panZoom.setPanX(panZoom.initialPan.x + deltaX);
-      panZoom.setPanY(panZoom.initialPan.y + deltaY);
-    } else if (e.touches.length === 2 && panZoom.isZooming) {
-      // 2本指: ピンチズーム処理
-      if (!boardRef.current || !panZoom.lastTouchDistance || !panZoom.touchCenter) return;
-      
-      const distance = getTouchDistance(e.touches);
-      const center = getTouchCenter(e.touches);
-      
-      if (distance && center) {
-        // ズーム倍率を計算
-        const zoomFactor = distance / panZoom.lastTouchDistance;
-        const newZoom = Math.max(0.1, Math.min(5, panZoom.zoom * zoomFactor));
-        
-        // ズーム中心の座標変換
-        const rect = boardRef.current.getBoundingClientRect();
-        const centerX = center.x - rect.left;
-        const centerY = center.y - rect.top;
-        
-        // ワールド座標でのズーム中心
-        const worldCenterX = (centerX - panZoom.panX) / panZoom.zoom;
-        const worldCenterY = (centerY - panZoom.panY) / panZoom.zoom;
-        
-        // 新しいパン位置を計算
-        const newPanX = centerX - worldCenterX * newZoom;
-        const newPanY = centerY - worldCenterY * newZoom;
-        
-        panZoom.setZoom(newZoom);
-        panZoom.setPanX(newPanX);
-        panZoom.setPanY(newPanY);
+      if (e.touches.length === 1) {
+        // 1本指: パン開始
+        if (selection.isSelecting || dragAndDrop.isDraggingMultiple) return;
+
+        const touch = e.touches[0];
+
+        panZoom.setIsPanning(true);
+        panZoom.setPanStartPos({ x: touch.clientX, y: touch.clientY });
+        panZoom.setInitialPan({ x: panZoom.panX, y: panZoom.panY });
+      } else if (e.touches.length === 2) {
+        // 2本指: ズーム開始
+        panZoom.setIsPanning(false);
+        panZoom.setIsZooming(true);
+
+        const distance = getTouchDistance(e.touches);
+        const center = getTouchCenter(e.touches);
+
         panZoom.setLastTouchDistance(distance);
         panZoom.setTouchCenter(center);
       }
-    }
-  }, [
-    panZoom,
-    boardRef,
-    getTouchDistance,
-    getTouchCenter,
-  ]);
+    },
+    [
+      selection.isSelecting,
+      dragAndDrop.isDraggingMultiple,
+      panZoom,
+      getTouchDistance,
+      getTouchCenter,
+    ]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+
+      if (e.touches.length === 1 && panZoom.isPanning) {
+        // 1本指: パン処理
+        if (!panZoom.panStartPos || !panZoom.initialPan) return;
+
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - panZoom.panStartPos.x;
+        const deltaY = touch.clientY - panZoom.panStartPos.y;
+
+        panZoom.setPanX(panZoom.initialPan.x + deltaX);
+        panZoom.setPanY(panZoom.initialPan.y + deltaY);
+      } else if (e.touches.length === 2 && panZoom.isZooming) {
+        // 2本指: ピンチズーム処理
+        if (
+          !boardRef.current ||
+          !panZoom.lastTouchDistance ||
+          !panZoom.touchCenter
+        )
+          return;
+
+        const distance = getTouchDistance(e.touches);
+        const center = getTouchCenter(e.touches);
+
+        if (distance && center) {
+          // ズーム倍率を計算
+          const zoomFactor = distance / panZoom.lastTouchDistance;
+          const newZoom = Math.max(0.1, Math.min(5, panZoom.zoom * zoomFactor));
+
+          // ズーム中心の座標変換
+          const rect = boardRef.current.getBoundingClientRect();
+          const centerX = center.x - rect.left;
+          const centerY = center.y - rect.top;
+
+          // ワールド座標でのズーム中心
+          const worldCenterX = (centerX - panZoom.panX) / panZoom.zoom;
+          const worldCenterY = (centerY - panZoom.panY) / panZoom.zoom;
+
+          // 新しいパン位置を計算
+          const newPanX = centerX - worldCenterX * newZoom;
+          const newPanY = centerY - worldCenterY * newZoom;
+
+          panZoom.setZoom(newZoom);
+          panZoom.setPanX(newPanX);
+          panZoom.setPanY(newPanY);
+          panZoom.setLastTouchDistance(distance);
+          panZoom.setTouchCenter(center);
+        }
+      }
+    },
+    [panZoom, boardRef, getTouchDistance, getTouchCenter]
+  );
 
   const handleTouchEnd = useCallback(() => {
     panZoom.setIsPanning(false);
@@ -1713,13 +1798,12 @@ export function Board({ user }: BoardProps) {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
-    
+
     document.addEventListener("mousemove", handleGlobalMouseMove);
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
     };
   }, []);
-
 
   // マウスイベントのリスナー設定
   useEffect(() => {
@@ -2391,8 +2475,11 @@ export function Board({ user }: BoardProps) {
   // Helper function to check if an input is focused
   const isInputFocused = useCallback(() => {
     const activeElement = document.activeElement;
-    return activeElement && 
-      (activeElement.tagName === "TEXTAREA" || activeElement.tagName === "INPUT");
+    return (
+      activeElement &&
+      (activeElement.tagName === "TEXTAREA" ||
+        activeElement.tagName === "INPUT")
+    );
   }, []);
 
   // キーボードハンドラーを初期化
@@ -2421,22 +2508,24 @@ export function Board({ user }: BoardProps) {
       if (selection.selectedNoteIds.size > 0) {
         const selectedNoteIds = Array.from(selection.selectedNoteIds);
         console.log("Selected note IDs:", selectedNoteIds);
-        const selectedNotes = notes.filter(note => selectedNoteIds.includes(note.id));
+        const selectedNotes = notes.filter((note) =>
+          selectedNoteIds.includes(note.id)
+        );
         console.log("Selected notes:", selectedNotes);
-        
+
         // JSONデータとしてクリップボードにコピー
         const copyData = {
-          type: 'maplap-notes',
-          notes: selectedNotes
+          type: "maplap-notes",
+          notes: selectedNotes,
         };
-        
+
         try {
           const jsonString = JSON.stringify(copyData);
           console.log("Copying to clipboard:", jsonString);
           await navigator.clipboard.writeText(jsonString);
           console.log("Copy successful");
         } catch (error) {
-          console.error('Failed to copy notes:', error);
+          console.error("Failed to copy notes:", error);
         }
       } else {
         console.log("No notes selected for copy");
@@ -2449,28 +2538,42 @@ export function Board({ user }: BoardProps) {
         console.log("Clipboard content:", clipboardText);
         const copyData = JSON.parse(clipboardText);
         console.log("Parsed copy data:", copyData);
-        
-        if (copyData.type === 'maplap-notes' && Array.isArray(copyData.notes)) {
+
+        if (copyData.type === "maplap-notes" && Array.isArray(copyData.notes)) {
           console.log("Valid maplap notes data, proceeding with paste");
           // マウス位置をボード座標に変換してペースト
           const pasteX = (lastMousePos.current.x - panZoom.panX) / panZoom.zoom;
           const pasteY = (lastMousePos.current.y - panZoom.panY) / panZoom.zoom;
           console.log("Paste position:", { pasteX, pasteY });
-          
+
           copyData.notes.forEach((note: Note, index: number) => {
             console.log(`Processing note ${index}:`, note);
             // 権限チェック
-            if (!user?.uid || !board || !checkBoardEditPermission(board, project, user.uid).canEdit) {
-              console.log("Permission check failed:", { user: !!user?.uid, board: !!board, canEdit: board ? checkBoardEditPermission(board, project, user?.uid || null).canEdit : false });
+            if (
+              !user?.uid ||
+              !board ||
+              !checkBoardEditPermission(board, project, user.uid).canEdit
+            ) {
+              console.log("Permission check failed:", {
+                user: !!user?.uid,
+                board: !!board,
+                canEdit: board
+                  ? checkBoardEditPermission(board, project, user?.uid || null)
+                      .canEdit
+                  : false,
+              });
               return;
             }
             console.log("Permission check passed");
-            
-            const offsetX = pasteX + (index * 20);
-            const offsetY = pasteY + (index * 20);
+
+            const offsetX = pasteX + index * 20;
+            const offsetY = pasteY + index * 20;
             const noteId = nanoid();
-            console.log("Creating note with ID:", noteId, "at position:", { offsetX, offsetY });
-            
+            console.log("Creating note with ID:", noteId, "at position:", {
+              offsetX,
+              offsetY,
+            });
+
             const newNote: Omit<Note, "id"> = {
               type: "note",
               content: note.content, // 元のコンテンツを直接設定
@@ -2485,7 +2588,7 @@ export function Board({ user }: BoardProps) {
               isDragging: false,
               draggedBy: null,
             };
-            
+
             // 履歴に追加
             if (!isUndoRedoOperation) {
               addToHistory({
@@ -2495,13 +2598,13 @@ export function Board({ user }: BoardProps) {
                 userId: user.uid,
               });
             }
-            
+
             // Firebase Realtime Databaseに直接保存
             const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
             console.log("Saving note to Firebase:", newNote);
             set(noteRef, newNote);
           });
-          
+
           // zIndexを更新
           setNextZIndex((prev) => prev + copyData.notes.length);
           console.log("Paste operation completed successfully");
@@ -2509,11 +2612,11 @@ export function Board({ user }: BoardProps) {
           console.log("Invalid clipboard data format");
         }
       } catch (error) {
-        console.error('Failed to paste notes:', error);
+        console.error("Failed to paste notes:", error);
       }
     },
     onSelectAll: () => {
-      const allNoteIds = new Set(notes.map(note => note.id));
+      const allNoteIds = new Set(notes.map((note) => note.id));
       selection.setSelectedNoteIds(allNoteIds);
     },
     onAddNote: addNote,
@@ -2525,29 +2628,29 @@ export function Board({ user }: BoardProps) {
       createGroup();
     },
     onDelete: () => {
-      console.log('onDelete called');
-      console.log('selectedNoteIds:', selection.selectedNoteIds);
-      console.log('selectedItemIds:', selection.selectedItemIds);
-      console.log('selectedGroupIds:', selection.selectedGroupIds);
-      
+      console.log("onDelete called");
+      console.log("selectedNoteIds:", selection.selectedNoteIds);
+      console.log("selectedItemIds:", selection.selectedItemIds);
+      console.log("selectedGroupIds:", selection.selectedGroupIds);
+
       // 選択された付箋を削除
       const selectedNoteIds = Array.from(selection.selectedNoteIds);
-      selectedNoteIds.forEach(noteId => {
+      selectedNoteIds.forEach((noteId) => {
         deleteNote(noteId);
       });
-      
+
       // 選択された矢印を削除
       const selectedArrowIds = Array.from(selection.selectedItemIds);
-      selectedArrowIds.forEach(arrowId => {
+      selectedArrowIds.forEach((arrowId) => {
         deleteArrow(arrowId);
       });
-      
+
       // 選択されたグループを削除
       const selectedGroupIds = Array.from(selection.selectedGroupIds);
-      selectedGroupIds.forEach(groupId => {
+      selectedGroupIds.forEach((groupId) => {
         deleteGroup(groupId);
       });
-      
+
       // 選択状態をクリア
       selection.setSelectedNoteIds(new Set());
       selection.setSelectedItemIds(new Set());
@@ -2564,27 +2667,37 @@ export function Board({ user }: BoardProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      console.log('KeyDown event:', e.key, 'shiftKey:', e.shiftKey, 'inputFocused:', isInputFocused());
+      console.log(
+        "KeyDown event:",
+        e.key,
+        "shiftKey:",
+        e.shiftKey,
+        "inputFocused:",
+        isInputFocused()
+      );
       if (!isInputFocused()) {
         // キーヒントモード処理を最優先
         if (keyboardHandlers.handleKeyHintModeProcessing(e)) {
           return; // キーヒントモード処理が実行された場合は他の処理をスキップ
         }
-        
+
         // Shift+キーの処理を優先（WASDより前に処理）
-        if (e.shiftKey && e.code === 'KeyS') {
-          console.log('Shift+S detected before handleShiftKeys');
-          console.log('Current keyHints.isKeyHintMode:', keyHints.isKeyHintMode);
+        if (e.shiftKey && e.code === "KeyS") {
+          console.log("Shift+S detected before handleShiftKeys");
+          console.log(
+            "Current keyHints.isKeyHintMode:",
+            keyHints.isKeyHintMode
+          );
         }
-        console.log('Calling handleShiftKeys...');
+        console.log("Calling handleShiftKeys...");
         const shiftResult = keyboardHandlers.handleShiftKeys(e);
-        console.log('handleShiftKeys returned:', shiftResult);
+        console.log("handleShiftKeys returned:", shiftResult);
         if (shiftResult) {
-          console.log('Shift key was handled, returning');
+          console.log("Shift key was handled, returning");
           return; // Shift+キーが処理された場合は他の処理をスキップ
         }
-        console.log('Shift key was not handled, continuing...');
-        
+        console.log("Shift key was not handled, continuing...");
+
         // その他のキーボードショートカット処理
         keyboardHandlers.handleUndoKey(e);
         keyboardHandlers.handleRedoKey(e);
@@ -2640,7 +2753,6 @@ export function Board({ user }: BoardProps) {
     [isUndoRedoOperation, addToHistory, user?.uid]
   );
 
-
   // Show loading state while resolving slug
   if (slugContext?.loading) {
     return (
@@ -2658,7 +2770,6 @@ export function Board({ user }: BoardProps) {
       </div>
     );
   }
-
 
   // Show loading while creating missing board
   if (boardId && !board && !isCheckingAccess && isCreatingMissingBoard) {
@@ -2680,12 +2791,21 @@ export function Board({ user }: BoardProps) {
 
   // 選択範囲の描画
   const renderSelectionBox = () => {
-    if (!selection.isSelecting || !selection.selectionStart || !selection.selectionEnd) return null;
+    if (
+      !selection.isSelecting ||
+      !selection.selectionStart ||
+      !selection.selectionEnd
+    )
+      return null;
 
     const minX = Math.min(selection.selectionStart.x, selection.selectionEnd.x);
     const minY = Math.min(selection.selectionStart.y, selection.selectionEnd.y);
-    const width = Math.abs(selection.selectionEnd.x - selection.selectionStart.x);
-    const height = Math.abs(selection.selectionEnd.y - selection.selectionStart.y);
+    const width = Math.abs(
+      selection.selectionEnd.x - selection.selectionStart.x
+    );
+    const height = Math.abs(
+      selection.selectionEnd.y - selection.selectionStart.y
+    );
 
     return (
       <div
@@ -2703,6 +2823,79 @@ export function Board({ user }: BoardProps) {
         }}
       />
     );
+  };
+
+  // ピン留めハンドラー
+  const handleTogglePin = async () => {
+    if (!board || !boardId || !user?.uid) return;
+
+    // 権限チェック
+    if (!checkBoardEditPermission(board, project, user.uid).canEdit) {
+      return;
+    }
+
+    try {
+      const newPinnedState = !board.isPinned;
+
+      // Update board in Firebase
+      const boardRef = ref(rtdb, `boards/${boardId}`);
+      await set(boardRef, { ...board, isPinned: newPinnedState });
+
+      // Also update in projectBoards for consistency
+      if (board.projectId) {
+        const projectBoardRef = ref(
+          rtdb,
+          `projectBoards/${board.projectId}/${boardId}`
+        );
+        await set(projectBoardRef, { ...board, isPinned: newPinnedState });
+      }
+    } catch (error) {
+      console.error("Error toggling pin:", error);
+      alert("Failed to update pin status");
+    }
+  };
+
+  // 削除ハンドラー
+  const handleDeleteBoard = async () => {
+    if (!board || !boardId || !user?.uid) return;
+
+    // 権限チェック
+    if (!checkBoardEditPermission(board, project, user.uid).canEdit) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this board? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const boardRef = ref(rtdb, `boards/${boardId}`);
+      await remove(boardRef);
+
+      // Also remove from projectBoards for consistency
+      if (board.projectId) {
+        const projectBoardRef = ref(
+          rtdb,
+          `projectBoards/${board.projectId}/${boardId}`
+        );
+        await remove(projectBoardRef);
+      }
+
+      // Remove board notes and cursors
+      const boardNotesRef = ref(rtdb, `boardNotes/${boardId}`);
+      const boardCursorsRef = ref(rtdb, `boardCursors/${boardId}`);
+      await remove(boardNotesRef);
+      await remove(boardCursorsRef);
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting board:", error);
+      alert("Failed to delete board. Please try again.");
+    }
   };
 
   return (
@@ -2723,9 +2916,9 @@ export function Board({ user }: BoardProps) {
           backgroundSize: `${getDotSpacing(panZoom.zoom) * panZoom.zoom}px ${
             getDotSpacing(panZoom.zoom) * panZoom.zoom
           }px`,
-          backgroundPosition: `${panZoom.panX % (getDotSpacing(panZoom.zoom) * panZoom.zoom)}px ${
-            panZoom.panY % (getDotSpacing(panZoom.zoom) * panZoom.zoom)
-          }px`,
+          backgroundPosition: `${
+            panZoom.panX % (getDotSpacing(panZoom.zoom) * panZoom.zoom)
+          }px ${panZoom.panY % (getDotSpacing(panZoom.zoom) * panZoom.zoom)}px`,
         }}
       >
         <div
@@ -2743,7 +2936,8 @@ export function Board({ user }: BoardProps) {
               onUpdate={updateNote}
               onDelete={deleteNote}
               isActive={
-                selection.selectedNoteIds.has(note.id) && selection.selectedNoteIds.size === 1
+                selection.selectedNoteIds.has(note.id) &&
+                selection.selectedNoteIds.size === 1
               }
               isSelected={selection.selectedNoteIds.has(note.id)}
               onActivate={handleActivateNote}
@@ -2767,7 +2961,11 @@ export function Board({ user }: BoardProps) {
                   updateBoardMetadata();
                 }, 500); // throttleの影響を考慮して少し遅延
               }}
-              hintKey={keyHints.isKeyHintMode ? keyHints.noteHintKeys.get(note.id) : undefined}
+              hintKey={
+                keyHints.isKeyHintMode
+                  ? keyHints.noteHintKeys.get(note.id)
+                  : undefined
+              }
             />
           ))}
 
@@ -2819,39 +3017,39 @@ export function Board({ user }: BoardProps) {
           </button>
         )}
       {selection.selectedNoteIds.size === 2 && user && (
-        <button
-          onClick={() => addArrow()}
-          className="fab-add-arrow"
-        >
+        <button onClick={() => addArrow()} className="fab-add-arrow">
           ↗
         </button>
       )}
-      {((selection.selectedNoteIds.size > 1) || 
-        (selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0)) && user && (
-        <div className="group-controls">
-          <button
-            onClick={() => createGroup()}
-            className="group-button"
-            title={
-              selection.selectedGroupIds.size === 1 && selection.selectedNoteIds.size > 0
-                ? "Add selected notes to group"
-                : "Create group from selected notes"
-            }
-          >
-            <span className="group-icon">⬡</span>
-            <span>Group</span>
-          </button>
-          <button
-            onClick={createBoardFromSelection}
-            className="group-button create-board-button"
-            title="Create new board from selected notes"
-            disabled={isCreatingBoard}
-          >
-            <MdContentCopy />
-            <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
-          </button>
-        </div>
-      )}
+      {(selection.selectedNoteIds.size > 1 ||
+        (selection.selectedGroupIds.size === 1 &&
+          selection.selectedNoteIds.size > 0)) &&
+        user && (
+          <div className="group-controls">
+            <button
+              onClick={() => createGroup()}
+              className="group-button"
+              title={
+                selection.selectedGroupIds.size === 1 &&
+                selection.selectedNoteIds.size > 0
+                  ? "Add selected notes to group"
+                  : "Create group from selected notes"
+              }
+            >
+              <span className="group-icon">⬡</span>
+              <span>Group</span>
+            </button>
+            <button
+              onClick={createBoardFromSelection}
+              className="group-button create-board-button"
+              title="Create new board from selected notes"
+              disabled={isCreatingBoard}
+            >
+              <MdContentCopy />
+              <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
+            </button>
+          </div>
+        )}
       {/* Cosense Link */}
       {board && project?.cosenseProjectName && (
         <a
@@ -2867,7 +3065,18 @@ export function Board({ user }: BoardProps) {
       )}
 
       {/* 付箋数カウンター */}
-      <StickyNoteCounter noteCount={notes.length} />
+      <StickyNoteCounter
+        noteCount={notes.length}
+        boardId={boardId || null}
+        isPinned={board?.isPinned || false}
+        canEdit={
+          board && user?.uid
+            ? checkBoardEditPermission(board, project, user.uid).canEdit
+            : false
+        }
+        onPin={handleTogglePin}
+        onDelete={handleDeleteBoard}
+      />
     </div>
   );
 }
@@ -2883,19 +3092,25 @@ function useAutoCreateBoard(
   legacyBoardId: string | undefined,
   navigate: NavigateFunction
 ) {
-  const [isCreatingMissingBoard, setIsCreatingMissingBoard] = useState<boolean>(false);
+  const [isCreatingMissingBoard, setIsCreatingMissingBoard] =
+    useState<boolean>(false);
 
   useEffect(() => {
-    const shouldCreateBoard = boardId && !board && !isCheckingAccess && user?.uid && !isCreatingMissingBoard;
-    
+    const shouldCreateBoard =
+      boardId &&
+      !board &&
+      !isCheckingAccess &&
+      user?.uid &&
+      !isCreatingMissingBoard;
+
     if (!shouldCreateBoard) return;
-    
+
     setIsCreatingMissingBoard(true);
-    
+
     const createNewBoard = async () => {
       try {
         // Get current project or find a default project
-        const projectsRef = ref(rtdb, 'projects');
+        const projectsRef = ref(rtdb, "projects");
         const projectsSnapshot = await get(projectsRef);
         let targetProjectId = projectId;
 
@@ -2919,21 +3134,28 @@ function useAutoCreateBoard(
 
         // Create a new board with the requested ID, using URL board name if available
         let boardName = "Untitled";
-        
+
         if (urlBoardName) {
           // Slug-based route: use the board name from URL
           boardName = decodeURIComponent(urlBoardName);
-          console.log(`Slug route - URL board name: "${urlBoardName}" -> decoded: "${boardName}"`);
+          console.log(
+            `Slug route - URL board name: "${urlBoardName}" -> decoded: "${boardName}"`
+          );
         } else if (legacyBoardId) {
           // Legacy route: try to use a meaningful name based on board ID or use default
           boardName = "Board";
-          console.log(`Legacy route - using default name for board ID: "${legacyBoardId}"`);
+          console.log(
+            `Legacy route - using default name for board ID: "${legacyBoardId}"`
+          );
         } else {
           console.log("No URL board name found, using default 'Untitled'");
         }
-        
+
         // Ensure the name is unique in the project
-        const finalBoardName = await generateUniqueBoardName(targetProjectId, boardName);
+        const finalBoardName = await generateUniqueBoardName(
+          targetProjectId,
+          boardName
+        );
         console.log(`Final board name: "${finalBoardName}"`);
         boardName = finalBoardName;
         const boardData = {
@@ -2950,7 +3172,7 @@ function useAutoCreateBoard(
         updates[`projectBoards/${targetProjectId}/${boardId}`] = boardData;
 
         await update(ref(rtdb), updates);
-        
+
         console.log(`Created new board "${boardName}" with ID ${boardId}`);
         // The board will be automatically loaded by the existing listeners
       } catch (error) {
@@ -2960,7 +3182,17 @@ function useAutoCreateBoard(
     };
 
     createNewBoard();
-  }, [boardId, board, isCheckingAccess, user?.uid, projectId, isCreatingMissingBoard, navigate, urlBoardName, legacyBoardId]);
+  }, [
+    boardId,
+    board,
+    isCheckingAccess,
+    user?.uid,
+    projectId,
+    isCreatingMissingBoard,
+    navigate,
+    urlBoardName,
+    legacyBoardId,
+  ]);
 
   return { isCreatingMissingBoard };
 }

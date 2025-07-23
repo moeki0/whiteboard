@@ -209,36 +209,10 @@ export const UnifiedMenu = memo(function UnifiedMenu({
             User Settings
           </Link>
 
-          {currentProject && (
-            <Link
-              to={
-                currentProject.slug
-                  ? `/${currentProject.slug}/search`
-                  : `/project/${currentProjectId}/search`
-              }
-              className="menu-item"
-              onClick={handleCloseMenu}
-            >
-              Search Boards
-            </Link>
-          )}
-
           {currentProject?.cosenseProjectName && (
             <button className="menu-item" onClick={openBookmarkletPage}>
               Get Cosense Bookmarklet
             </button>
-          )}
-
-          {isOnBoardPage && canEditBoard && currentBoardId && (
-            <>
-              <Link
-                to={`/board/${currentBoardId}/settings`}
-                className="menu-item"
-                onClick={handleCloseMenu}
-              >
-                Board Settings
-              </Link>
-            </>
           )}
 
           {/* Project Section */}

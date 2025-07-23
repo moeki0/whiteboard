@@ -3,9 +3,49 @@
   bottom: 0px;
   left: 0px;
   padding: 4px;
-  font-size: 10px;
+  font-size: 13px;
   color: #111;
   background-color: #eee;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 1000;
+  border-radius: 0 4px 0 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sticky-note-counter.expanded {
+  background-color: #ddd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.counter-text {
+  white-space: nowrap;
+}
+
+.counter-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-btn.pinned {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
 }

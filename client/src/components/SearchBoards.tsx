@@ -70,10 +70,9 @@ export function SearchBoards() {
     }
   };
 
-
   // Initialize search query from URL params on component mount
   useEffect(() => {
-    const queryParam = searchParams.get('q');
+    const queryParam = searchParams.get("q");
     if (queryParam) {
       setSearchQuery(queryParam);
     }
@@ -82,7 +81,7 @@ export function SearchBoards() {
   // Update URL when search query changes
   const updateSearchQuery = (query: string) => {
     setSearchQuery(query);
-    
+
     if (query.trim()) {
       setSearchParams({ q: query });
     } else {
@@ -114,7 +113,6 @@ export function SearchBoards() {
               value={searchQuery}
               onChange={(e) => updateSearchQuery(e.target.value)}
               className="search-input"
-              placeholder="Search boards..."
             />
           </div>
         )}

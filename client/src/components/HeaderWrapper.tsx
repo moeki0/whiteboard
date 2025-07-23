@@ -289,6 +289,9 @@ export const HeaderWrapper = memo(function HeaderWrapper({
 
   // Define page-specific header configuration
   const getHeaderConfig = () => {
+    // Show search when we have a project ID (in project context)
+    const showSearch = Boolean(foundProjectId);
+    
     return {
       title: projectName,
       titleLink: projectSlug ? `/${projectSlug}` : `/project/${foundProjectId}`,
@@ -299,6 +302,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       onSubtitleChange: handleBoardTitleChange,
       onSubtitleSave: handleBoardTitleSave,
       isDuplicateName: isDuplicateName,
+      showSearch: showSearch,
     };
   };
 
