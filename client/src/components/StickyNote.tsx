@@ -186,6 +186,7 @@ import { extractBoardLinks } from "../utils/extractBoardLinks";
 import { extractCosenseLinks } from "../utils/extractCosenseLinks";
 import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
 import { isNoteUnread, updateNoteViewTime } from "../utils/noteViewHistory";
+import { isNoteUnreadInSession, addNewNoteToSession } from "../utils/sessionUnreadNotes";
 import { isYouTubeUrl, getYouTubeEmbedUrl } from "../utils/youtubeEmbed";
 
 interface ImageContent {
@@ -2195,22 +2196,18 @@ const StickyNoteComponent = function StickyNote({
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
-  // 新着チェック（ボードレベルの未読判定を使用 - ページリロードまで維持）
-  const isNewNote = isNoteNewerThanLastView(
-    board.id,
-    note.createdAt,
-    note.updatedAt
-  );
+  // 新着チェック（セッション中の未読状態で判定 - セッション中は維持される）  
+  const isNewNote = isNoteUnreadInSession(note.id);
 
-  // 付箋レベルの閲覧履歴記録は一時的に無効化（デバッグ用）
-  // useEffect(() => {
-  //   const timer = setTimeout(() => {
-  //     console.log('Recording note view (keeping unread mark):', note.id.substring(0, 8));
-  //     updateNoteViewTime(board.id, note.id);
-  //   }, 100);
+  // 付箋が表示されたら付箋レベルの閲覧履歴を記録（ボードアクセス時用）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('Recording note view for next board access:', note.id.substring(0, 8));
+      updateNoteViewTime(board.id, note.id);
+    }, 100);
 
-  //   return () => clearTimeout(timer);
-  // }, [board.id, note.id]);
+    return () => clearTimeout(timer);
+  }, [board.id, note.id]);
 
   // 更新時間に基づいて影のサイズを計算
   const calculateShadowByRecency = () => {

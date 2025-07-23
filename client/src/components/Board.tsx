@@ -44,6 +44,8 @@ import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
 import { UnreadNoteIndicator } from "./UnreadNoteIndicator";
 import { useUnreadNotes } from "../hooks/useUnreadNotes";
+import { initializeSessionUnreadNotes, resetSession, addNewNoteToSession } from "../utils/sessionUnreadNotes";
+import { isNoteUnread } from "../utils/noteViewHistory";
 
 interface BoardProps {
   user: User | null;
@@ -329,8 +331,22 @@ export function Board({ user }: BoardProps) {
     selection.setSelectedGroupIds(new Set());
     updateUrlForNote(null);
 
-    // ボードアクセス時の閲覧時刻更新は削除（未読マークを正しく表示するため）
+    // ボードアクセス時の処理
+    if (boardId) {
+      // セッションをリセットして新しいセッションを開始
+      resetSession();
+      
+      // ボードの閲覧時刻を更新（次回アクセス時の未読判定用）
+      updateBoardViewTime(boardId);
+    }
   }, [boardId, updateUrlForNote]);
+
+  // 付箋が読み込まれた時にセッション未読状態を初期化
+  useEffect(() => {
+    if (boardId && notes.length > 0) {
+      initializeSessionUnreadNotes(boardId, notes, isNoteUnread);
+    }
+  }, [boardId, notes]);
 
   // WASD パンアニメーション（削除：カクカク移動のため不要）
 
@@ -465,6 +481,9 @@ export function Board({ user }: BoardProps) {
         );
       }
     }, 100);
+
+    // 新しい付箋をセッション未読に追加
+    addNewNoteToSession(noteId);
 
     return noteId;
   };

@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { Note, User } from '../types';
 import { isNoteUnread, updateNoteViewTime } from '../utils/noteViewHistory';
+import { isNoteUnreadInSession } from '../utils/sessionUnreadNotes';
 
 interface UseUnreadNotesProps {
   boardId: string;
@@ -25,7 +26,7 @@ export function useUnreadNotes({
   panX,
   panY,
 }: UseUnreadNotesProps): UseUnreadNotesReturn {
-  // 未読の付箋を計算
+  // 未読の付箋を計算（セッション未読状態を使用）
   const unreadNotes = useMemo(() => {
     if (!user?.uid) {
       console.log('useUnreadNotes: No user, returning empty array');
@@ -33,17 +34,16 @@ export function useUnreadNotes({
     }
     
     const unread = notes.filter(note => {
-      const updatedAt = note.updatedAt || note.createdAt;
-      const isUnread = isNoteUnread(boardId, note.id, updatedAt);
+      const isUnread = isNoteUnreadInSession(note.id);
       if (isUnread) {
-        console.log('Found unread note:', note.id, note.content?.substring(0, 20));
+        console.log('Found session unread note:', note.id, note.content?.substring(0, 20));
       }
       return isUnread;
     });
     
     console.log('useUnreadNotes result:', { totalNotes: notes.length, unreadCount: unread.length });
     return unread;
-  }, [boardId, notes, user?.uid]);
+  }, [notes, user?.uid]);
 
   // 付箋にフォーカスする関数
   const focusNote = useCallback((noteId: string) => {
