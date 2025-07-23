@@ -238,9 +238,16 @@ export function Board({ user }: BoardProps) {
 
   // 初期ハッシュ処理（一回のみ実行）
   const initialHashProcessed = useRef(false);
+  
+  // boardIdが変更されたときにinitialHashProcessedをリセット
+  useEffect(() => {
+    initialHashProcessed.current = false;
+  }, [boardId]);
+
   useEffect(() => {
     if (notes.length === 0) return;
     if (initialHashProcessed.current) return;
+    if (isCreatingMissingBoard) return; // 新規ボード作成中はスキップ
 
     const hash = window.location.hash.slice(1);
     console.log("Debug: Initial hash processing:", hash, notes.length);
@@ -250,21 +257,29 @@ export function Board({ user }: BoardProps) {
       console.log("Debug: Found note for hash:", note);
       console.log("Debug: boardRef.current:", boardRef.current);
       if (note) {
-        // 画面の中央に付箋の中心を配置
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
-        // 付箋のサイズを考慮（一般的な付箋サイズ: 幅200px, 高さ150px）
-        const noteWidth = 200;
-        const noteHeight = 150;
-        panZoom.setPanX(centerX - note.x - noteWidth / 2);
-        panZoom.setPanY(centerY - note.y - noteHeight / 2);
-        selection.setSelectedNoteIds(new Set([hash]));
-        console.log("Debug: Applied initial hash processing");
+        // 新規ボード作成直後の最初の付箋の場合はパンしない
+        // （ボードに付箋が1つしかない場合は新規作成直後と判断）
+        if (notes.length === 1) {
+          // 選択状態のみ設定し、パンはしない
+          selection.setSelectedNoteIds(new Set([hash]));
+          console.log("Debug: Skipped initial pan for newly created board");
+        } else {
+          // 画面の中央に付箋の中心を配置
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          // 付箋のサイズを考慮（一般的な付箋サイズ: 幅200px, 高さ150px）
+          const noteWidth = 200;
+          const noteHeight = 150;
+          panZoom.setPanX(centerX - note.x - noteWidth / 2);
+          panZoom.setPanY(centerY - note.y - noteHeight / 2);
+          selection.setSelectedNoteIds(new Set([hash]));
+          console.log("Debug: Applied initial hash processing");
+        }
       }
     }
 
     initialHashProcessed.current = true;
-  }, [notes]);
+  }, [notes, isCreatingMissingBoard]);
 
   // 付箋選択時のURL更新（手動で呼び出す方式に変更）
   const updateUrlForNote = useCallback((noteId: string | null) => {
