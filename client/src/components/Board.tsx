@@ -3012,40 +3012,42 @@ export function Board({ user }: BoardProps) {
             <LuPlus />
           </button>
         )}
-      {selection.selectedNoteIds.size === 2 && user && (
-        <button onClick={() => addArrow()} className="fab-add-arrow">
-          ↗
-        </button>
-      )}
-      {(selection.selectedNoteIds.size > 1 ||
-        (selection.selectedGroupIds.size === 1 &&
-          selection.selectedNoteIds.size > 0)) &&
-        user && (
-          <div className="group-controls">
-            <button
-              onClick={() => createGroup()}
-              className="group-button"
-              title={
-                selection.selectedGroupIds.size === 1 &&
-                selection.selectedNoteIds.size > 0
-                  ? "Add selected notes to group"
-                  : "Create group from selected notes"
-              }
-            >
-              <span className="group-icon">⬡</span>
-              <span>Group</span>
-            </button>
-            <button
-              onClick={createBoardFromSelection}
-              className="group-button create-board-button"
-              title="Create new board from selected notes"
-              disabled={isCreatingBoard}
-            >
-              <MdContentCopy />
-              <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
-            </button>
-          </div>
+      <div className="group-controls">
+        {selection.selectedNoteIds.size === 2 && user && (
+          <button onClick={() => addArrow()} className="fab-add-arrow">
+            ↗ Arrow
+          </button>
         )}
+        {(selection.selectedNoteIds.size > 1 ||
+          (selection.selectedGroupIds.size === 1 &&
+            selection.selectedNoteIds.size > 0)) &&
+          user && (
+            <>
+              <button
+                onClick={() => createGroup()}
+                className="group-button"
+                title={
+                  selection.selectedGroupIds.size === 1 &&
+                  selection.selectedNoteIds.size > 0
+                    ? "Add selected notes to group"
+                    : "Create group from selected notes"
+                }
+              >
+                <span className="group-icon">⬡</span>
+                <span>Group</span>
+              </button>
+              <button
+                onClick={createBoardFromSelection}
+                className="group-button create-board-button"
+                title="Create new board from selected notes"
+                disabled={isCreatingBoard}
+              >
+                <MdContentCopy />
+                <span>{isCreatingBoard ? "Creating..." : "New Board"}</span>
+              </button>
+            </>
+          )}
+      </div>
       {/* Cosense Link */}
       {board && project?.cosenseProjectName && (
         <a

@@ -1364,12 +1364,7 @@ div.user-avatar-small {
 }
 
 .fab-add-arrow {
-  position: fixed;
-  bottom: 100px;
-  right: 30px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  border-radius: 50px;
   background-color: #007bff;
   color: white;
   border: none;
@@ -1379,15 +1374,16 @@ div.user-avatar-small {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
   transition: all 0.2s ease;
 }
 
 .group-controls {
   position: fixed;
-  bottom: 30px;
-  right: 100px;
+  bottom: 100px;
+  right: 30px;
   display: flex;
+  flex-direction: column;
+  align-items: end;
   gap: 10px;
   z-index: 10000000;
 }
@@ -1396,13 +1392,11 @@ div.user-avatar-small {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background-color: #9d2ed1;
+  background-color: #007bff;
   color: white;
   border: none;
   border-radius: 50px;
   cursor: pointer;
-  font-size: 16px;
   font-weight: 500;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
@@ -1410,10 +1404,6 @@ div.user-avatar-small {
 
 .create-board-button {
   position: static;
-}
-
-.group-icon {
-  font-size: 18px;
 }
 
 .board-link {
