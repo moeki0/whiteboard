@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { rtdb } from "../config/firebase";
 import { ref, set, remove } from "firebase/database";
 import { User } from "../types";
+import { getUserProfile } from "../utils/userProfile";
 
 interface UseBoardListCursorProps {
   projectId: string | undefined;
@@ -14,6 +15,24 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
   console.log('useBoardListCursor - Hook called with:', { projectId, user: user?.uid, sessionId, cursorColor });
   
   const throttleTimerRef = useRef<number | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+
+  // Load username
+  useEffect(() => {
+    const loadUsername = async () => {
+      if (user?.uid) {
+        try {
+          const profile = await getUserProfile(user.uid);
+          setUsername(profile?.username || null);
+        } catch (error) {
+          console.error("Error loading user profile:", error);
+          setUsername(null);
+        }
+      }
+    };
+
+    loadUsername();
+  }, [user?.uid]);
 
   useEffect(() => {
     console.log('useBoardListCursor - useEffect called with projectId:', projectId);
@@ -68,6 +87,8 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
           fullName: `${userName} (${sessionId})`,
           color: cursorColor,
           timestamp: Date.now(),
+          photoURL: user.photoURL,
+          username: username,
         };
         
         console.log('useBoardListCursor - Sending cursor data:', cursorData);

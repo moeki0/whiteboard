@@ -453,12 +453,12 @@ button {
 
 .cursor-label {
   position: absolute;
-  top: -25px;
-  left: 20px;
+  top: -50px;
+  left: 16px;
+  height: 20px;
+  width: 20px;
   color: white;
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: 50%;
   white-space: nowrap;
 }
 
@@ -560,6 +560,26 @@ button {
 .member-avatar.more {
   background-color: #999;
   font-size: 10px;
+}
+
+/* Board Thumbnail Preview */
+.board-thumbnail-preview {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 48px;
+  height: 36px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.thumbnail-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 /* Active Members in Board Cards */

@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { rtdb } from "../config/firebase";
 import { ref, set, remove } from "firebase/database";
 import { User } from "../types";
+import { getUserProfile } from "../utils/userProfile";
 
 interface UseCursorProps {
   boardId: string | undefined;
@@ -18,6 +19,24 @@ export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, z
   const panXRef = useRef(panX);
   const panYRef = useRef(panY);
   const zoomRef = useRef(zoom);
+  const [username, setUsername] = useState<string | null>(null);
+
+  // Load username
+  useEffect(() => {
+    const loadUsername = async () => {
+      if (user?.uid) {
+        try {
+          const profile = await getUserProfile(user.uid);
+          setUsername(profile?.username || null);
+        } catch (error) {
+          console.error("Error loading user profile:", error);
+          setUsername(null);
+        }
+      }
+    };
+
+    loadUsername();
+  }, [user?.uid]);
 
   // Update refs when values change
   useEffect(() => {
@@ -52,6 +71,8 @@ export function useCursor({ boardId, user, sessionId, cursorColor, panX, panY, z
           fullName: `${userName} (${sessionId})`,
           color: cursorColor,
           timestamp: Date.now(),
+          photoURL: user.photoURL,
+          username: username,
         }).catch((error) => {
           console.error("Error updating cursor:", error);
         });

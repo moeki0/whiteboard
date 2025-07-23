@@ -32,6 +32,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const [boardCursors, setBoardCursors] = useState<
     Record<string, Record<string, Cursor>>
   >({});
+  
   const [boardThumbnails, setBoardThumbnails] = useState<
     Record<string, string>
   >({});
@@ -273,9 +274,41 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     addToRecentlyCreated(projectId, uniqueName, boardId);
   };
 
-  // Component to render active members for a board
-  const ActiveMembers = memo(({ boardId }: { boardId: string }) => {
-    const cursors = boardCursors[boardId] || {};
+  // Component to render individual user avatar with initials
+  const UserAvatar = memo(({ cursor }: { cursor: any }) => {
+    const userName = cursor.username || cursor.fullName?.split(" (")[0] || "User";
+    const initials = userName
+      .split(" ")
+      .map((name: string) => name.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join("");
+
+    return (
+      <div
+        className="member-avatar active"
+        style={{ 
+          backgroundColor: cursor.color
+        }}
+        title={cursor.fullName}
+      >
+        <div style={{ 
+          color: "white", 
+          fontSize: "11px", 
+          fontWeight: "bold",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%"
+        }}>
+          {initials}
+        </div>
+      </div>
+    );
+  });
+
+  // Component to render active members with user board thumbnails
+  const ActiveMembers = memo(({ boardId, cursors }: { boardId: string; cursors: Record<string, Cursor> }) => {
     const activeUsers = Object.values(cursors);
 
     if (activeUsers.length === 0) {
@@ -289,22 +322,12 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
     return (
       <div className="active-members">
         {displayUsers.map((cursor, index) => {
-          const userId = cursor.fullName?.split(" (")[0] || "User";
-          const initials = userId
-            .split(" ")
-            .map((name) => name.charAt(0).toUpperCase())
-            .slice(0, 2)
-            .join("");
-
+          const userName = cursor.username || cursor.fullName?.split(" (")[0] || "User";
           return (
-            <div
-              key={index}
-              className="member-avatar active"
-              style={{ backgroundColor: cursor.color }}
-              title={cursor.fullName}
-            >
-              {initials}
-            </div>
+            <UserAvatar
+              key={userName}
+              cursor={cursor}
+            />
           );
         })}
         {remainingCount > 0 && (
@@ -314,6 +337,9 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
         )}
       </div>
     );
+  }, (prevProps, nextProps) => {
+    // Simple comparison - re-render if cursors object changes
+    return JSON.stringify(prevProps.cursors) === JSON.stringify(nextProps.cursors);
   });
 
   // Calculate pagination based on total count from Firebase
@@ -470,7 +496,7 @@ export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
                   )}
                 </div>
               )}
-              <ActiveMembers boardId={board.id} />
+              <ActiveMembers boardId={board.id} cursors={boardCursors[board.id] || {}} />
             </Link>
           </div>
         );

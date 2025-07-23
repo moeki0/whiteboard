@@ -2801,7 +2801,7 @@ export function Board({ user }: BoardProps) {
             </g>
           </svg>
 
-          <CursorDisplay cursors={cursors} />
+          <CursorDisplay cursors={cursors} projectId={projectId || undefined} />
           {renderSelectionBox()}
         </div>
       </div>

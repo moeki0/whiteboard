@@ -96,6 +96,8 @@ export interface Cursor {
   fullName: string;
   color: string;
   timestamp: number;
+  photoURL?: string | null;
+  username?: string;
 }
 
 export interface HistoryAction {

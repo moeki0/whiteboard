@@ -1,9 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  useParams,
-  useNavigate,
-  Link,
-} from "react-router-dom";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { User, Board, Cursor, Project } from "../types";
@@ -44,7 +40,7 @@ export function InfiniteScrollBoardList({
   const projectId = resolvedProjectId || propProjectId || paramProjectId;
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
-  
+
   // Track project access
   useTrackProjectAccess(projectId || null, projectSlug || null);
 
@@ -53,6 +49,12 @@ export function InfiniteScrollBoardList({
   const [boardCursors, setBoardCursors] = useState<
     Record<string, Record<string, Cursor>>
   >({});
+
+  // Debug: boardCursors state
+  useEffect(() => {
+    console.log(`🎲 BoardCursors state updated:`, boardCursors);
+    console.log(`🎲 Boards with cursors:`, Object.keys(boardCursors));
+  }, [boardCursors]);
   const [allBoards, setAllBoards] = useState<Board[]>([]); // 全ボードデータ
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
@@ -118,7 +120,7 @@ export function InfiniteScrollBoardList({
           // ピン留めされたボードを最優先
           if (a.isPinned && !b.isPinned) return -1;
           if (!a.isPinned && b.isPinned) return 1;
-          
+
           // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
           const aTime = a.updatedAt || a.createdAt || 0;
           const bTime = b.updatedAt || b.createdAt || 0;
@@ -148,16 +150,19 @@ export function InfiniteScrollBoardList({
         console.log(
           `✅ Loaded ${boardsArray.length} total boards, showing ${initialBoards.length} initially`
         );
-        
+
         // デバッグ: 最初の数個のボードのメタデータを詳細確認
-        console.log('🔍 Board metadata debug:', boardsArray.slice(0, 3).map(b => ({
-          name: b.name,
-          metadata: b.metadata,
-          metadataDescription: b.metadata?.description,
-          metadataTitle: b.metadata?.title,
-          hasDescription: !!b.metadata?.description,
-          hasThumbnail: !!b.metadata?.thumbnailUrl
-        })));
+        console.log(
+          "🔍 Board metadata debug:",
+          boardsArray.slice(0, 3).map((b) => ({
+            name: b.name,
+            metadata: b.metadata,
+            metadataDescription: b.metadata?.description,
+            metadataTitle: b.metadata?.title,
+            hasDescription: !!b.metadata?.description,
+            hasThumbnail: !!b.metadata?.thumbnailUrl,
+          }))
+        );
       } else {
         setAllBoards([]);
         setBoards([]);
@@ -259,7 +264,7 @@ export function InfiniteScrollBoardList({
               // ピン留めされたボードを最優先
               if (a.isPinned && !b.isPinned) return -1;
               if (!a.isPinned && b.isPinned) return 1;
-              
+
               // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
               const aTime = a.updatedAt || a.createdAt || 0;
               const bTime = b.updatedAt || b.createdAt || 0;
@@ -293,7 +298,7 @@ export function InfiniteScrollBoardList({
 
     // プロジェクトのメンバーシップをチェック
     if (!isProjectMember(project, user.uid)) {
-      console.error('User is not a member of this project');
+      console.error("User is not a member of this project");
       return;
     }
 
@@ -361,18 +366,27 @@ export function InfiniteScrollBoardList({
           const now = Date.now();
           const CURSOR_TIMEOUT = 30000; // 30 seconds
 
-          Object.entries(data).forEach(([cursorId, cursor]: [string, unknown]) => {
-            const cursorData = cursor as { timestamp: number; x: number; y: number; name: string; fullName: string; color: string; };
-            if (now - cursorData.timestamp < CURSOR_TIMEOUT) {
-              const userId = cursorId.split("-")[0];
-              if (
-                !activeCursors[userId] ||
-                cursorData.timestamp > activeCursors[userId].timestamp
-              ) {
-                activeCursors[userId] = cursorData as Cursor;
+          Object.entries(data).forEach(
+            ([cursorId, cursor]: [string, unknown]) => {
+              const cursorData = cursor as {
+                timestamp: number;
+                x: number;
+                y: number;
+                name: string;
+                fullName: string;
+                color: string;
+              };
+              if (now - cursorData.timestamp < CURSOR_TIMEOUT) {
+                const userId = cursorId.split("-")[0];
+                if (
+                  !activeCursors[userId] ||
+                  cursorData.timestamp > activeCursors[userId].timestamp
+                ) {
+                  activeCursors[userId] = cursorData as Cursor;
+                }
               }
             }
-          });
+          );
         }
 
         setBoardCursors((prev) => ({
@@ -389,12 +403,53 @@ export function InfiniteScrollBoardList({
     };
   }, [boards]);
 
-  // Active Members Component (既存のコードから)
-  const ActiveMembers = ({ boardId }: { boardId: string }) => {
-    const cursors = boardCursors[boardId] || {};
+  // Component to render individual user avatar with initials
+  const UserAvatar = memo(
+    ({ cursor }: { cursor: any }) => {
+      const userName =
+        cursor.username || cursor.fullName?.split(" (")[0] || "User";
+      const initials = userName
+        .split(" ")
+        .map((name: string) => name.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join("");
+
+      return (
+        <div
+          className="member-avatar active"
+          style={{
+            backgroundColor: cursor.color,
+            width: "28px",
+            height: "28px"
+          }}
+          title={cursor.fullName}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "11px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            {initials}
+          </div>
+        </div>
+      );
+    }
+  );
+
+  // Component to render active members with user board thumbnails
+  const ActiveMembers = memo(({ boardId, cursors }: { boardId: string; cursors: Record<string, Cursor> }) => {
     const activeUsers = Object.values(cursors);
 
-    if (activeUsers.length === 0) return null;
+    if (activeUsers.length === 0) {
+      return null;
+    }
 
     const maxDisplay = 3;
     const displayUsers = activeUsers.slice(0, maxDisplay);
@@ -403,22 +458,13 @@ export function InfiniteScrollBoardList({
     return (
       <div className="active-members">
         {displayUsers.map((cursor, index) => {
-          const userId = cursor.fullName?.split(" (")[0] || "User";
-          const initials = userId
-            .split(" ")
-            .map((name) => name.charAt(0).toUpperCase())
-            .slice(0, 2)
-            .join("");
-
+          const userName =
+            cursor.username || cursor.fullName?.split(" (")[0] || "User";
           return (
-            <div
-              key={index}
-              className="member-avatar active"
-              style={{ backgroundColor: cursor.color }}
-              title={cursor.fullName}
-            >
-              {initials}
-            </div>
+            <UserAvatar
+              key={userName}
+              cursor={cursor}
+            />
           );
         })}
         {remainingCount > 0 && (
@@ -428,7 +474,10 @@ export function InfiniteScrollBoardList({
         )}
       </div>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Simple comparison - re-render if cursors object changes
+    return JSON.stringify(prevProps.cursors) === JSON.stringify(nextProps.cursors);
+  });
 
   return (
     <div className="board-list">
@@ -451,17 +500,21 @@ export function InfiniteScrollBoardList({
       <div className="boards-grid">
         {boards.map((board) => {
           const hasUnread = hasBoardUnreadContent(board.id, board.updatedAt);
-          
+
           // デバッグ：未読状態をログ出力（最初の3個のみ）
           if (boards.indexOf(board) < 3) {
             console.log(`🔍 Unread debug for ${board.name}:`, {
               boardId: board.id,
               boardUpdatedAt: board.updatedAt,
-              updatedAtDate: board.updatedAt ? new Date(board.updatedAt).toLocaleString() : 'undefined',
+              updatedAtDate: board.updatedAt
+                ? new Date(board.updatedAt).toLocaleString()
+                : "undefined",
               hasUnread,
-              lastViewTime: localStorage.getItem('maplap_board_view_history') 
-                ? JSON.parse(localStorage.getItem('maplap_board_view_history') || '{}')[board.id] 
-                : 'no history'
+              lastViewTime: localStorage.getItem("maplap_board_view_history")
+                ? JSON.parse(
+                    localStorage.getItem("maplap_board_view_history") || "{}"
+                  )[board.id]
+                : "no history",
             });
           }
 
@@ -477,9 +530,11 @@ export function InfiniteScrollBoardList({
                 style={{ position: "relative" }}
                 onClick={() => {
                   // ボードリンクをクリックした時に閲覧時刻を更新
-                  import('../utils/boardViewHistory').then(({ updateBoardViewTime }) => {
-                    updateBoardViewTime(board.id);
-                  });
+                  import("../utils/boardViewHistory").then(
+                    ({ updateBoardViewTime }) => {
+                      updateBoardViewTime(board.id);
+                    }
+                  );
                 }}
               >
                 {hasUnread && (
@@ -499,7 +554,8 @@ export function InfiniteScrollBoardList({
                   />
                 )}
                 <p className="board-name">
-                  {board.isPinned ? "📌 " : ""}{board.metadata?.title || board.name || ""}
+                  {board.isPinned ? "📌 " : ""}
+                  {board.metadata?.title || board.name || ""}
                 </p>
                 {board.metadata?.thumbnailUrl ? (
                   <div className="board-thumbnail">
@@ -518,7 +574,7 @@ export function InfiniteScrollBoardList({
                     )}
                   </div>
                 )}
-                <ActiveMembers boardId={board.id} />
+                <ActiveMembers boardId={board.id} cursors={boardCursors[board.id] || {}} />
               </Link>
             </div>
           );
