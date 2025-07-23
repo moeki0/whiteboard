@@ -31,15 +31,7 @@ export function useCombinedSuggestions(
   const debouncedSearchText = useDebounce(searchText, 300);
 
   useEffect(() => {
-    console.log('[useCombinedSuggestions] Effect triggered:', { 
-      enabled, 
-      debouncedSearchText, 
-      scrapboxProjectName,
-      boardCount: boards.length 
-    });
-
     if (!enabled || !debouncedSearchText.trim()) {
-      console.log('[useCombinedSuggestions] Clearing suggestions (disabled or empty search)');
       setSuggestions([]);
       setIsLoading(false);
       setError(null);
