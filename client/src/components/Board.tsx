@@ -2706,6 +2706,18 @@ export function Board({ user }: BoardProps) {
     setNoteToFocus,
     setSelectedNoteIds: selection.setSelectedNoteIds,
     onAddArrow: addArrow,
+    onMoveSelectedNotes: (deltaX: number, deltaY: number) => {
+      // 選択中の付箋を指定されたデルタ値だけ移動
+      selection.selectedNoteIds.forEach((noteId) => {
+        const note = notes.find((n) => n.id === noteId);
+        if (note) {
+          updateNote(noteId, {
+            x: note.x + deltaX,
+            y: note.y + deltaY,
+          });
+        }
+      });
+    },
   });
 
   // キーボードハンドラーは useKeyboardHandlers フックに移動済み

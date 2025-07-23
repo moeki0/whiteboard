@@ -32,6 +32,7 @@ interface KeyboardHandlerProps {
   setNoteToFocus: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedNoteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   onAddArrow?: () => void; // 矢印追加関数（オプション）
+  onMoveSelectedNotes?: (deltaX: number, deltaY: number) => void; // 付箋移動関数（オプション）
 }
 
 export function useKeyboardHandlers({
@@ -65,6 +66,7 @@ export function useKeyboardHandlers({
   setNoteToFocus,
   setSelectedNoteIds,
   onAddArrow,
+  onMoveSelectedNotes,
 }: KeyboardHandlerProps) {
   const handleUndoKey = useCallback(
     (e: KeyboardEvent) => {
@@ -166,18 +168,27 @@ export function useKeyboardHandlers({
   const handleArrowKeys = useCallback(
     (e: KeyboardEvent) => {
       const panSpeed = 50 / zoom;
+      const noteMoveDelta = 10; // 付箋移動の単位
 
       switch (e.key) {
         case "ArrowLeft":
           e.preventDefault();
           if (e.shiftKey) {
+            // Shift+左矢印：左パン
             setPanX((prev) => prev + panSpeed);
+          } else if (selectedNoteIds.size > 0 && onMoveSelectedNotes) {
+            // 左矢印：選択中の付箋を左に移動
+            onMoveSelectedNotes(-noteMoveDelta, 0);
           }
           break;
         case "ArrowRight":
           e.preventDefault();
           if (e.shiftKey) {
+            // Shift+右矢印：右パン
             setPanX((prev) => prev - panSpeed);
+          } else if (selectedNoteIds.size > 0 && onMoveSelectedNotes) {
+            // 右矢印：選択中の付箋を右に移動
+            onMoveSelectedNotes(noteMoveDelta, 0);
           }
           break;
         case "ArrowUp":
@@ -185,8 +196,11 @@ export function useKeyboardHandlers({
           if (e.shiftKey) {
             // Shift+上矢印：上パン
             setPanY((prev) => prev + panSpeed);
+          } else if (selectedNoteIds.size > 0 && onMoveSelectedNotes) {
+            // 上矢印：選択中の付箋を上に移動
+            onMoveSelectedNotes(0, -noteMoveDelta);
           } else {
-            // 上矢印：ズームイン（画面中央を基準）
+            // 付箋が選択されていない場合：ズームイン（画面中央を基準）
             if (boardRef.current) {
               
               // ビューポートのサイズを使用（実際に見えている画面のサイズ）
@@ -216,8 +230,11 @@ export function useKeyboardHandlers({
           if (e.shiftKey) {
             // Shift+下矢印：下パン
             setPanY((prev) => prev - panSpeed);
+          } else if (selectedNoteIds.size > 0 && onMoveSelectedNotes) {
+            // 下矢印：選択中の付箋を下に移動
+            onMoveSelectedNotes(0, noteMoveDelta);
           } else {
-            // 下矢印：ズームアウト（画面中央を基準）
+            // 付箋が選択されていない場合：ズームアウト（画面中央を基準）
             if (boardRef.current) {
               
               // ビューポートのサイズを使用（実際に見えている画面のサイズ）
@@ -244,7 +261,7 @@ export function useKeyboardHandlers({
           break;
       }
     },
-    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef]
+    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef, selectedNoteIds, onMoveSelectedNotes]
   );
 
   const handleDeleteKey = useCallback(
