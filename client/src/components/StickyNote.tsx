@@ -855,10 +855,6 @@ const StickyNoteComponent = function StickyNote({
             onActivate(newNoteId, false, false);
           }
         }
-      } else {
-        // Enter: 編集を確定
-        e.preventDefault();
-        handleBlur();
       }
     }
   };
