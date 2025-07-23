@@ -10,7 +10,11 @@ let sessionInitialized = false;
 /**
  * セッション開始時に未読付箋を初期化
  */
-export function initializeSessionUnreadNotes(boardId: string, notes: any[], isNoteUnreadFn: Function): void {
+export function initializeSessionUnreadNotes(
+  boardId: string, 
+  notes: any[], 
+  isNoteUnreadFn: (boardId: string, noteId: string, noteUpdatedAt: number) => boolean
+): void {
   if (sessionInitialized) return;
   
   sessionUnreadNotes.clear();
