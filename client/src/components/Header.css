@@ -60,6 +60,14 @@
   line-height: 1.2;
 }
 
+.header-subtitle.clickable {
+  cursor: pointer;
+}
+
+.header-subtitle.non-clickable {
+  cursor: default;
+}
+
 .board-title-input-container {
   position: relative;
   display: inline-block;

@@ -11,25 +11,31 @@ let sessionInitialized = false;
  * セッション開始時に未読付箋を初期化
  */
 export function initializeSessionUnreadNotes(
-  boardId: string, 
-  notes: any[], 
-  isNoteUnreadFn: (boardId: string, noteId: string, noteUpdatedAt: number) => boolean
+  boardId: string,
+  notes: any[],
+  isNoteUnreadFn: (
+    boardId: string,
+    noteId: string,
+    noteUpdatedAt: number
+  ) => boolean
 ): void {
   if (sessionInitialized) return;
-  
+
   sessionUnreadNotes.clear();
-  
+
   // ページ読み込み時点で未読だった付箋をセッション未読として記録
-  notes.forEach(note => {
-    const isUnread = isNoteUnreadFn(boardId, note.id, note.updatedAt || note.createdAt);
+  notes.forEach((note) => {
+    const isUnread = isNoteUnreadFn(
+      boardId,
+      note.id,
+      note.updatedAt || note.createdAt
+    );
     if (isUnread) {
       sessionUnreadNotes.add(note.id);
-      console.log('Session unread note:', note.id.substring(0, 8));
     }
   });
-  
+
   sessionInitialized = true;
-  console.log('Session initialized with', sessionUnreadNotes.size, 'unread notes');
 }
 
 /**
@@ -45,7 +51,6 @@ export function isNoteUnreadInSession(noteId: string): boolean {
 export function resetSession(): void {
   sessionUnreadNotes.clear();
   sessionInitialized = false;
-  console.log('Session reset');
 }
 
 /**
@@ -53,5 +58,4 @@ export function resetSession(): void {
  */
 export function addNewNoteToSession(noteId: string): void {
   sessionUnreadNotes.add(noteId);
-  console.log('Added new note to session unread:', noteId.substring(0, 8));
 }

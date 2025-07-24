@@ -11,7 +11,7 @@ import { searchScrapboxTitles, ScrapboxSearchResult } from "./scrapboxApi";
  */
 export interface SuggestionItem {
   title: string;
-  type: 'board' | 'scrapbox';
+  type: "board" | "scrapbox";
   boardId?: string;
   url?: string;
   matches?: any;
@@ -30,24 +30,24 @@ export function filterBoardSuggestions(
   if (!searchText.trim()) {
     return boards;
   }
-  
+
   // Fuseの設定
   const options = {
-    keys: ['name'], // 検索対象のフィールド
+    keys: ["name"], // 検索対象のフィールド
     threshold: 0.6, // マッチング閾値 (0=完全一致, 1=何でもマッチ)
     distance: 100, // 検索文字列の距離
     includeScore: true, // スコアを含める
     includeMatches: true, // マッチした部分の情報を含める
     minMatchCharLength: 1, // 最小マッチ文字数
   };
-  
+
   const fuse = new Fuse(boards, options);
   const results = fuse.search(searchText);
-  
+
   // スコア順にソートされた結果を返す（マッチ情報も含む）
-  return results.map(result => ({
+  return results.map((result) => ({
     ...result.item,
-    matches: result.matches
+    matches: result.matches,
   }));
 }
 
@@ -64,10 +64,10 @@ export function filterScrapboxSuggestions(
   if (!searchText.trim()) {
     return pages;
   }
-  
+
   // Fuseの設定（Scrapbox用に調整）
   const options = {
-    keys: ['title'], // 検索対象のフィールド
+    keys: ["title"], // 検索対象のフィールド
     threshold: 0.4, // より厳しい閾値（より関連性の高いものを表示）
     distance: 50, // 短い距離でマッチング
     includeScore: true, // スコアを含める
@@ -75,17 +75,14 @@ export function filterScrapboxSuggestions(
     minMatchCharLength: 1, // 最小マッチ文字数
     ignoreLocation: true, // 位置を無視（全体的なマッチを重視）
   };
-  
+
   const fuse = new Fuse(pages, options);
   const results = fuse.search(searchText);
-  
-  console.log('[Scrapbox Filter] Input pages:', pages.length);
-  console.log('[Scrapbox Filter] Filtered results:', results.length);
-  
+
   // スコア順にソートされた結果を返す（マッチ情報も含む）
-  return results.map(result => ({
+  return results.map((result) => ({
     ...result.item,
-    matches: result.matches
+    matches: result.matches,
   }));
 }
 
@@ -101,64 +98,60 @@ export async function getCombinedSuggestions(
   searchText: string,
   scrapboxProjectName?: string
 ): Promise<SuggestionItem[]> {
-  console.log('[Combined Suggestions] Starting search:', { 
-    boardCount: boards.length, 
-    searchText, 
-    scrapboxProjectName 
-  });
-  
   const suggestions: SuggestionItem[] = [];
-  
+
   // ボード候補を追加
   const filteredBoards = filterBoardSuggestions(boards, searchText);
-  console.log('[Combined Suggestions] Board suggestions:', filteredBoards.length);
-  
-  suggestions.push(...filteredBoards.map(board => ({
-    title: String(board.name || ''),
-    type: 'board' as const,
-    boardId: board.id,
-    matches: (board as any).matches
-  })));
-  
+
+  suggestions.push(
+    ...filteredBoards.map((board) => ({
+      title: String(board.name || ""),
+      type: "board" as const,
+      boardId: board.id,
+      matches: (board as any).matches,
+    }))
+  );
+
   // Scrapbox候補を追加（プロジェクト名が指定されている場合のみ）
   if (scrapboxProjectName && searchText.trim()) {
-    console.log('[Combined Suggestions] Fetching Scrapbox suggestions...');
     try {
       // まず広範囲でScrapboxページを取得（検索文字列の最初の文字など）
-      const broadSearchText = searchText.length > 2 ? searchText.substring(0, 2) : searchText;
-      const scrapboxResults = await searchScrapboxTitles(scrapboxProjectName, broadSearchText);
-      console.log('[Combined Suggestions] Raw Scrapbox results:', scrapboxResults.length);
-      
+      const broadSearchText =
+        searchText.length > 2 ? searchText.substring(0, 2) : searchText;
+      const scrapboxResults = await searchScrapboxTitles(
+        scrapboxProjectName,
+        broadSearchText
+      );
+
       // クライアントサイドで詳細なファジー検索を実行
-      const filteredResults = filterScrapboxSuggestions(scrapboxResults, searchText);
-      console.log('[Combined Suggestions] Filtered Scrapbox suggestions:', filteredResults.length);
-      
-      suggestions.push(...filteredResults.map(result => ({
-        title: String(result.title || ''),
-        type: 'scrapbox' as const,
-        url: result.url,
-        matches: result.matches
-      })));
+      const filteredResults = filterScrapboxSuggestions(
+        scrapboxResults,
+        searchText
+      );
+
+      suggestions.push(
+        ...filteredResults.map((result) => ({
+          title: String(result.title || ""),
+          type: "scrapbox" as const,
+          url: result.url,
+          matches: result.matches,
+        }))
+      );
     } catch (error) {
-      console.error('[Combined Suggestions] Failed to fetch Scrapbox suggestions:', error);
+      console.error(
+        "[Combined Suggestions] Failed to fetch Scrapbox suggestions:",
+        error
+      );
     }
-  } else {
-    console.log('[Combined Suggestions] Skipping Scrapbox (no project name or empty search)');
   }
-  
+
   // 候補を種類別に分離してソート
-  const boardSuggestions = suggestions.filter(s => s.type === 'board');
-  const scrapboxSuggestions = suggestions.filter(s => s.type === 'scrapbox');
-  
+  const boardSuggestions = suggestions.filter((s) => s.type === "board");
+  const scrapboxSuggestions = suggestions.filter((s) => s.type === "scrapbox");
+
   // ボード候補を優先し、その後にScrapbox候補を表示
   const sortedSuggestions = [...boardSuggestions, ...scrapboxSuggestions];
-  
-  console.log('[Combined Suggestions] Final suggestions:', {
-    total: sortedSuggestions.length,
-    boards: boardSuggestions.length,
-    scrapbox: scrapboxSuggestions.length
-  });
-  
+
   return sortedSuggestions;
 }
 
@@ -172,26 +165,30 @@ export async function getCombinedSuggestions(
 export function handleBracketCompletion(
   oldContent: string,
   newContent: string
-): { shouldComplete: boolean; completedContent: string; cursorPosition: number } {
+): {
+  shouldComplete: boolean;
+  completedContent: string;
+  cursorPosition: number;
+} {
   // null/undefinedチェック
-  if (!oldContent) oldContent = '';
-  if (!newContent) newContent = '';
-  
+  if (!oldContent) oldContent = "";
+  if (!newContent) newContent = "";
+
   // 入力が増えていて、最後に[が入力された場合
-  if (newContent.length > oldContent.length && newContent.endsWith('[')) {
-    const completedContent = newContent + ']';
+  if (newContent.length > oldContent.length && newContent.endsWith("[")) {
+    const completedContent = newContent + "]";
     const cursorPosition = newContent.length; // ]の前の位置
     return {
       shouldComplete: true,
       completedContent,
-      cursorPosition
+      cursorPosition,
     };
   }
-  
+
   return {
     shouldComplete: false,
     completedContent: newContent,
-    cursorPosition: newContent.length
+    cursorPosition: newContent.length,
   };
 }
 
@@ -205,56 +202,66 @@ export function handleBracketCompletion(
 export function analyzeBoardTitleSuggestion(
   content: string,
   cursorPosition: number
-): { shouldShow: boolean; searchText: string; bracketStart: number; bracketEnd: number } {
+): {
+  shouldShow: boolean;
+  searchText: string;
+  bracketStart: number;
+  bracketEnd: number;
+} {
   // カーソル位置から前後の[と]を探す
   let bracketStart = -1;
   let bracketEnd = -1;
-  
+
   // カーソル位置から左に向かって[を探す
   for (let i = cursorPosition - 1; i >= 0; i--) {
-    if (content[i] === '[') {
+    if (content[i] === "[") {
       bracketStart = i;
       break;
     }
-    if (content[i] === ']') {
+    if (content[i] === "]") {
       // 先に]が見つかった場合は[]の外にいる
       break;
     }
   }
-  
+
   // カーソル位置から右に向かって]を探す
   for (let i = cursorPosition; i < content.length; i++) {
-    if (content[i] === ']') {
+    if (content[i] === "]") {
       bracketEnd = i;
       break;
     }
-    if (content[i] === '[') {
+    if (content[i] === "[") {
       // 先に[が見つかった場合は無効
       break;
     }
   }
-  
+
   // [と]が両方見つかり、カーソルがその間にある場合
-  if (bracketStart !== -1 && bracketEnd !== -1 && bracketStart < cursorPosition && cursorPosition <= bracketEnd) {
+  if (
+    bracketStart !== -1 &&
+    bracketEnd !== -1 &&
+    bracketStart < cursorPosition &&
+    cursorPosition <= bracketEnd
+  ) {
     const searchText = content.substring(bracketStart + 1, cursorPosition);
-    
+
     // アイコン記法(.icon)ではない場合のみ候補を表示
     // []内全体の内容を確認する必要がある
     const fullText = content.substring(bracketStart + 1, bracketEnd);
-    if (!fullText.includes('.icon')) {
+    if (!fullText.includes(".icon")) {
       return {
         shouldShow: true,
         searchText,
         bracketStart,
-        bracketEnd
+        bracketEnd,
       };
     }
   }
-  
+
   return {
     shouldShow: false,
-    searchText: '',
+    searchText: "",
     bracketStart: -1,
-    bracketEnd: -1
+    bracketEnd: -1,
   };
 }

@@ -219,19 +219,16 @@ export function Board({ user }: BoardProps) {
       }
     };
 
-    // ページを離れる時、タブを切り替える時に閲覧時刻を更新
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      // クリーンアップ時（コンポーネントがアンマウントされる時）にも更新
       updateBoardViewTime(boardId);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [boardId]);
 
-  // ボードの情報とタイムスタンプを更新する関数
   const updateBoardMetadata = async () => {
     if (!boardId || !user?.uid || !notes) return;
     try {
@@ -276,10 +273,8 @@ export function Board({ user }: BoardProps) {
     }
   }, []);
 
-  // 初期ハッシュ処理（一回のみ実行）
   const initialHashProcessed = useRef(false);
 
-  // boardIdが変更されたときにinitialHashProcessedをリセット
   useEffect(() => {
     initialHashProcessed.current = false;
   }, [boardId]);
@@ -287,33 +282,22 @@ export function Board({ user }: BoardProps) {
   useEffect(() => {
     if (notes.length === 0) return;
     if (initialHashProcessed.current) return;
-    if (isCreatingMissingBoard) return; // 新規ボード作成中はスキップ
+    if (isCreatingMissingBoard) return;
 
     const hash = window.location.hash.slice(1);
-    console.log("Debug: Initial hash processing:", hash, notes.length);
-
     if (hash) {
       const note = notes.find((n) => n.id === hash);
-      console.log("Debug: Found note for hash:", note);
-      console.log("Debug: boardRef.current:", boardRef.current);
       if (note) {
-        // 新規ボード作成直後の最初の付箋の場合はパンしない
-        // （ボードに付箋が1つしかない場合は新規作成直後と判断）
         if (notes.length === 1) {
-          // 選択状態のみ設定し、パンはしない
           selection.setSelectedNoteIds(new Set([hash]));
-          console.log("Debug: Skipped initial pan for newly created board");
         } else {
-          // 画面の中央に付箋の中心を配置
           const centerX = window.innerWidth / 2;
           const centerY = window.innerHeight / 2;
-          // 付箋のサイズを考慮（一般的な付箋サイズ: 幅200px, 高さ150px）
           const noteWidth = 200;
           const noteHeight = 150;
           panZoom.setPanX(centerX - note.x - noteWidth / 2);
           panZoom.setPanY(centerY - note.y - noteHeight / 2);
           selection.setSelectedNoteIds(new Set([hash]));
-          console.log("Debug: Applied initial hash processing");
         }
       }
     }
@@ -809,14 +793,6 @@ export function Board({ user }: BoardProps) {
         // updatedAtを追加（updatedAtが明示的に指定された場合のみ）
         const shouldUpdateTimestamp = updates.updatedAt !== undefined;
 
-        console.log("Board updateNote:", {
-          noteId,
-          updates: JSON.stringify(updates),
-          shouldUpdateTimestamp,
-          hasUpdatedAtInUpdates: "updatedAt" in updates,
-          updatedAtValue: updates.updatedAt,
-        });
-
         const updatedNote = {
           ...note,
           ...updates,
@@ -824,8 +800,6 @@ export function Board({ user }: BoardProps) {
             updatedAt: updates.updatedAt || Date.now(),
           }),
         };
-
-        console.log("Final updatedNote updatedAt:", updatedNote.updatedAt);
 
         // Add to history only for significant changes by the current user
         // Skip history tracking if this is an undo/redo operation for this specific note
@@ -854,10 +828,10 @@ export function Board({ user }: BoardProps) {
         set(noteRef, updatedNote);
 
         // ボードの更新時刻を更新（内容が変更された場合、または位置が確定した場合）
-        const shouldUpdateBoard = 
+        const shouldUpdateBoard =
           (updates.content !== undefined && updates.content !== note.content) ||
           (updates.isDragging === false && note.isDragging === true);
-          
+
         if (shouldUpdateBoard) {
           setTimeout(() => {
             try {
@@ -2565,14 +2539,11 @@ export function Board({ user }: BoardProps) {
     onUndo: performUndo,
     onRedo: performRedo,
     onCopy: async () => {
-      console.log("onCopy function called");
       if (selection.selectedNoteIds.size > 0) {
         const selectedNoteIds = Array.from(selection.selectedNoteIds);
-        console.log("Selected note IDs:", selectedNoteIds);
         const selectedNotes = notes.filter((note) =>
           selectedNoteIds.includes(note.id)
         );
-        console.log("Selected notes:", selectedNotes);
 
         // JSONデータとしてクリップボードにコピー
         const copyData = {
@@ -2582,58 +2553,37 @@ export function Board({ user }: BoardProps) {
 
         try {
           const jsonString = JSON.stringify(copyData);
-          console.log("Copying to clipboard:", jsonString);
+
           await navigator.clipboard.writeText(jsonString);
-          console.log("Copy successful");
         } catch (error) {
           console.error("Failed to copy notes:", error);
         }
-      } else {
-        console.log("No notes selected for copy");
       }
     },
     onPaste: async () => {
-      console.log("onPaste function called");
       try {
         const clipboardText = await navigator.clipboard.readText();
-        console.log("Clipboard content:", clipboardText);
+
         const copyData = JSON.parse(clipboardText);
-        console.log("Parsed copy data:", copyData);
 
         if (copyData.type === "maplap-notes" && Array.isArray(copyData.notes)) {
-          console.log("Valid maplap notes data, proceeding with paste");
           // マウス位置をボード座標に変換してペースト
           const pasteX = (lastMousePos.current.x - panZoom.panX) / panZoom.zoom;
           const pasteY = (lastMousePos.current.y - panZoom.panY) / panZoom.zoom;
-          console.log("Paste position:", { pasteX, pasteY });
 
           copyData.notes.forEach((note: Note, index: number) => {
-            console.log(`Processing note ${index}:`, note);
             // 権限チェック
             if (
               !user?.uid ||
               !board ||
               !checkBoardEditPermission(board, project, user.uid).canEdit
             ) {
-              console.log("Permission check failed:", {
-                user: !!user?.uid,
-                board: !!board,
-                canEdit: board
-                  ? checkBoardEditPermission(board, project, user?.uid || null)
-                      .canEdit
-                  : false,
-              });
               return;
             }
-            console.log("Permission check passed");
 
             const offsetX = pasteX + index * 20;
             const offsetY = pasteY + index * 20;
             const noteId = nanoid();
-            console.log("Creating note with ID:", noteId, "at position:", {
-              offsetX,
-              offsetY,
-            });
 
             const newNote: Omit<Note, "id"> = {
               type: "note",
@@ -2662,15 +2612,12 @@ export function Board({ user }: BoardProps) {
 
             // Firebase Realtime Databaseに直接保存
             const noteRef = ref(rtdb, `boards/${boardId}/notes/${noteId}`);
-            console.log("Saving note to Firebase:", newNote);
+
             set(noteRef, newNote);
           });
 
           // zIndexを更新
           setNextZIndex((prev) => prev + copyData.notes.length);
-          console.log("Paste operation completed successfully");
-        } else {
-          console.log("Invalid clipboard data format");
         }
       } catch (error) {
         console.error("Failed to paste notes:", error);
@@ -2689,11 +2636,6 @@ export function Board({ user }: BoardProps) {
       createGroup();
     },
     onDelete: () => {
-      console.log("onDelete called");
-      console.log("selectedNoteIds:", selection.selectedNoteIds);
-      console.log("selectedItemIds:", selection.selectedItemIds);
-      console.log("selectedGroupIds:", selection.selectedGroupIds);
-
       // 選択された付箋を削除
       const selectedNoteIds = Array.from(selection.selectedNoteIds);
       selectedNoteIds.forEach((noteId) => {
@@ -2735,43 +2677,19 @@ export function Board({ user }: BoardProps) {
     },
   });
 
-  // キーボードハンドラーは useKeyboardHandlers フックに移動済み
-
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      console.log(
-        "KeyDown event:",
-        e.key,
-        "shiftKey:",
-        e.shiftKey,
-        "inputFocused:",
-        isInputFocused()
-      );
       if (!isInputFocused()) {
-        // キーヒントモード処理を最優先
         if (keyboardHandlers.handleKeyHintModeProcessing(e)) {
-          return; // キーヒントモード処理が実行された場合は他の処理をスキップ
+          return;
         }
 
-        // Shift+キーの処理を優先（WASDより前に処理）
-        if (e.shiftKey && e.code === "KeyS") {
-          console.log("Shift+S detected before handleShiftKeys");
-          console.log(
-            "Current keyHints.isKeyHintMode:",
-            keyHints.isKeyHintMode
-          );
-        }
-        console.log("Calling handleShiftKeys...");
         const shiftResult = keyboardHandlers.handleShiftKeys(e);
-        console.log("handleShiftKeys returned:", shiftResult);
-        if (shiftResult) {
-          console.log("Shift key was handled, returning");
-          return; // Shift+キーが処理された場合は他の処理をスキップ
-        }
-        console.log("Shift key was not handled, continuing...");
 
-        // その他のキーボードショートカット処理
+        if (shiftResult) {
+          return;
+        }
+
         keyboardHandlers.handleUndoKey(e);
         keyboardHandlers.handleRedoKey(e);
         await keyboardHandlers.handleCopyKey(e);
@@ -2919,8 +2837,6 @@ export function Board({ user }: BoardProps) {
         updatedAt,
         pinnedAt ?? undefined
       );
-
-      console.log(`📊 New sortScore: ${sortScore}`);
 
       const updatedBoard = {
         ...board,
@@ -3075,7 +2991,7 @@ export function Board({ user }: BoardProps) {
           ))}
 
           {/* SVGコンテナで矢印を描画 */}
-          <svg className="svg-arrows-container" style={{ overflow: "visible" }}>
+          <svg className="svg-arrows-container">
             <g className="svg-arrows-group">
               {arrows.map((arrow) => (
                 <ArrowSVG
@@ -3239,17 +3155,8 @@ function useAutoCreateBoard(
         if (urlBoardName) {
           // Slug-based route: use the board name from URL
           boardName = decodeURIComponent(urlBoardName);
-          console.log(
-            `Slug route - URL board name: "${urlBoardName}" -> decoded: "${boardName}"`
-          );
         } else if (legacyBoardId) {
-          // Legacy route: try to use a meaningful name based on board ID or use default
           boardName = "Board";
-          console.log(
-            `Legacy route - using default name for board ID: "${legacyBoardId}"`
-          );
-        } else {
-          console.log("No URL board name found, using default 'Untitled'");
         }
 
         // Ensure the name is unique in the project
@@ -3257,7 +3164,7 @@ function useAutoCreateBoard(
           targetProjectId,
           boardName
         );
-        console.log(`Final board name: "${finalBoardName}"`);
+
         boardName = finalBoardName;
         const boardData = {
           id: boardId,
@@ -3274,7 +3181,6 @@ function useAutoCreateBoard(
 
         await update(ref(rtdb), updates);
 
-        console.log(`Created new board "${boardName}" with ID ${boardId}`);
         // The board will be automatically loaded by the existing listeners
       } catch (error) {
         console.error("Error creating new board:", error);

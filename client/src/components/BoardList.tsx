@@ -14,12 +14,15 @@ import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
 import { isProjectMember } from "../utils/permissions";
 import { useTrackProjectAccess } from "../hooks/useRecentProject";
-import { getTruePaginatedBoards, ensureSortScoresForProject } from "../utils/truePagination";
+import {
+  getTruePaginatedBoards,
+  ensureSortScoresForProject,
+} from "../utils/truePagination";
 import { ref, onValue, get, update } from "firebase/database";
 import { rtdb } from "../config/firebase";
 import { customAlphabet } from "nanoid";
 
-interface InfiniteScrollBoardListProps {
+interface BoardListProps {
   user: User | null;
   projectId?: string;
 }
@@ -30,25 +33,11 @@ interface PaginationCursor {
   direction: "forward" | "backward";
 }
 
-export function InfiniteScrollBoardList({
-  user,
-  projectId: propProjectId,
-}: InfiniteScrollBoardListProps) {
-  // console.log("🎯 InfiniteScrollBoardList component mounted/rendered"); // デバッグログを削減
+export function BoardList({ user, projectId: propProjectId }: BoardListProps) {
   const { projectId: paramProjectId, projectSlug } = useParams();
   const { resolvedProjectId } = useSlug();
   const projectId = resolvedProjectId || propProjectId || paramProjectId;
-  
-  // デバッグ：projectId解決の状況をログ出力
-  useEffect(() => {
-    console.log("🔍 ProjectId resolution:", {
-      resolvedProjectId,
-      propProjectId,
-      paramProjectId,
-      finalProjectId: projectId,
-      projectSlug
-    });
-  }, [resolvedProjectId, propProjectId, paramProjectId, projectId, projectSlug]);
+
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
 
@@ -82,9 +71,7 @@ export function InfiniteScrollBoardList({
 
   // 初期データを読み込み
   const loadInitialBoards = useCallback(async () => {
-    console.log("🚀 Starting to load boards...", { projectId });
     if (!projectId) {
-      console.log("❌ No projectId, skipping load");
       return;
     }
 
@@ -94,14 +81,14 @@ export function InfiniteScrollBoardList({
 
     try {
       // プロジェクト情報とボードデータを並列で取得
-      console.log("🚀 Loading project and boards in parallel...");
+
       const [projectSnapshot, result] = await Promise.all([
         get(ref(rtdb, `projects/${projectId}`)),
         // sortScoreを自動設定してからボードデータを取得
         (async () => {
           await ensureSortScoresForProject(projectId);
           return getTruePaginatedBoards(projectId, itemsPerLoad);
-        })()
+        })(),
       ]);
 
       // プロジェクト情報を設定
@@ -131,14 +118,9 @@ export function InfiniteScrollBoardList({
         setBoards(result.items as Board[]);
         setHasMore(result.hasNext);
         setCursor(result.nextCursor);
-
-        console.log(
-          `✅ Loaded ${result.items.length} boards (hasNext: ${result.hasNext})`
-        );
       } else {
         setBoards([]);
         setHasMore(false);
-        console.log("No boards found");
       }
     } catch (err) {
       console.error("Failed to load boards:", err);
@@ -156,7 +138,6 @@ export function InfiniteScrollBoardList({
     setLoading(true);
 
     try {
-      console.log("📥 Loading more boards with cursor...");
       const result = await getTruePaginatedBoards(
         projectId,
         itemsPerLoad,
@@ -167,10 +148,6 @@ export function InfiniteScrollBoardList({
         setBoards((prev) => [...prev, ...(result.items as Board[])]);
         setHasMore(result.hasNext);
         setCursor(result.nextCursor);
-
-        console.log(
-          `✅ Loaded ${result.items.length} more boards (hasNext: ${result.hasNext})`
-        );
       } else {
         setHasMore(false);
       }
@@ -212,11 +189,13 @@ export function InfiniteScrollBoardList({
   // 早期メンバーシップチェック
   useEffect(() => {
     if (projectId && user) {
-      console.log("🚀 Early membership check starting for:", projectId);
       const checkMembership = async () => {
         try {
           // メンバーシップ情報のみを先に取得（軽量）
-          const memberRef = ref(rtdb, `projects/${projectId}/members/${user.uid}`);
+          const memberRef = ref(
+            rtdb,
+            `projects/${projectId}/members/${user.uid}`
+          );
           const memberSnapshot = await get(memberRef);
           setIsMember(memberSnapshot.exists());
         } catch (err) {
@@ -461,10 +440,14 @@ export function InfiniteScrollBoardList({
     <div className="board-list">
       <div className="board-list-header">
         {/* キャッシュされたメンバーシップ状態を使用 */}
-        {user && (
-          isMember === null ? (
+        {user &&
+          (isMember === null ? (
             // ローディング中は仮のボタンを表示
-            <button className="fab-new-board-btn" disabled style={{ opacity: 0.5 }}>
+            <button
+              className="fab-new-board-btn"
+              disabled
+              style={{ opacity: 0.5 }}
+            >
               <LuPlus />
               <span>Create New Board</span>
             </button>
@@ -476,8 +459,7 @@ export function InfiniteScrollBoardList({
                 <span>Create New Board</span>
               </button>
             )
-          )
-        )}
+          ))}
       </div>
 
       {error && (
@@ -490,23 +472,6 @@ export function InfiniteScrollBoardList({
       <div className="boards-grid">
         {boards.map((board) => {
           const hasUnread = hasBoardUnreadContent(board.id, board.updatedAt);
-
-          // デバッグ：未読状態をログ出力（最初の3個のみ）
-          if (boards.indexOf(board) < 3) {
-            console.log(`🔍 Unread debug for ${board.name}:`, {
-              boardId: board.id,
-              boardUpdatedAt: board.updatedAt,
-              updatedAtDate: board.updatedAt
-                ? new Date(board.updatedAt).toLocaleString()
-                : "undefined",
-              hasUnread,
-              lastViewTime: localStorage.getItem("maplap_board_view_history")
-                ? JSON.parse(
-                    localStorage.getItem("maplap_board_view_history") || "{}"
-                  )[board.id]
-                : "no history",
-            });
-          }
 
           return (
             <div key={board.id} className="board-card-wrapper">

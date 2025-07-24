@@ -101,11 +101,11 @@ export function useBoard(
       try {
         const oldName = boardName;
         const newName = editingBoardName.trim();
-        
+
         const boardRef = ref(rtdb, `boards/${boardId}/name`);
         await set(boardRef, newName);
         setBoardName(newName);
-        
+
         // Record the name change in history
         if (boardId) {
           await recordBoardNameChange(boardId, oldName, newName);
@@ -132,7 +132,7 @@ export function useBoard(
 
       // If no current project, try to find a project where user is a member
       if (!targetProjectId) {
-        const projectsRef = ref(rtdb, 'projects');
+        const projectsRef = ref(rtdb, "projects");
         const projectsSnapshot = await get(projectsRef);
         if (projectsSnapshot.exists()) {
           const projects = projectsSnapshot.val();
@@ -155,7 +155,7 @@ export function useBoard(
 
       // Generate a new unique board name
       const newBoardName = await generateNewBoardName(targetProjectId);
-      
+
       // Create a new board
       const newBoardId = await createBoardFromTitle(
         targetProjectId,
@@ -163,11 +163,8 @@ export function useBoard(
         user.uid
       );
 
-      console.log(`Created new board "${newBoardName}" (${newBoardId}) to replace deleted board`);
-      
       // Navigate to the new board
       navigate(`/board/${newBoardId}`);
-      
     } catch (error) {
       console.error("Error creating replacement board:", error);
       alert("This board has been deleted and could not create a replacement.");
@@ -244,7 +241,6 @@ export function useBoard(
       } else {
         // Board doesn't exist - this is normal for non-existent board IDs
         // Let the component handle this case appropriately
-        console.log(`Board ${boardId} does not exist`);
       }
     });
 
@@ -258,7 +254,7 @@ export function useBoard(
       if (data) {
         const notesArray = Object.entries(data).map(([id, note]) => ({
           id,
-          type: 'note' as const,
+          type: "note" as const,
           ...(note as Record<string, unknown>),
         })) as Note[];
         setNotes(notesArray);
@@ -273,7 +269,7 @@ export function useBoard(
       if (data) {
         const arrowsArray = Object.entries(data).map(([id, arrow]) => ({
           id,
-          type: 'arrow' as const,
+          type: "arrow" as const,
           ...(arrow as Record<string, unknown>),
         })) as Arrow[];
         setArrows(arrowsArray);
@@ -290,23 +286,25 @@ export function useBoard(
         const now = Date.now();
         const CURSOR_TIMEOUT = 30000; // 30 seconds timeout
 
-        Object.entries(data).forEach(([cursorId, cursor]: [string, unknown]) => {
-          const cursorData = cursor as Cursor;
-          // Remove old cursors
-          if (now - cursorData.timestamp > CURSOR_TIMEOUT) {
-            const oldCursorRef = ref(
-              rtdb,
-              `boardCursors/${boardId}/${cursorId}`
-            );
-            remove(oldCursorRef).catch(console.error);
-            return;
-          }
+        Object.entries(data).forEach(
+          ([cursorId, cursor]: [string, unknown]) => {
+            const cursorData = cursor as Cursor;
+            // Remove old cursors
+            if (now - cursorData.timestamp > CURSOR_TIMEOUT) {
+              const oldCursorRef = ref(
+                rtdb,
+                `boardCursors/${boardId}/${cursorId}`
+              );
+              remove(oldCursorRef).catch(console.error);
+              return;
+            }
 
-          if (cursorId !== `${user?.uid || "anonymous"}-${sessionId}`) {
-            // Don't show own session cursor
-            cursorsObj[cursorId] = cursorData;
+            if (cursorId !== `${user?.uid || "anonymous"}-${sessionId}`) {
+              // Don't show own session cursor
+              cursorsObj[cursorId] = cursorData;
+            }
           }
-        });
+        );
         setCursors(cursorsObj);
       } else {
         setCursors({});

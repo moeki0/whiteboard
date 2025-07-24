@@ -23,7 +23,7 @@ const globalThumbnailCache = new Map<string, string | null>();
 const thumbnailFetchPromises = new Map<string, Promise<string | null>>();
 
 // ローカルストレージキャッシュの管理
-const THUMBNAIL_CACHE_KEY = 'boardThumbnailCache';
+const THUMBNAIL_CACHE_KEY = "boardThumbnailCache";
 const CACHE_EXPIRY_HOURS = 24; // 24時間でキャッシュを無効化
 
 interface CachedThumbnail {
@@ -36,24 +36,23 @@ const loadThumbnailCacheFromStorage = (): Map<string, string | null> => {
   try {
     const stored = localStorage.getItem(THUMBNAIL_CACHE_KEY);
     if (!stored) return new Map();
-    
+
     const cache: Record<string, CachedThumbnail> = JSON.parse(stored);
     const now = Date.now();
     const expiryTime = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
-    
+
     const validCache = new Map<string, string | null>();
-    
+
     Object.entries(cache).forEach(([key, value]) => {
       // 期限切れでないもののみ追加
       if (now - value.timestamp < expiryTime) {
         validCache.set(key, value.url);
       }
     });
-    
-    console.log(`[LocalCache] Loaded ${validCache.size} cached thumbnails from storage`);
+
     return validCache;
   } catch (error) {
-    console.error('[LocalCache] Failed to load cache from storage:', error);
+    console.error("[LocalCache] Failed to load cache from storage:", error);
     return new Map();
   }
 };
@@ -63,18 +62,17 @@ const saveThumbnailCacheToStorage = (cache: Map<string, string | null>) => {
   try {
     const cacheObject: Record<string, CachedThumbnail> = {};
     const now = Date.now();
-    
+
     cache.forEach((url, key) => {
       cacheObject[key] = {
         url,
-        timestamp: now
+        timestamp: now,
       };
     });
-    
+
     localStorage.setItem(THUMBNAIL_CACHE_KEY, JSON.stringify(cacheObject));
-    console.log(`[LocalCache] Saved ${cache.size} thumbnails to storage`);
   } catch (error) {
-    console.error('[LocalCache] Failed to save cache to storage:', error);
+    console.error("[LocalCache] Failed to save cache to storage:", error);
   }
 };
 
@@ -97,7 +95,7 @@ const debouncedSaveToStorage = () => {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
-  
+
   saveTimeout = setTimeout(() => {
     saveThumbnailCacheToStorage(globalThumbnailCache);
     saveTimeout = null;
@@ -105,72 +103,73 @@ const debouncedSaveToStorage = () => {
 };
 
 // グローバルキャッシュからサムネイルを取得する関数
-const getCachedThumbnail = async (projectId: string, boardName: string): Promise<string | null> => {
+const getCachedThumbnail = async (
+  projectId: string,
+  boardName: string
+): Promise<string | null> => {
   const cacheKey = `${projectId}:${boardName}`;
-  
+
   // キャッシュにある場合は即座に返す
   if (globalThumbnailCache.has(cacheKey)) {
     return globalThumbnailCache.get(cacheKey) || null;
   }
-  
+
   // 既に取得中の場合は同じPromiseを返す（重複リクエスト防止）
   if (thumbnailFetchPromises.has(cacheKey)) {
     return thumbnailFetchPromises.get(cacheKey)!;
   }
-  
+
   // 新規取得
   const fetchPromise = (async (): Promise<string | null> => {
     try {
-      console.log(`[GlobalCache] Fetching thumbnail for: ${boardName}`);
-      
       // boardTitleIndexからボードIDを取得
       const boardId = await getBoardIdByTitle(projectId, boardName);
-      console.log(`[GlobalCache] Board ID for ${boardName}: ${boardId}`);
-      
+
       if (!boardId) {
         globalThumbnailCache.set(cacheKey, null);
         return null;
       }
-      
+
       // 直接ボードデータからmetadata.thumbnailUrlを取得
       const boardRef = ref(rtdb, `boards/${boardId}`);
       const snapshot = await get(boardRef);
-      
+
       if (snapshot.exists()) {
         const boardData = snapshot.val();
         const thumbnailUrl = boardData.metadata?.thumbnailUrl || null;
-        console.log(`[GlobalCache] Thumbnail URL for ${boardName}: ${thumbnailUrl}`);
-        
+
         // キャッシュに保存
         globalThumbnailCache.set(cacheKey, thumbnailUrl);
-        
+
         // デバウンスしてローカルストレージに保存
         debouncedSaveToStorage();
-        
+
         return thumbnailUrl;
       } else {
-        console.log(`[GlobalCache] No board data for ${boardName} (ID: ${boardId})`);
         globalThumbnailCache.set(cacheKey, null);
-        
+
         // デバウンスしてローカルストレージに保存
         debouncedSaveToStorage();
-        
+
         return null;
       }
     } catch (error) {
-      console.error(`[GlobalCache] Failed to fetch thumbnail for ${boardName}:`, error);
+      console.error(
+        `[GlobalCache] Failed to fetch thumbnail for ${boardName}:`,
+        error
+      );
       globalThumbnailCache.set(cacheKey, null);
-      
+
       // デバウンスしてローカルストレージに保存
       debouncedSaveToStorage();
-      
+
       return null;
     } finally {
       // 取得完了後はPromiseキャッシュから削除
       thumbnailFetchPromises.delete(cacheKey);
     }
   })();
-  
+
   // 取得中のPromiseをキャッシュ
   thumbnailFetchPromises.set(cacheKey, fetchPromise);
   return fetchPromise;
@@ -186,7 +185,10 @@ import { extractBoardLinks } from "../utils/extractBoardLinks";
 import { extractCosenseLinks } from "../utils/extractCosenseLinks";
 import { isNoteNewerThanLastView } from "../utils/boardViewHistory";
 import { isNoteUnread, updateNoteViewTime } from "../utils/noteViewHistory";
-import { isNoteUnreadInSession, addNewNoteToSession } from "../utils/sessionUnreadNotes";
+import {
+  isNoteUnreadInSession,
+  addNewNoteToSession,
+} from "../utils/sessionUnreadNotes";
 import { isYouTubeUrl, getYouTubeEmbedUrl } from "../utils/youtubeEmbed";
 
 interface ImageContent {
@@ -366,11 +368,12 @@ const StickyNoteComponent = function StickyNote({
   const [boardLinks, setBoardLinks] = useState<Map<string, string | null>>(
     new Map()
   );
-  
+
   // 新しいDenormalizedBoard方式のサムネイルキャッシュ
-  const [newBoardThumbnails, setNewBoardThumbnails] = useState<Record<string, string | null>>({});
-  
-  
+  const [newBoardThumbnails, setNewBoardThumbnails] = useState<
+    Record<string, string | null>
+  >({});
+
   const [insertCount, setInsertCount] = useState(0);
   const [lastInsertTime, setLastInsertTime] = useState(0);
   const [lastInsertPosition, setLastInsertPosition] = useState<{
@@ -496,52 +499,59 @@ const StickyNoteComponent = function StickyNote({
   // グローバルキャッシュを使用したサムネイル取得
   useEffect(() => {
     if (!content || !board?.projectId) return;
-    
+
     const fetchNewThumbnails = async () => {
       // [name.icon]記法を検出
       const iconMatches = [...content.matchAll(/\[([^\]]+)\.icon(\*\d+)?\]/g)];
-      const boardNames = iconMatches.map(match => match[1]);
-      
+      const boardNames = iconMatches.map((match) => match[1]);
+
       // 未取得のボード名のみフィルタ（グローバルキャッシュとローカルキャッシュ両方をチェック）
-      const uncachedNames = boardNames.filter(name => {
+      const uncachedNames = boardNames.filter((name) => {
         const cacheKey = `${board.projectId}:${name}`;
-        return newBoardThumbnails[name] === undefined && !globalThumbnailCache.has(cacheKey);
+        return (
+          newBoardThumbnails[name] === undefined &&
+          !globalThumbnailCache.has(cacheKey)
+        );
       });
-      
+
       // グローバルキャッシュにあるものは即座にローカルキャッシュに反映
       const cachedFromGlobal: Record<string, string | null> = {};
-      boardNames.forEach(name => {
+      boardNames.forEach((name) => {
         const cacheKey = `${board.projectId}:${name}`;
-        if (globalThumbnailCache.has(cacheKey) && newBoardThumbnails[name] === undefined) {
+        if (
+          globalThumbnailCache.has(cacheKey) &&
+          newBoardThumbnails[name] === undefined
+        ) {
           cachedFromGlobal[name] = globalThumbnailCache.get(cacheKey) || null;
         }
       });
-      
+
       if (Object.keys(cachedFromGlobal).length > 0) {
-        setNewBoardThumbnails(prev => ({ ...prev, ...cachedFromGlobal }));
+        setNewBoardThumbnails((prev) => ({ ...prev, ...cachedFromGlobal }));
       }
-      
+
       if (uncachedNames.length === 0) return;
-      
-      console.log(`[StickyNote] Fetching thumbnails from global cache for: ${uncachedNames.join(', ')}`);
-      
+
       // グローバルキャッシュを使用して並列取得
       const promises = uncachedNames.map(async (boardName) => {
-        const thumbnailUrl = await getCachedThumbnail(board.projectId, boardName);
+        const thumbnailUrl = await getCachedThumbnail(
+          board.projectId,
+          boardName
+        );
         return { boardName, thumbnailUrl };
       });
-      
+
       const results = await Promise.all(promises);
-      
+
       // 一括でstate更新
       const newThumbnails: Record<string, string | null> = {};
       results.forEach(({ boardName, thumbnailUrl }) => {
         newThumbnails[boardName] = thumbnailUrl;
       });
-      
-      setNewBoardThumbnails(prev => ({ ...prev, ...newThumbnails }));
+
+      setNewBoardThumbnails((prev) => ({ ...prev, ...newThumbnails }));
     };
-    
+
     fetchNewThumbnails();
   }, [content, board?.projectId]); // fetchBoardThumbnailFromDenormalizedを削除
 
@@ -1122,7 +1132,6 @@ const StickyNoteComponent = function StickyNote({
       updateData.updatedAt = Date.now();
     }
 
-    console.log("handleBlur - updateData:", updateData);
     onUpdate(note.id, updateData);
 
     // 編集完了時のコールバックを実行
@@ -1175,7 +1184,6 @@ const StickyNoteComponent = function StickyNote({
     title: string,
     type: "board" | "scrapbox"
   ) => {
-    console.log("[StickyNote] Selecting suggestion:", { title, type });
     const { bracketStart, bracketEnd } = boardSuggestionInfo;
     const newContent =
       content.substring(0, bracketStart + 1) +
@@ -1772,7 +1780,7 @@ const StickyNoteComponent = function StickyNote({
       e.stopPropagation();
       return;
     }
-    
+
     if (isEditing) {
       return;
     }
@@ -2196,13 +2204,12 @@ const StickyNoteComponent = function StickyNote({
   const backgroundColor = getColorStyle(noteColor);
   const borderColor = calculateBorderColor(backgroundColor);
 
-  // 新着チェック（セッション中の未読状態で判定 - セッション中は維持される）  
+  // 新着チェック（セッション中の未読状態で判定 - セッション中は維持される）
   const isNewNote = isNoteUnreadInSession(note.id);
 
   // 付箋が表示されたら付箋レベルの閲覧履歴を記録（ボードアクセス時用）
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('Recording note view for next board access:', note.id.substring(0, 8));
       updateNoteViewTime(board.id, note.id);
     }, 100);
 
@@ -2421,10 +2428,11 @@ const StickyNoteComponent = function StickyNote({
                   );
                 } else if (item.type === "boardthumbnail") {
                   // 新しいDenormalizedBoard方式を優先、フォールバックで古い方式
-                  const thumbnailUrl = newBoardThumbnails[item.boardName] !== undefined 
-                    ? newBoardThumbnails[item.boardName]
-                    : boardThumbnails.get(item.boardName);
-                  
+                  const thumbnailUrl =
+                    newBoardThumbnails[item.boardName] !== undefined
+                      ? newBoardThumbnails[item.boardName]
+                      : boardThumbnails.get(item.boardName);
+
                   // サムネイル取得中またはサムネイルが無い場合はテキスト表示
                   if (thumbnailUrl === undefined || thumbnailUrl === null) {
                     return (
@@ -2433,20 +2441,21 @@ const StickyNoteComponent = function StickyNote({
                         style={{
                           display: "inline-block",
                           padding: "1px 3px",
-                          backgroundColor: thumbnailUrl === undefined ? "#f0f0f0" : "#e8e8e8",
+                          backgroundColor:
+                            thumbnailUrl === undefined ? "#f0f0f0" : "#e8e8e8",
                           color: thumbnailUrl === undefined ? "#666" : "#888",
                           borderRadius: "3px",
                           fontSize: "0.8em",
                           verticalAlign: "middle",
                           userSelect: "none",
-                          border: "1px solid #ddd"
+                          border: "1px solid #ddd",
                         }}
                       >
                         {item.boardName}
                       </span>
                     );
                   }
-                  
+
                   // サムネイルがある場合は画像表示
                   return (
                     <img
@@ -2468,7 +2477,7 @@ const StickyNoteComponent = function StickyNote({
                         const target = e.target as HTMLImageElement;
                         const parent = target.parentElement;
                         if (parent) {
-                          const textSpan = document.createElement('span');
+                          const textSpan = document.createElement("span");
                           textSpan.textContent = item.boardName;
                           textSpan.style.cssText = `
                             display: inline-block;

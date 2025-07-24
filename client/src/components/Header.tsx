@@ -79,7 +79,7 @@ export const Header = memo(function Header({
       if (boardsAdminIndex) {
         try {
           await boardsAdminIndex.setSettings({
-            attributesForFaceting: ["projectId", "projectName"],
+            attributesForFaceting: ["filterOnly(projectId)", "projectName"],
             searchableAttributes: [
               "title",
               "description",
@@ -88,19 +88,50 @@ export const Header = memo(function Header({
             ],
             attributesToHighlight: ["title", "description", "name"],
           });
-        } catch {
+          console.log("Header search - Algolia index settings updated successfully");
+        } catch (settingsError) {
+          console.warn("Header search - Failed to update Algolia settings:", settingsError);
           // Ignore settings errors (likely using search-only key or in production)
         }
       }
 
+      const filterString = `projectId:"${currentProjectId}"`;
+      console.log("Header search - Current Project ID:", currentProjectId);
+      console.log("Header search - Filter string:", filterString);
+
       // Search with Algolia using project filter
       const result = await boardsSearchIndex.search<AlgoliaBoard>(query, {
         ...searchConfig,
-        filters: `projectId:"${currentProjectId}"`,
+        filters: filterString,
         hitsPerPage: 5, // Limit results for dropdown
       });
 
-      setSearchResults(result.hits || []);
+      console.log("Header search - Results:", result.hits);
+      console.log("Header search - Results count:", result.hits?.length);
+      
+      // Check if any results are from other projects and filter them out as a safety measure
+      let filteredResults = result.hits || [];
+      if (result.hits) {
+        const originalCount = result.hits.length;
+        filteredResults = result.hits.filter((hit) => {
+          if (hit.projectId !== currentProjectId) {
+            console.warn(`Header search - Filtering out result from different project:`, {
+              resultProjectId: hit.projectId,
+              currentProjectId: currentProjectId,
+              boardName: hit.name || hit.title,
+              projectName: hit.projectName
+            });
+            return false;
+          }
+          return true;
+        });
+        
+        if (filteredResults.length !== originalCount) {
+          console.warn(`Header search - Filtered ${originalCount - filteredResults.length} results from other projects`);
+        }
+      }
+      
+      setSearchResults(filteredResults);
       setShowDropdown(true);
     } catch (error) {
       console.error("Error searching boards with Algolia:", error);
@@ -298,9 +329,10 @@ export const Header = memo(function Header({
                 </div>
               ) : (
                 <span
-                  className="header-subtitle"
+                  className={`header-subtitle ${
+                    onSubtitleClick ? "clickable" : "non-clickable"
+                  }`}
                   onClick={onSubtitleClick}
-                  style={{ cursor: onSubtitleClick ? "pointer" : "default" }}
                   title={onSubtitleClick ? "Click to edit" : undefined}
                 >
                   {subtitle}

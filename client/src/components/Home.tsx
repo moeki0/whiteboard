@@ -65,38 +65,31 @@ export function Home({ user }: HomeProps) {
   useEffect(() => {
     const checkRecentProject = async () => {
       try {
-        console.log('Checking for recent project...');
         const recent = getRecentProject();
-        console.log('Recent project data:', recent);
-        
+
         if (recent.id && recent.slug) {
-          console.log(`Verifying project ${recent.id} exists...`);
           // Verify project still exists and user has access
           const [projectSnapshot, userProjectSnapshot] = await Promise.all([
             get(ref(rtdb, `projects/${recent.id}`)),
-            get(ref(rtdb, `userProjects/${user.uid}/${recent.id}`))
+            get(ref(rtdb, `userProjects/${user.uid}/${recent.id}`)),
           ]);
-          
+
           if (projectSnapshot.exists() && userProjectSnapshot.exists()) {
-            console.log(`Redirecting to /${recent.slug}`);
             navigate(`/${recent.slug}`, { replace: true });
             return;
           } else {
-            console.log('Project no longer exists or no access, clearing recent project');
             // Clear invalid recent project
-            localStorage.removeItem('recentProjectId');
-            localStorage.removeItem('recentProjectSlug');
+            localStorage.removeItem("recentProjectId");
+            localStorage.removeItem("recentProjectSlug");
           }
-        } else {
-          console.log('No recent project found');
         }
       } catch (error) {
-        console.error('Error checking recent project:', error);
+        console.error("Error checking recent project:", error);
       } finally {
         setCheckingRecent(false);
       }
     };
-    
+
     // Add delay to ensure Firebase is ready
     const timer = setTimeout(checkRecentProject, 100);
     return () => clearTimeout(timer);
@@ -133,8 +126,11 @@ export function Home({ user }: HomeProps) {
 
         // Check if we should redirect to recent project first
         const recent = getRecentProject();
-        if (recent.id && recent.slug && validProjects.some(p => p.id === recent.id)) {
-          console.log('Recent project found in user projects, redirecting...');
+        if (
+          recent.id &&
+          recent.slug &&
+          validProjects.some((p) => p.id === recent.id)
+        ) {
           navigate(`/${recent.slug}`, { replace: true });
           return;
         }

@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Board } from '../types';
-import { getCombinedSuggestions, SuggestionItem } from '../utils/textCompletion';
-import { useDebounce } from './useDebounce';
+import { useState, useEffect } from "react";
+import { Board } from "../types";
+import {
+  getCombinedSuggestions,
+  SuggestionItem,
+} from "../utils/textCompletion";
+import { useDebounce } from "./useDebounce";
 
 interface UseCombinedSuggestionsResult {
   suggestions: SuggestionItem[];
@@ -26,7 +29,7 @@ export function useCombinedSuggestions(
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 検索文字列をデバウンス（300ms）
   const debouncedSearchText = useDebounce(searchText, 300);
 
@@ -39,33 +42,29 @@ export function useCombinedSuggestions(
     }
 
     let isCancelled = false;
-    
+
     const fetchSuggestions = async () => {
-      console.log('[useCombinedSuggestions] Starting fetch...');
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const result = await getCombinedSuggestions(
           boards,
           debouncedSearchText,
           scrapboxProjectName
         );
-        
-        console.log('[useCombinedSuggestions] Fetch completed:', result.length, 'suggestions');
-        
+
         if (!isCancelled) {
           setSuggestions(result);
         }
       } catch (err) {
-        console.error('[useCombinedSuggestions] Fetch error:', err);
+        console.error("[useCombinedSuggestions] Fetch error:", err);
         if (!isCancelled) {
-          setError(err instanceof Error ? err.message : 'Unknown error');
+          setError(err instanceof Error ? err.message : "Unknown error");
           setSuggestions([]);
         }
       } finally {
         if (!isCancelled) {
-          console.log('[useCombinedSuggestions] Setting loading to false');
           setIsLoading(false);
         }
       }
@@ -74,7 +73,6 @@ export function useCombinedSuggestions(
     fetchSuggestions();
 
     return () => {
-      console.log('[useCombinedSuggestions] Cleanup - cancelling fetch');
       isCancelled = true;
     };
   }, [boards, debouncedSearchText, scrapboxProjectName, enabled]);

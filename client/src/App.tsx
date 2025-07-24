@@ -6,17 +6,16 @@ import {
   Navigate,
 } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, isAuthInitialized } from "./config/firebase";
+import { auth } from "./config/firebase";
 import { resolveProjectIdToSlug } from "./utils/slugResolver";
 import { Auth } from "./components/Auth";
 import { Home } from "./components/Home";
-import { InfiniteScrollBoardList } from "./components/InfiniteScrollBoardList";
+import { BoardList } from "./components/BoardList";
 import { Board } from "./components/Board";
 import { InviteJoin } from "./components/InviteJoin";
 import { ProjectSettings } from "./components/ProjectSettings";
 import { ProjectCreate } from "./components/ProjectCreate";
 import { UserSettings } from "./components/UserSettings";
-import { BoardSettings } from "./components/BoardSettings";
 import { InitialProfileSetup } from "./components/InitialProfileSetup";
 import { Layout } from "./components/Layout";
 import { HeaderWrapper } from "./components/HeaderWrapper";
@@ -30,42 +29,38 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [showInitialSetup, setShowInitialSetup] = useState<boolean>(false);
-  // プロファイルチェック状態をLocalStorageから復元
   const [profileChecked, setProfileChecked] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('maplap_profile_checked') === 'true';
+      return localStorage.getItem("maplap_profile_checked") === "true";
     } catch {
       return false;
     }
   });
 
-  // プロファイルチェック状態を永続化
   const updateProfileChecked = (checked: boolean) => {
     setProfileChecked(checked);
     try {
       if (checked) {
-        localStorage.setItem('maplap_profile_checked', 'true');
+        localStorage.setItem("maplap_profile_checked", "true");
       } else {
-        localStorage.removeItem('maplap_profile_checked');
+        localStorage.removeItem("maplap_profile_checked");
       }
     } catch (error) {
-      console.warn('Failed to update profile checked state in localStorage:', error);
+      console.warn(
+        "Failed to update profile checked state in localStorage:",
+        error
+      );
     }
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log(`🔐 Auth state changed: ${user ? 'authenticated' : 'not authenticated'}, profileChecked: ${profileChecked}`);
       setUser(user as User | null);
 
-      // 初回ログイン時のみプロファイルチェック（重複API呼び出しを防ぐ）
       if (user && !profileChecked) {
-        console.log(`👤 Checking user profile for first time: ${user.uid}`);
         try {
-          const startTime = performance.now();
           const userProfile = await getUserProfile(user.uid);
-          console.log(`👤 Profile check took: ${(performance.now() - startTime).toFixed(2)}ms`);
-          
+
           if (!userProfile || !userProfile.username) {
             setShowInitialSetup(true);
           } else {
@@ -78,14 +73,10 @@ function App() {
           setShowInitialSetup(true);
           updateProfileChecked(true);
         }
-      } else if (user && profileChecked) {
-        console.log(`👤 User already authenticated and profile checked, skipping profile fetch`);
       } else if (!user) {
-        // ログアウト時はすべての状態をリセット
         setShowInitialSetup(false);
         updateProfileChecked(false);
-        // プロファイルキャッシュもクリア
-        if (typeof window !== 'undefined' && (window as any).profileCache) {
+        if (typeof window !== "undefined" && (window as any).profileCache) {
           (window as any).profileCache.clear();
         }
       }
@@ -96,11 +87,8 @@ function App() {
     return () => unsubscribe();
   }, [profileChecked]);
 
-  // Protected Route Component
   function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    console.log("🔒 ProtectedRoute check:", { loading, user: !!user, showInitialSetup });
     if (loading) {
-      console.log("🔒 ProtectedRoute: still loading user auth");
       return <div className="loading"></div>;
     }
 
@@ -108,19 +96,15 @@ function App() {
       return <Auth user={user} />;
     }
 
-    // 初期設定画面を表示
     if (showInitialSetup) {
       return (
         <InitialProfileSetup
           user={user}
           onComplete={() => {
-            console.log(`✅ Initial profile setup completed for ${user.uid}`);
             setShowInitialSetup(false);
-            // リロードの代わりにプロファイルキャッシュをクリアして状態を更新
-            if (typeof window !== 'undefined' && (window as any).profileCache) {
+            if (typeof window !== "undefined" && (window as any).profileCache) {
               (window as any).profileCache.clear();
             }
-            // プロファイル状態をリセットして再チェックを促す
             updateProfileChecked(false);
           }}
         />
@@ -140,11 +124,11 @@ function App() {
     const { currentProjectId } = useProject();
     const [projectSlug, setProjectSlug] = useState<string | null>(null);
     const [slugResolved, setSlugResolved] = useState(false);
-    
+
     useEffect(() => {
       if (currentProjectId) {
         resolveProjectIdToSlug(currentProjectId)
-          .then(slug => {
+          .then((slug) => {
             setProjectSlug(slug);
             setSlugResolved(true);
           })
@@ -155,11 +139,11 @@ function App() {
         setSlugResolved(true);
       }
     }, [currentProjectId]);
-    
+
     if (currentProjectId && slugResolved && projectSlug) {
       return <Navigate to={`/${projectSlug}`} replace />;
     }
-    
+
     return <Home user={user!} />;
   }
 
@@ -185,15 +169,6 @@ function App() {
             />
 
             <Route
-              path="/project/:projectId"
-              element={
-                <ProtectedRoute>
-                  <InfiniteScrollBoardList user={user!} />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
               path="/create-project"
               element={
                 <ProtectedRoute>
@@ -211,22 +186,11 @@ function App() {
               }
             />
 
-
             <Route
               path="/user/settings"
               element={
                 <ProtectedRoute>
                   <UserSettings user={user!} />
-                </ProtectedRoute>
-              }
-            />
-
-
-            <Route
-              path="/board/:boardId/settings"
-              element={
-                <ProtectedRoute>
-                  <BoardSettings user={user!} />
                 </ProtectedRoute>
               }
             />
@@ -284,13 +248,12 @@ function App() {
               }
             />
 
-
             <Route
               path="/:projectSlug"
               element={
                 <ProtectedRoute>
                   <SlugRouter type="project">
-                    <InfiniteScrollBoardList user={user!} />
+                    <BoardList user={user!} />
                   </SlugRouter>
                 </ProtectedRoute>
               }

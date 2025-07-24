@@ -8,24 +8,16 @@ interface LoadingSpinnerProps {
 export function LoadingSpinner({ size = 16, color = '#ffffff' }: LoadingSpinnerProps) {
   return (
     <div
+      className="loading-spinner"
       style={{
-        width: size,
-        height: size,
-        border: `2px solid ${color}40`,
-        borderTop: `2px solid ${color}`,
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite',
-      }}
+        '--spinner-size': `${size}px`,
+        '--spinner-color': color,
+        '--spinner-border-color': `${color}40`,
+        width: 'var(--spinner-size)',
+        height: 'var(--spinner-size)',
+        borderColor: 'var(--spinner-border-color)',
+        borderTopColor: 'var(--spinner-color)',
+      } as React.CSSProperties}
     />
   );
 }
-
-// CSSアニメーションをインラインで定義
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(style);

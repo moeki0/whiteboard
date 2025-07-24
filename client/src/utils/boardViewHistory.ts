@@ -2,7 +2,7 @@
  * ボード閲覧履歴を管理するユーティリティ
  */
 
-const BOARD_VIEW_HISTORY_KEY = 'maplap_board_view_history';
+const BOARD_VIEW_HISTORY_KEY = "maplap_board_view_history";
 
 interface BoardViewHistory {
   [boardId: string]: number; // ボードIDと最後に閲覧した時刻のマップ
@@ -15,11 +15,11 @@ export function getLastBoardViewTime(boardId: string): number | null {
   try {
     const history = localStorage.getItem(BOARD_VIEW_HISTORY_KEY);
     if (!history) return null;
-    
+
     const parsed: BoardViewHistory = JSON.parse(history);
     return parsed[boardId] || null;
   } catch (error) {
-    console.error('Failed to get board view history:', error);
+    console.error("Failed to get board view history:", error);
     return null;
   }
 }
@@ -31,19 +31,13 @@ export function updateBoardViewTime(boardId: string): void {
   try {
     const history = localStorage.getItem(BOARD_VIEW_HISTORY_KEY);
     const parsed: BoardViewHistory = history ? JSON.parse(history) : {};
-    
+
     const now = Date.now();
     parsed[boardId] = now;
-    
-    console.log('updateBoardViewTime called:', {
-      boardId,
-      viewTime: new Date(now).toISOString(),
-      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
-    });
-    
+
     localStorage.setItem(BOARD_VIEW_HISTORY_KEY, JSON.stringify(parsed));
   } catch (error) {
-    console.error('Failed to update board view history:', error);
+    console.error("Failed to update board view history:", error);
   }
 }
 
@@ -58,17 +52,9 @@ export function isNoteNewerThanLastView(
 ): boolean {
   const lastViewTime = getLastBoardViewTime(boardId);
   const noteTime = noteUpdatedAt || noteCreatedAt;
-  
-  console.log('isNoteNewerThanLastView check:', {
-    boardId,
-    noteCreatedAt: new Date(noteCreatedAt).toISOString(),
-    noteUpdatedAt: noteUpdatedAt ? new Date(noteUpdatedAt).toISOString() : 'none',
-    lastViewTime: lastViewTime ? new Date(lastViewTime).toISOString() : 'none',
-    isNewer: !lastViewTime || noteTime > lastViewTime
-  });
-  
+
   if (!lastViewTime) return true; // 閲覧履歴がない場合は必ずマークを表示
-  
+
   return noteTime > lastViewTime;
 }
 
@@ -81,13 +67,13 @@ export function hasBoardUnreadContent(
   boardUpdatedAt?: number
 ): boolean {
   const lastViewTime = getLastBoardViewTime(boardId);
-  
+
   // 閲覧履歴がない場合は未読とみなす
   if (!lastViewTime) return true;
-  
+
   // ボードの更新時刻がない場合は既読とみなす
   if (!boardUpdatedAt) return false;
-  
+
   // ボードの更新時刻が最後の閲覧時刻より新しい場合は未読
   return boardUpdatedAt > lastViewTime;
 }
@@ -99,6 +85,6 @@ export function clearBoardViewHistory(): void {
   try {
     localStorage.removeItem(BOARD_VIEW_HISTORY_KEY);
   } catch (error) {
-    console.error('Failed to clear board view history:', error);
+    console.error("Failed to clear board view history:", error);
   }
 }

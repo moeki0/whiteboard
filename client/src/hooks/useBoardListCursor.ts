@@ -11,9 +11,12 @@ interface UseBoardListCursorProps {
   cursorColor: string;
 }
 
-export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: UseBoardListCursorProps) {
-  console.log('useBoardListCursor - Hook called with:', { projectId, user: user?.uid, sessionId, cursorColor });
-  
+export function useBoardListCursor({
+  projectId,
+  user,
+  sessionId,
+  cursorColor,
+}: UseBoardListCursorProps) {
   const throttleTimerRef = useRef<number | null>(null);
   const [username, setUsername] = useState<string | null>(null);
 
@@ -35,9 +38,7 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
   }, [user?.uid]);
 
   useEffect(() => {
-    console.log('useBoardListCursor - useEffect called with projectId:', projectId);
     if (!projectId) {
-      console.log('useBoardListCursor - No projectId, returning early');
       return;
     }
 
@@ -46,33 +47,24 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
 
       throttleTimerRef.current = window.setTimeout(() => {
         // Calculate coordinates considering scroll position
-        const boardListElement = document.querySelector('.board-list');
+        const boardListElement = document.querySelector(".board-list");
         if (!boardListElement) {
-          console.log('useBoardListCursor - .board-list element not found');
           throttleTimerRef.current = null;
           return;
         }
-        
+
         const rect = boardListElement.getBoundingClientRect();
         const scrollTop = boardListElement.scrollTop || 0;
         const scrollLeft = boardListElement.scrollLeft || 0;
-        
+
         // Calculate relative coordinates within the board list
         const relativeX = e.clientX - rect.left + scrollLeft;
         const relativeY = e.clientY - rect.top + scrollTop;
-        
-        console.log('useBoardListCursor - Coordinates:', {
-          clientX: e.clientX,
-          clientY: e.clientY,
-          rectLeft: rect.left,
-          rectTop: rect.top,
-          scrollLeft,
-          scrollTop,
-          relativeX,
-          relativeY
-        });
 
-        const cursorRef = ref(rtdb, `boardListCursors/${projectId}/${user.uid}-${sessionId}`);
+        const cursorRef = ref(
+          rtdb,
+          `boardListCursors/${projectId}/${user.uid}-${sessionId}`
+        );
         const userName = user.displayName || user.email || "User";
         const initials = userName
           .split(" ")
@@ -90,14 +82,11 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
           photoURL: user.photoURL,
           username: username,
         };
-        
-        console.log('useBoardListCursor - Sending cursor data:', cursorData);
-        console.log('useBoardListCursor - Project ID:', projectId);
-        
+
         set(cursorRef, cursorData).catch((error) => {
           console.error("Error updating board list cursor:", error);
         });
-        
+
         throttleTimerRef.current = null;
       }, 50); // Throttle to 20fps
     };
@@ -106,7 +95,10 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
 
     // Cleanup cursor on unmount or page close
     const cleanup = () => {
-      const cursorRef = ref(rtdb, `boardListCursors/${projectId}/${user.uid}-${sessionId}`);
+      const cursorRef = ref(
+        rtdb,
+        `boardListCursors/${projectId}/${user.uid}-${sessionId}`
+      );
       remove(cursorRef).catch((error) => {
         console.error("Error removing board list cursor:", error);
       });
@@ -129,12 +121,19 @@ export function useBoardListCursor({ projectId, user, sessionId, cursorColor }: 
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      
+
       if (throttleTimerRef.current) {
         window.clearTimeout(throttleTimerRef.current);
       }
-      
+
       cleanup();
     };
-  }, [projectId, user.uid, sessionId, cursorColor, user.displayName, user.email]);
+  }, [
+    projectId,
+    user.uid,
+    sessionId,
+    cursorColor,
+    user.displayName,
+    user.email,
+  ]);
 }

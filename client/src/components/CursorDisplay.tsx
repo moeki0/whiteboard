@@ -62,27 +62,21 @@ const UserCursor = memo(
         style={{
           left: `${cursor.x}px`,
           top: `${cursor.y}px`,
-          position: "absolute",
-          pointerEvents: "none",
-          zIndex: 10000,
-        }}
+          '--cursor-color': cursor.color || "#ff4444",
+        } as React.CSSProperties}
       >
         <div className="cursor-pointer">
           <LuMousePointer2
             style={{
-              color: cursor.color || "#ff4444",
-              fill: cursor.color || "#ff4444",
+              color: 'var(--cursor-color)',
+              fill: 'var(--cursor-color)',
             }}
           />
         </div>
         <div
           className="cursor-label"
           style={{
-            border: `2px solid ${cursor.color || "#ff4444"}`,
-            position: "relative",
-            overflow: "hidden",
-            width: "20px",
-            height: "20px",
+            borderColor: 'var(--cursor-color)',
           }}
           title={cursor.fullName}
         >
@@ -90,20 +84,12 @@ const UserCursor = memo(
             <img
               src={userThumbnail}
               alt={`${userName} board thumbnail`}
-              style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: "50%",
-                objectFit: "contain",
-                position: "absolute",
-                top: 0,
-                left: 0,
-              }}
+              className="cursor-thumbnail"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
             />
           ) : (
-            <LuUser style={{ color: "white", fontSize: "12px" }} />
+            <LuUser className="cursor-user-icon" />
           )}
         </div>
       </div>

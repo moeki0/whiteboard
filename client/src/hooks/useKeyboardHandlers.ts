@@ -71,7 +71,6 @@ export function useKeyboardHandlers({
   const handleUndoKey = useCallback(
     (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        console.log("Undo key detected");
         e.preventDefault();
         onUndo();
       }
@@ -85,7 +84,6 @@ export function useKeyboardHandlers({
         (e.ctrlKey || e.metaKey) &&
         ((e.key === "z" && e.shiftKey) || e.key === "y")
       ) {
-        console.log("Redo key detected");
         e.preventDefault();
         onRedo();
       }
@@ -106,7 +104,6 @@ export function useKeyboardHandlers({
   const handlePasteKey = useCallback(
     async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        console.log("Paste key detected, calling onPaste()");
         e.preventDefault();
         onPaste();
       }
@@ -202,23 +199,21 @@ export function useKeyboardHandlers({
           } else {
             // 付箋が選択されていない場合：ズームイン（画面中央を基準）
             if (boardRef.current) {
-              
               // ビューポートのサイズを使用（実際に見えている画面のサイズ）
               const centerX = window.innerWidth / 2;
               const centerY = window.innerHeight / 2;
-              
+
               const zoomFactor = 1.1;
               const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-              
+
               // 画面中央のワールド座標を計算
               const worldCenterX = (centerX - panX) / zoom;
               const worldCenterY = (centerY - panY) / zoom;
-              
+
               // ズーム後も画面中央が同じワールド座標を指すようにパンを調整
               const newPanX = centerX - worldCenterX * newZoom;
               const newPanY = centerY - worldCenterY * newZoom;
-              
-              
+
               setZoom(newZoom);
               setPanX(newPanX);
               setPanY(newPanY);
@@ -236,23 +231,21 @@ export function useKeyboardHandlers({
           } else {
             // 付箋が選択されていない場合：ズームアウト（画面中央を基準）
             if (boardRef.current) {
-              
               // ビューポートのサイズを使用（実際に見えている画面のサイズ）
               const centerX = window.innerWidth / 2;
               const centerY = window.innerHeight / 2;
-              
+
               const zoomFactor = 0.9;
               const newZoom = Math.max(0.1, Math.min(5, zoom * zoomFactor));
-              
+
               // 画面中央のワールド座標を計算
               const worldCenterX = (centerX - panX) / zoom;
               const worldCenterY = (centerY - panY) / zoom;
-              
+
               // ズーム後も画面中央が同じワールド座標を指すようにパンを調整
               const newPanX = centerX - worldCenterX * newZoom;
               const newPanY = centerY - worldCenterY * newZoom;
-              
-              
+
               setZoom(newZoom);
               setPanX(newPanX);
               setPanY(newPanY);
@@ -261,7 +254,17 @@ export function useKeyboardHandlers({
           break;
       }
     },
-    [zoom, setPanX, setPanY, setZoom, panX, panY, boardRef, selectedNoteIds, onMoveSelectedNotes]
+    [
+      zoom,
+      setPanX,
+      setPanY,
+      setZoom,
+      panX,
+      panY,
+      boardRef,
+      selectedNoteIds,
+      onMoveSelectedNotes,
+    ]
   );
 
   const handleDeleteKey = useCallback(
@@ -394,17 +397,18 @@ export function useKeyboardHandlers({
       if (!e.shiftKey) return false;
 
       // デバッグログ
-      console.log("Shift key detected:", e.key, e.code);
 
       // e.codeを使用してキーを判別
       switch (e.code) {
         case "KeyG":
           // Shift+G: グループを作成または既存グループに追加
-          console.log("Shift+G detected");
+
           // 2つ以上の付箋が選択されている、または
           // 1つのグループと1つ以上の付箋が選択されている場合
-          if (selectedNoteIds.size >= 2 || 
-              (selectedGroupIds.size === 1 && selectedNoteIds.size > 0)) {
+          if (
+            selectedNoteIds.size >= 2 ||
+            (selectedGroupIds.size === 1 && selectedNoteIds.size > 0)
+          ) {
             e.preventDefault();
             onCreateGroup();
             return true;
@@ -412,14 +416,14 @@ export function useKeyboardHandlers({
           break;
         case "KeyS":
           // Shift+S: キーヒントモードを開始
-          console.log("Shift+S detected");
+
           e.preventDefault();
           setIsKeyHintMode(true);
           generateHintKeys(notes.map((note) => note.id));
           return true;
         case "KeyA":
           // Shift+A: 矢印を挿入
-          console.log("Shift+A detected");
+
           if (onAddArrow) {
             e.preventDefault();
             onAddArrow();
@@ -429,13 +433,12 @@ export function useKeyboardHandlers({
         case "KeyC":
           // Shift+Cmd+C: コピー
           if (e.metaKey || e.ctrlKey) {
-            console.log("Shift+Cmd+C detected for copy");
             e.preventDefault();
             onCopy();
             return true;
           }
           // Shift+C: 新しい付箋を追加してフォーカス
-          console.log("Shift+C detected");
+
           e.preventDefault();
           const newNoteId = onAddNote();
           if (typeof newNoteId === "string") {

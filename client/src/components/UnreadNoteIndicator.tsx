@@ -12,26 +12,17 @@ export const UnreadNoteIndicator: React.FC<UnreadNoteIndicatorProps> = ({
   onFocusNote,
   zoom,
 }) => {
-  console.log("UnreadNoteIndicator:", {
-    zoom,
-    unreadNotesCount: unreadNotes.length,
-    unreadNotes,
-  });
-
   // ズームレベルが0.3以下の時のみ表示
   if (zoom > 0.3) {
-    console.log("Zoom too high, not showing indicators:", zoom);
     return null;
   }
 
   if (unreadNotes.length === 0) {
-    console.log("No unread notes to show");
     return null;
   }
 
   // 近い位置にある未読付箋をグループ化
   const groupedNotes = groupNearbyNotes(unreadNotes, 50 / zoom);
-  console.log("Grouped notes:", groupedNotes);
 
   return (
     <>
@@ -73,32 +64,19 @@ const UnreadIndicatorDot: React.FC<UnreadIndicatorDotProps> = ({
 
   return (
     <div
+      className="unread-indicator-container"
       style={{
-        position: "absolute",
         left: firstNote.x,
         top: firstNote.y,
-        transform: "translate(-50%, -50%)",
-        zIndex: 99999,
-        cursor: "pointer",
-        userSelect: "none",
       }}
       onClick={handleClick}
     >
       <div
+        className="unread-indicator-dot"
         style={{
           width: dotSize,
           height: dotSize,
-          backgroundColor: "#4caf50",
-          borderRadius: "2px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow:
-            "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-          color: "white",
-          fontWeight: "bold",
           fontSize: Math.max(8, 10 / zoom),
-          transition: "background-color 0.2s",
         }}
       >
         {count}

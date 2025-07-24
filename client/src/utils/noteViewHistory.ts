@@ -2,7 +2,7 @@
  * 付箋レベルの閲覧履歴を管理するユーティリティ
  */
 
-const NOTE_VIEW_HISTORY_KEY = 'maplap_note_view_history';
+const NOTE_VIEW_HISTORY_KEY = "maplap_note_view_history";
 
 interface NoteViewHistory {
   [boardId: string]: {
@@ -13,15 +13,17 @@ interface NoteViewHistory {
 /**
  * 指定ボードの付箋閲覧履歴を取得
  */
-export function getNoteViewHistory(boardId: string): { [noteId: string]: number } {
+export function getNoteViewHistory(boardId: string): {
+  [noteId: string]: number;
+} {
   try {
     const history = localStorage.getItem(NOTE_VIEW_HISTORY_KEY);
     if (!history) return {};
-    
+
     const parsed: NoteViewHistory = JSON.parse(history);
     return parsed[boardId] || {};
   } catch (error) {
-    console.error('Failed to get note view history:', error);
+    console.error("Failed to get note view history:", error);
     return {};
   }
 }
@@ -33,23 +35,17 @@ export function updateNoteViewTime(boardId: string, noteId: string): void {
   try {
     const history = localStorage.getItem(NOTE_VIEW_HISTORY_KEY);
     const parsed: NoteViewHistory = history ? JSON.parse(history) : {};
-    
+
     if (!parsed[boardId]) {
       parsed[boardId] = {};
     }
-    
+
     const now = Date.now();
     parsed[boardId][noteId] = now;
-    
-    console.log('updateNoteViewTime:', {
-      boardId,
-      noteId: noteId.substring(0, 8),
-      viewTime: new Date(now).toISOString()
-    });
-    
+
     localStorage.setItem(NOTE_VIEW_HISTORY_KEY, JSON.stringify(parsed));
   } catch (error) {
-    console.error('Failed to update note view history:', error);
+    console.error("Failed to update note view history:", error);
   }
 }
 
@@ -64,17 +60,9 @@ export function isNoteUnread(
 ): boolean {
   const noteHistory = getNoteViewHistory(boardId);
   const lastViewTime = noteHistory[noteId];
-  
-  console.log('isNoteUnread check:', {
-    boardId,
-    noteId: noteId.substring(0, 8),
-    noteUpdatedAt: new Date(noteUpdatedAt).toISOString(),
-    lastViewTime: lastViewTime ? new Date(lastViewTime).toISOString() : 'none',
-    isUnread: !lastViewTime || noteUpdatedAt > lastViewTime
-  });
-  
+
   if (!lastViewTime) return true; // 閲覧履歴がない場合は未読
-  
+
   return noteUpdatedAt > lastViewTime;
 }
 
@@ -85,6 +73,6 @@ export function clearNoteViewHistory(): void {
   try {
     localStorage.removeItem(NOTE_VIEW_HISTORY_KEY);
   } catch (error) {
-    console.error('Failed to clear note view history:', error);
+    console.error("Failed to clear note view history:", error);
   }
 }
