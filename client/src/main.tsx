@@ -5,9 +5,7 @@ import App from './App'
 
 // Development tools
 if (import.meta.env.DEV) {
-  import('./utils/migrationTool');
-  // Load moeki-specific migration tool
-  import('./utils/migrateMoeki');
+  // Debug tools would go here
 }
 
 createRoot(document.getElementById('root')!).render(

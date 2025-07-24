@@ -2,12 +2,24 @@
   "rules": {
     ".read": false,
     ".write": false,
+    
+    // ユーザープロファイル（Firestoreを使用中だが念のため）
     "userProfiles": {
       "$uid": {
         ".read": true,
         ".write": "$uid == auth.uid"
       }
     },
+    
+    // ユーザーのプロジェクト一覧
+    "userProjects": {
+      "$userId": {
+        ".read": "$userId == auth.uid",
+        ".write": "$userId == auth.uid"
+      }
+    },
+    
+    // プロジェクト本体
     "projects": {
       "$projectId": {
         ".read": "auth != null",
@@ -17,18 +29,32 @@
         )"
       }
     },
+    
+    // 招待システム
+    "invites": {
+      "$inviteCode": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    // スラッグ解決システム
     "projectSlugIndex": {
       ".read": true,
       ".write": "auth != null"
     },
+    
     "projectSlugHistory": {
       ".read": true,
       ".write": "auth != null"
     },
+    
     "boardNameHistory": {
       ".read": true,
       ".write": "auth != null"
     },
+    
+    // ボード一覧（複数の構造をサポート）
     "projectBoards": {
       "$projectId": {
         ".read": "auth != null",
@@ -36,25 +62,62 @@
         ".indexOn": ["sortScore", "updatedAt", "isPinned"]
       }
     },
+    
+    "lightweightBoardsList": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "projectBoardsList": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "projectBoardsDenormalized": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    // ボード本体
     "boards": {
       "$boardId": {
         ".read": "auth != null",
         ".write": "auth != null"
       }
     },
-    "boardItems": {
+    
+    // ボードノート（レガシー構造）
+    "boardNotes": {
       "$boardId": {
         ".read": "auth != null",
         ".write": "auth != null"
       }
     },
-    "boardScenes": {
+    
+    // 検索インデックス
+    "boardTitleIndex": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    // サムネイル
+    "boardThumbnails": {
       "$boardId": {
         ".read": "auth != null",
         ".write": "auth != null"
       }
     },
-    "cursors": {
+    
+    // リアルタイムカーソル
+    "boardCursors": {
       "$boardId": {
         ".read": "auth != null",
         "$userId": {
@@ -62,24 +125,13 @@
         }
       }
     },
-    "activeUsers": {
-      "$boardId": {
+    
+    "boardListCursors": {
+      "$projectId": {
         ".read": "auth != null",
         "$userId": {
           ".write": "$userId == auth.uid"
         }
-      }
-    },
-    "boardHistory": {
-      "$boardId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-    "userReadStatus": {
-      "$userId": {
-        ".read": "$userId == auth.uid",
-        ".write": "$userId == auth.uid"
       }
     }
   }

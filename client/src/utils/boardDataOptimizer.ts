@@ -2,13 +2,7 @@ import { ref, get, update } from "firebase/database";
 import { rtdb } from "../config/firebase";
 import { Board } from "../types";
 import { boardListCache } from "./boardListCache";
-import { getProjectBoardsList, BoardListItem, migrateToNewStructure } from "./boardDataStructure";
-import { 
-  shouldUseNewStructure, 
-  shouldAutoMigrate, 
-  updateMigrationStatus,
-  getMigrationConfig 
-} from "./migrationManager";
+import { getProjectBoardsList, BoardListItem } from "./boardDataStructure";
 
 // Denormalized board data structure for faster queries
 export interface DenormalizedBoard extends Board {
@@ -42,113 +36,57 @@ export async function getPaginatedBoards(
       console.log(`📋 Cache hit for ${projectId} page ${page}`);
       return { 
         ...(cachedData as { boards: any[], totalCount: number, allBoardIds: string[] }), 
-        usedNewStructure: (cachedData as any)?.usedNewStructure ?? false 
+        usedNewStructure: true 
       };
     }
     
-    // 移行管理に基づいて使用する構造を決定
-    const useNewStructure = await shouldUseNewStructure(projectId);
-    console.log(`📋 Project ${projectId}: Using ${useNewStructure ? 'NEW' : 'OLD'} structure`);
+    // Always use new structure (simplified)
+    console.log(`📋 Project ${projectId}: Using NEW structure`);
     
-    // 新構造を使用する場合
-    if (useNewStructure) {
-      try {
-        const newStructureResult = await getProjectBoardsList(projectId, page, itemsPerPage);
-        
-        if (newStructureResult.boards.length > 0 || newStructureResult.totalCount === 0) {
-          // Convert BoardListItem to DenormalizedBoard
-          const denormalizedBoards: DenormalizedBoard[] = newStructureResult.boards.map(item => ({
-            id: item.id,
-            name: item.name,
-            title: item.title,
-            description: item.description,
-            thumbnailUrl: item.thumbnailUrl,
-            createdBy: item.createdBy,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-            isPinned: item.isPinned,
-            projectId: item.projectId,
-            metadata: {
-              title: item.title,
-              description: item.description,
-              thumbnailUrl: item.thumbnailUrl
-            }
-          }));
-          
-          const result = {
-            boards: denormalizedBoards,
-            totalCount: newStructureResult.totalCount,
-            allBoardIds: newStructureResult.allBoardIds,
-            usedNewStructure: true
-          };
-          
-          // Cache the result
-          boardListCache.set(cacheKey, result);
-          
-          const endTime = performance.now();
-          console.log(`📋 NEW structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
-          
-          return result;
-        } else {
-          console.log('📋 New structure exists but no data, falling back to old structure');
-        }
-      } catch (error) {
-        console.warn('📋 New structure failed, falling back to old structure:', error);
-        // 新構造でエラーが発生した場合、ステータスを更新
-        await updateMigrationStatus(projectId, 'error', error instanceof Error ? error.message : String(error));
-      }
-    }
-    
-    // 自動移行の判定と実行
-    const shouldMigrate = await shouldAutoMigrate(projectId);
-    if (shouldMigrate) {
-      console.log(`📋 Auto-migrating project ${projectId}`);
-      try {
-        await updateMigrationStatus(projectId, 'migrating');
-        await migrateToNewStructure(projectId);
-        await updateMigrationStatus(projectId, 'migrated');
-        
-        // 移行完了後、新構造でリトライ
-        const newStructureResult = await getProjectBoardsList(projectId, page, itemsPerPage);
-        
-        const denormalizedBoards: DenormalizedBoard[] = newStructureResult.boards.map(item => ({
-          id: item.id,
-          name: item.name,
+    try {
+      const newStructureResult = await getProjectBoardsList(projectId, page, itemsPerPage);
+      
+      // Convert BoardListItem to DenormalizedBoard
+      const denormalizedBoards: DenormalizedBoard[] = newStructureResult.boards.map(item => ({
+        id: item.id,
+        name: item.name,
+        title: item.title,
+        description: item.description,
+        thumbnailUrl: item.thumbnailUrl,
+        createdBy: item.createdBy,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        isPinned: item.isPinned,
+        projectId: item.projectId,
+        metadata: {
           title: item.title,
           description: item.description,
-          thumbnailUrl: item.thumbnailUrl,
-          createdBy: item.createdBy,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-          isPinned: item.isPinned,
-          projectId: item.projectId,
-          metadata: {
-            title: item.title,
-            description: item.description,
-            thumbnailUrl: item.thumbnailUrl
-          }
-        }));
-        
-        const result = {
-          boards: denormalizedBoards,
-          totalCount: newStructureResult.totalCount,
-          allBoardIds: newStructureResult.allBoardIds,
-          usedNewStructure: true
-        };
-        
-        boardListCache.set(cacheKey, result);
-        
-        const endTime = performance.now();
-        console.log(`📋 Auto-migration and NEW structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
-        
-        return result;
-      } catch (error) {
-        console.error('📋 Auto-migration failed:', error);
-        await updateMigrationStatus(projectId, 'error', error instanceof Error ? error.message : String(error));
-        // フォールバック処理を継続
-      }
+          thumbnailUrl: item.thumbnailUrl
+        }
+      }));
+      
+      const result = {
+        boards: denormalizedBoards,
+        totalCount: newStructureResult.totalCount,
+        allBoardIds: newStructureResult.allBoardIds,
+        usedNewStructure: true
+      };
+      
+      // Cache the result
+      boardListCache.set(cacheKey, result);
+      
+      const endTime = performance.now();
+      console.log(`📋 NEW structure query completed in ${(endTime - startTime).toFixed(2)}ms`);
+      
+      return result;
+    } catch (error) {
+      console.warn('📋 New structure failed, falling back to old structure:', error);
     }
-    // First, check if we have denormalized data
+    
+    // Fallback to old structure if new structure fails
+    console.log('📋 Falling back to old structure');
+    
+    // Check if we have denormalized data
     const denormalizedRef = ref(rtdb, `projectBoardsDenormalized/${projectId}`);
     const denormalizedSnapshot = await get(denormalizedRef);
     
@@ -187,8 +125,7 @@ export async function getPaginatedBoards(
       return result;
     }
     
-    // Fallback to current implementation if denormalized data doesn't exist
-    // This is the same as current logic but wrapped in a function
+    // Final fallback to original structure
     const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
     const projectBoardsSnapshot = await get(projectBoardsRef);
     const projectBoardsData = projectBoardsSnapshot.val();
@@ -265,49 +202,6 @@ export async function getPaginatedBoards(
   } catch (error) {
     console.error("Error in getPaginatedBoards:", error);
     return { boards: [], totalCount: 0, allBoardIds: [], usedNewStructure: false };
-  }
-}
-
-/**
- * Migrate existing board data to denormalized structure
- * This should be run once or periodically to update the denormalized data
- */
-export async function denormalizeBoardData(projectId: string): Promise<void> {
-  try {
-    const projectBoardsRef = ref(rtdb, `projectBoards/${projectId}`);
-    const projectBoardsSnapshot = await get(projectBoardsRef);
-    const projectBoardsData = projectBoardsSnapshot.val();
-    
-    if (!projectBoardsData) return;
-    
-    const boardIds = Object.keys(projectBoardsData);
-    const denormalizedData: Record<string, DenormalizedBoard> = {};
-    
-    // Fetch all board data
-    const boardPromises = boardIds.map(async (boardId) => {
-      const boardRef = ref(rtdb, `boards/${boardId}`);
-      const boardSnapshot = await get(boardRef);
-      if (boardSnapshot.exists()) {
-        const boardData = boardSnapshot.val();
-        denormalizedData[boardId] = {
-          ...boardData,
-          id: boardId,
-          title: boardData.metadata?.title || boardData.name,
-          description: boardData.metadata?.description,
-          thumbnailUrl: boardData.metadata?.thumbnailUrl
-        };
-      }
-    });
-    
-    await Promise.all(boardPromises);
-    
-    // Save denormalized data
-    const denormalizedRef = ref(rtdb, `projectBoardsDenormalized/${projectId}`);
-    await update(denormalizedRef, denormalizedData);
-    
-    console.log(`Denormalized ${Object.keys(denormalizedData).length} boards for project ${projectId}`);
-  } catch (error) {
-    console.error("Error denormalizing board data:", error);
   }
 }
 
