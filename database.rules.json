@@ -1,0 +1,86 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "userProfiles": {
+      "$uid": {
+        ".read": true,
+        ".write": "$uid == auth.uid"
+      }
+    },
+    "projects": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (
+          !data.exists() && newData.child('createdBy').val() == auth.uid ||
+          data.child('members').child(auth.uid).exists()
+        )"
+      }
+    },
+    "projectSlugIndex": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "projectSlugHistory": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "boardNameHistory": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "projectBoards": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["sortScore", "updatedAt", "isPinned"]
+      }
+    },
+    "boards": {
+      "$boardId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "boardItems": {
+      "$boardId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "boardScenes": {
+      "$boardId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "cursors": {
+      "$boardId": {
+        ".read": "auth != null",
+        "$userId": {
+          ".write": "$userId == auth.uid"
+        }
+      }
+    },
+    "activeUsers": {
+      "$boardId": {
+        ".read": "auth != null",
+        "$userId": {
+          ".write": "$userId == auth.uid"
+        }
+      }
+    },
+    "boardHistory": {
+      "$boardId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "userReadStatus": {
+      "$userId": {
+        ".read": "$userId == auth.uid",
+        ".write": "$userId == auth.uid"
+      }
+    }
+  }
+}

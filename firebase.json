@@ -46,6 +46,9 @@
       ]
     }
   ],
+  "database": {
+    "rules": "database.rules.json"
+  },
   "emulators": {
     "functions": {
       "port": 5001
