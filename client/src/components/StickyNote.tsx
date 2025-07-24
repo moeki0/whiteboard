@@ -2507,28 +2507,31 @@ const StickyNoteComponent = function StickyNote({
                     />
                   );
                 } else if (item.type === "boardlink") {
-                  // ボードリンクの表示（クリック不可能なテキスト）
+                  // ボードリンクの表示（常に青色で表示）
                   const boardId = boardLinks.get(item.boardName);
-                  if (boardId) {
-                    return (
-                      <span
-                        key={index}
-                        style={{
-                          color: "#0066cc",
-                          textDecoration: "underline",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {item.boardName}
-                      </span>
-                    );
-                  } else {
-                    return (
-                      <span key={index} style={{ color: "#666" }}>
-                        {item.boardName}
-                      </span>
-                    );
-                  }
+                  return (
+                    <span
+                      key={index}
+                      style={{
+                        color: "#0066cc",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        if (boardId) {
+                          navigateToBoard(boardId);
+                        } else {
+                          // ボードが存在しない場合は新規作成
+                          const newBoardUrl = project?.slug
+                            ? `/${project.slug}/${item.boardName}`
+                            : `/${project?.id || "unknown"}/${item.boardName}`;
+                          window.location.href = newBoardUrl;
+                        }
+                      }}
+                    >
+                      {item.boardName}
+                    </span>
+                  );
                 } else if (item.type === "text") {
                   // テキストの場合、アスタリスクや#でフォントサイズを調整
                   let fontSize = actualFontSize; // 末尾アスタリスクで設定されたサイズを使用
@@ -2793,7 +2796,7 @@ const StickyNoteComponent = function StickyNote({
                       padding: "4px 8px",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      color: boardLink.boardId ? "#eee" : "#ccc",
+                      color: "#eee",
                       textDecoration: "none",
                     }}
                     title={`Board: ${boardLink.name}${
