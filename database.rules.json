@@ -63,13 +63,6 @@
       }
     },
     
-    "lightweightBoardsList": {
-      "$projectId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-    
     "projectBoardsList": {
       "$projectId": {
         ".read": "auth != null",
@@ -120,18 +113,14 @@
     "boardCursors": {
       "$boardId": {
         ".read": "auth != null",
-        "$userId": {
-          ".write": "$userId == auth.uid"
-        }
+        ".write": "auth != null"
       }
     },
     
     "boardListCursors": {
       "$projectId": {
         ".read": "auth != null",
-        "$userId": {
-          ".write": "$userId == auth.uid"
-        }
+        ".write": "auth != null"
       }
     }
   }
