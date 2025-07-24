@@ -50,6 +50,7 @@ import {
   addNewNoteToSession,
 } from "../utils/sessionUnreadNotes";
 import { isNoteUnread } from "../utils/noteViewHistory";
+import { LargeNoteOverlay } from "./LargeNoteOverlay";
 
 interface BoardProps {
   user: User | null;
@@ -3093,6 +3094,15 @@ export function Board({ user }: BoardProps) {
         }
         onPin={handleTogglePin}
         onDelete={handleDeleteBoard}
+      />
+
+      {/* 大文字付箋オーバーレイ */}
+      <LargeNoteOverlay
+        notes={notes}
+        zoom={panZoom.zoom}
+        panX={panZoom.panX}
+        panY={panZoom.panY}
+        onNoteClick={() => {}}
       />
     </div>
   );

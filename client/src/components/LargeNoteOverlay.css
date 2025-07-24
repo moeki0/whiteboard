@@ -1,0 +1,32 @@
+.large-note-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.large-note-card {
+  position: absolute;
+  padding: 4px;
+  background-color: #333;
+  border-radius: 4px;
+  pointer-events: auto;
+  cursor: pointer;
+  min-width: 80px;
+  max-width: 200px;
+  text-align: center;
+}
+
+.large-note-content {
+  font-weight: 500;
+  line-height: 1.2;
+  word-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  color: white;
+  overflow: hidden;
+  font-size: 12px;
+}
