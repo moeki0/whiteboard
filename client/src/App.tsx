@@ -6,7 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./config/firebase";
+import { auth, isAuthInitialized } from "./config/firebase";
 import { resolveProjectIdToSlug } from "./utils/slugResolver";
 import { Auth } from "./components/Auth";
 import { Home } from "./components/Home";
@@ -30,38 +30,77 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [showInitialSetup, setShowInitialSetup] = useState<boolean>(false);
+  // プロファイルチェック状態をLocalStorageから復元
+  const [profileChecked, setProfileChecked] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('maplap_profile_checked') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // プロファイルチェック状態を永続化
+  const updateProfileChecked = (checked: boolean) => {
+    setProfileChecked(checked);
+    try {
+      if (checked) {
+        localStorage.setItem('maplap_profile_checked', 'true');
+      } else {
+        localStorage.removeItem('maplap_profile_checked');
+      }
+    } catch (error) {
+      console.warn('Failed to update profile checked state in localStorage:', error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log(`🔐 Auth state changed: ${user ? 'authenticated' : 'not authenticated'}, profileChecked: ${profileChecked}`);
       setUser(user as User | null);
 
-      // 初回ログイン時（usernameが未設定）の場合、初期設定画面を表示
-      if (user) {
+      // 初回ログイン時のみプロファイルチェック（重複API呼び出しを防ぐ）
+      if (user && !profileChecked) {
+        console.log(`👤 Checking user profile for first time: ${user.uid}`);
         try {
+          const startTime = performance.now();
           const userProfile = await getUserProfile(user.uid);
+          console.log(`👤 Profile check took: ${(performance.now() - startTime).toFixed(2)}ms`);
+          
           if (!userProfile || !userProfile.username) {
             setShowInitialSetup(true);
           } else {
             setShowInitialSetup(false);
           }
+          updateProfileChecked(true);
         } catch (error) {
           console.error("Error checking user profile:", error);
           // エラーの場合は初期設定画面を表示
           setShowInitialSetup(true);
+          updateProfileChecked(true);
         }
-      } else {
+      } else if (user && profileChecked) {
+        console.log(`👤 User already authenticated and profile checked, skipping profile fetch`);
+      } else if (!user) {
+        // ログアウト時はすべての状態をリセット
         setShowInitialSetup(false);
+        updateProfileChecked(false);
+        // プロファイルキャッシュもクリア
+        if (typeof window !== 'undefined' && (window as any).profileCache) {
+          (window as any).profileCache.clear();
+        }
       }
 
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profileChecked]);
 
   // Protected Route Component
   function ProtectedRoute({ children }: { children: React.ReactNode }) {
+    console.log("🔒 ProtectedRoute check:", { loading, user: !!user, showInitialSetup });
     if (loading) {
+      console.log("🔒 ProtectedRoute: still loading user auth");
       return <div className="loading"></div>;
     }
 
@@ -75,9 +114,14 @@ function App() {
         <InitialProfileSetup
           user={user}
           onComplete={() => {
+            console.log(`✅ Initial profile setup completed for ${user.uid}`);
             setShowInitialSetup(false);
-            // ユーザー情報を再読み込み
-            window.location.reload();
+            // リロードの代わりにプロファイルキャッシュをクリアして状態を更新
+            if (typeof window !== 'undefined' && (window as any).profileCache) {
+              (window as any).profileCache.clear();
+            }
+            // プロファイル状態をリセットして再チェックを促す
+            updateProfileChecked(false);
           }}
         />
       );

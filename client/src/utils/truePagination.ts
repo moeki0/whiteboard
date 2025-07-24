@@ -43,29 +43,30 @@ export async function getTruePaginatedBoards(
   const startTime = performance.now();
 
   try {
-    const boardsRef = ref(rtdb, `projectBoardsList/${projectId}`);
+    // sortScoreを使った真のページネーション
+    const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
     let boardsQuery;
 
     if (!cursor) {
-      // 最初のページ: sortIndexの降順で上位N件
+      // 最初のページ: sortScoreの昇順で最後のN件（小さい値=新しいボード）
       boardsQuery = query(
         boardsRef,
-        orderByChild("sortIndex"),
+        orderByChild("sortScore"),
         limitToLast(itemsPerPage + 1) // +1で次ページの存在確認
       );
     } else if (cursor.direction === "forward") {
-      // 次のページ
+      // 次のページ（より大きい値=古いボード）
       boardsQuery = query(
         boardsRef,
-        orderByChild("sortIndex"),
+        orderByChild("sortScore"),
         endBefore(cursor.lastValue),
         limitToLast(itemsPerPage + 1)
       );
     } else {
-      // 前のページ
+      // 前のページ（より小さい値=新しいボード）
       boardsQuery = query(
         boardsRef,
-        orderByChild("sortIndex"),
+        orderByChild("sortScore"),
         startAfter(cursor.lastValue),
         limitToFirst(itemsPerPage + 1)
       );
@@ -95,8 +96,48 @@ export async function getTruePaginatedBoards(
       })
     );
 
-    // sortIndexの降順でソート（pinned first, then by updatedAt desc）
-    boardsArray.sort((a, b) => (b.sortIndex || 0) - (a.sortIndex || 0));
+    // sortScoreの降順でソート（既にFirebase側でソートされているが念のため）
+    console.log(`📊 Raw boards data (first 3):`, boardsArray.slice(0, 3).map(b => ({
+      name: b.name,
+      isPinned: b.isPinned,
+      updatedAt: b.updatedAt,
+      sortScore: b.sortScore,
+      calculatedScore: b.sortScore || 'MISSING'
+    })));
+    
+    // sortScoreベースでソート（Firebase は昇順で返すため、JavaScript で降順に並び替え）
+    boardsArray.sort((a, b) => {
+      const scoreA = a.sortScore;
+      const scoreB = b.sortScore;
+      
+      // 両方にsortScoreがある場合は降順ソート（大きい値が上）  
+      if (scoreA !== undefined && scoreB !== undefined) {
+        return scoreB - scoreA;
+      }
+      
+      // sortScoreが無い場合はupdatedAtベースでフォールバック
+      if (!scoreA && !scoreB) {
+        // pinned優先、その後updatedAtで降順
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        const aTime = a.updatedAt || a.createdAt || 0;
+        const bTime = b.updatedAt || b.createdAt || 0;
+        return bTime - aTime;
+      }
+      
+      // 片方だけsortScoreがある場合、それを優先
+      if (scoreA && !scoreB) return -1;
+      if (!scoreA && scoreB) return 1;
+      
+      return 0;
+    });
+    
+    console.log(`📊 After sorting (first 3):`, boardsArray.slice(0, 3).map(b => ({
+      name: b.name,
+      isPinned: b.isPinned,
+      updatedAt: b.updatedAt,
+      sortScore: b.sortScore
+    })));
 
     // +1で取得した場合の調整
     const hasNext = boardsArray.length > itemsPerPage;
@@ -114,7 +155,7 @@ export async function getTruePaginatedBoards(
       const lastItem = boardsArray[boardsArray.length - 1];
       nextCursor = {
         lastKey: lastItem.id,
-        lastValue: lastItem.sortIndex || 0,
+        lastValue: lastItem.sortScore || 0,
         direction: "forward",
       };
     }
@@ -123,7 +164,7 @@ export async function getTruePaginatedBoards(
       const firstItem = boardsArray[0];
       prevCursor = {
         lastKey: firstItem.id,
-        lastValue: firstItem.sortIndex || 0,
+        lastValue: firstItem.sortScore || 0,
         direction: "backward",
       };
     }
@@ -144,13 +185,54 @@ export async function getTruePaginatedBoards(
   } catch (error) {
     console.error("True pagination failed:", error);
 
-    // sortIndexインデックスエラーの場合、古い構造にフォールバック
+    // sortScoreエラーの場合、フォールバックを使用
     if (error instanceof Error && error.message.includes("Index not defined")) {
-      console.warn("🔄 Falling back to old structure due to missing index");
+      console.warn("🔄 Falling back to old structure due to missing sortScore index");
       return await getFallbackPagination(projectId, itemsPerPage, cursor);
     }
 
     throw error;
+  }
+}
+
+/**
+ * プロジェクトのボードにsortScoreが設定されているかチェックし、必要に応じて自動設定
+ */
+export async function ensureSortScoresForProject(projectId: string): Promise<void> {
+  try {
+    const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
+    const snapshot = await get(boardsRef);
+    
+    if (!snapshot.exists()) return;
+    
+    const boards = snapshot.val();
+    const updates: Record<string, number> = {};
+    let missingCount = 0;
+    
+    for (const [boardId, boardData] of Object.entries(boards)) {
+      const board = boardData as any;
+      
+      // sortScoreが無い場合のみ設定
+      if (board.sortScore === undefined) {
+        const isPinned = board.isPinned || false;
+        const updatedAt = board.updatedAt || board.createdAt || Date.now();
+        const base = isPinned ? 2000000000000 : 1000000000000;
+        const sortScore = base - updatedAt;
+        
+        updates[`projectBoards/${projectId}/${boardId}/sortScore`] = sortScore;
+        missingCount++;
+      }
+    }
+    
+    if (missingCount > 0) {
+      console.log(`🔧 Auto-setting sortScore for ${missingCount} boards in project ${projectId}`);
+      const { update } = await import('firebase/database');
+      await update(ref(rtdb), updates);
+      console.log(`✅ Successfully set sortScore for ${missingCount} boards`);
+    }
+    
+  } catch (error) {
+    console.error('Error ensuring sort scores:', error);
   }
 }
 
@@ -165,23 +247,41 @@ async function getFallbackPagination(
   const startTime = performance.now();
 
   try {
-    // 古い構造を使って全件取得してページング
-    const result = await getPaginatedBoards(projectId, 1, itemsPerPage * 10); // 多めに取得
-
-    const queryTime = performance.now();
-    console.log(`🔄 Fallback query: ${(queryTime - startTime).toFixed(2)}ms`);
-
-    if (!result.boards.length) {
+    // projectBoardsから直接取得してページング
+    const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
+    const snapshot = await get(boardsRef);
+    
+    if (!snapshot.exists()) {
       return {
         items: [],
         hasNext: false,
         hasPrev: false,
-        queryTime: queryTime - startTime,
+        queryTime: performance.now() - startTime,
       };
     }
+    
+    const boardsData = snapshot.val();
+    let boardsArray = Object.entries(boardsData).map(
+      ([id, data]: [string, any]) => ({
+        id,
+        ...data,
+      })
+    );
+    
+    // pinned優先、その後updatedAtで降順ソート
+    boardsArray.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      const aTime = a.updatedAt || a.createdAt || 0;
+      const bTime = b.updatedAt || b.createdAt || 0;
+      return bTime - aTime;
+    });
+
+    const queryTime = performance.now();
+    console.log(`🔄 Fallback query: ${(queryTime - startTime).toFixed(2)}ms`);
 
     // カーソルベースのフィルタリング（簡易版）
-    let boards = result.boards;
+    let boards = boardsArray;
 
     if (cursor) {
       const cursorIndex = boards.findIndex((b) => b.id === cursor.lastKey);
@@ -312,15 +412,51 @@ export async function getPageBasedBoards(
   };
 }
 
+/**
+ * 開発用: プロジェクトの全ボードのsortScoreをクリアして再計算
+ */
+export async function resetAllSortScores(projectId: string): Promise<void> {
+  try {
+    const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
+    const snapshot = await get(boardsRef);
+    
+    if (!snapshot.exists()) return;
+    
+    const boards = snapshot.val();
+    const updates: Record<string, number | null> = {};
+    
+    // まず全てのsortScoreを削除
+    for (const [boardId] of Object.entries(boards)) {
+      updates[`projectBoards/${projectId}/${boardId}/sortScore`] = null;
+    }
+    
+    console.log(`🔄 Clearing all sortScores for project ${projectId}...`);
+    const { update } = await import('firebase/database');
+    await update(ref(rtdb), updates);
+    
+    // 次に新しいsortScoreを設定
+    await ensureSortScoresForProject(projectId);
+    
+    console.log(`✅ Reset complete! Refresh the page to see new ordering.`);
+    
+  } catch (error) {
+    console.error('Error resetting sort scores:', error);
+  }
+}
+
 // グローバルに公開（開発環境のみ）
 if (import.meta.env.DEV) {
   (window as any).truePagination = {
     getTruePaginatedBoards,
     getBoardCount,
     getPageBasedBoards,
+    ensureSortScoresForProject,
+    resetAllSortScores,
   };
 
   console.log(
     "⚡ True pagination loaded! First page will only fetch 14 items instead of 67!"
   );
+  console.log("  ensureSortScoresForProject(projectId) - Auto-set missing sortScores");
+  console.log("  resetAllSortScores(projectId) - Clear and recalculate all sortScores");
 }

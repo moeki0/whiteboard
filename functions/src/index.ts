@@ -236,7 +236,6 @@ export const searchScrapboxTitles = functions.https.onRequest(async (req: any, r
         return;
       }
 
-      console.log("[Scrapbox Proxy] Searching:", { projectName, query });
 
       // Scrapbox APIを呼び出し
       const scrapboxUrl = `https://scrapbox.io/api/pages/${encodeURIComponent(projectName)}/search/titles?q=${encodeURIComponent(query)}`;
@@ -250,7 +249,6 @@ export const searchScrapboxTitles = functions.https.onRequest(async (req: any, r
       }
 
       const data = await response.json();
-      console.log("[Scrapbox Proxy] Response data:", data);
 
       // レスポンスをそのまま返す
       res.json(data);

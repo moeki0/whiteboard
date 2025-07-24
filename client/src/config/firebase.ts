@@ -17,7 +17,42 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Firebase Auth with persistence optimization
 export const auth = getAuth(app);
+
+// 開発環境でAuth接続時間を計測
+if (import.meta.env.DEV) {
+  console.log('🔐 Firebase Auth module loaded');
+}
+
+// Firebase Auth接続の最適化
+let authInitialized = false;
+
+// 開発環境でAuth接続状況を監視
+if (import.meta.env.DEV) {
+  console.log('🔐 Firebase Auth initialized');
+  
+  // 初回認証状態の確認時間を計測
+  const authStartTime = performance.now();
+  let firstAuthCheck = true;
+  
+  // Auth接続状況の詳細ログ
+  auth.onAuthStateChanged((user) => {
+    if (firstAuthCheck) {
+      const authTime = performance.now() - authStartTime;
+      console.log(`🔐 First auth check took: ${authTime.toFixed(2)}ms`);
+      firstAuthCheck = false;
+      authInitialized = true;
+    }
+    console.log(`🔐 Auth state change event: ${user ? `authenticated (${user.uid})` : 'unauthenticated'}`);
+  }, (error) => {
+    console.error('🔐 Auth state change error:', error);
+  });
+}
+
+// Auth初期化状態をチェックする関数をエクスポート
+export const isAuthInitialized = () => authInitialized;
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);

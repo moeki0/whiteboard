@@ -13,17 +13,21 @@ import { auth, rtdb } from "../config/firebase";
 import { ref, get } from "firebase/database";
 import { createBoardFromTitle } from "../utils/boardCreator";
 import { useTrackProjectAccess } from "../hooks/useRecentProject";
+import "../utils/buildSlugIndex"; // 開発ツールを読み込み
+import "../utils/boardSortScore"; // ソートスコアツールを読み込み
 
 interface SlugRouterProps {
   type: "project" | "board";
   children: React.ReactNode;
 }
 
-export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
+export const SlugRouter: React.FC<SlugRouterProps> = React.memo(({ type, children }) => {
+  // console.log("🌐 SlugRouter rendered:", { type }); // デバッグログを削減
   const { projectSlug, boardName } = useParams<{
     projectSlug: string;
     boardName?: string;
   }>();
+  console.log("🌐 SlugRouter params:", { type, projectSlug, boardName });
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
   const [loading, setLoading] = useState(true);
@@ -33,16 +37,20 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
   }>({ projectId: null, boardId: null });
   const creatingRef = useRef<string | null>(null);
   const hasAttemptedCreationRef = useRef<Set<string>>(new Set());
+  const resolveRunning = useRef<boolean>(false); // 重複実行防止フラグ
 
   const resolveAndRedirect = useCallback(async () => {
+    console.log("🔄 resolveAndRedirect called with:", { type, projectSlug, boardName });
     if (!projectSlug) {
       setLoading(false);
       return;
     }
 
     try {
-      performance.now();
+      const startTime = performance.now();
+      console.log("🔍 Starting slug resolution for:", projectSlug);
       let projectId = await resolveProjectSlug(projectSlug);
+      console.log(`⏱️ resolveProjectSlug took: ${(performance.now() - startTime).toFixed(2)}ms`);
 
       // If not found, try historical slugs
       if (!projectId) {
@@ -181,19 +189,26 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
 
       // Update current project in context when projectId is resolved
       if (projectId) {
-        try {
-          const projectRef = ref(rtdb, `projects/${projectId}`);
-          const projectSnapshot = await get(projectRef);
-          if (projectSnapshot.exists()) {
-            const projectData = projectSnapshot.val();
-            updateCurrentProject(projectId, projectData.name);
-          } else {
+        // プロジェクト名の取得を非同期で実行（ブロックしない）
+        const updateProject = async () => {
+          try {
+            const projectRef = ref(rtdb, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            if (projectSnapshot.exists()) {
+              const projectData = projectSnapshot.val();
+              updateCurrentProject(projectId, projectData.name);
+            } else {
+              updateCurrentProject(projectId);
+            }
+          } catch (error) {
+            console.error("Error updating current project:", error);
             updateCurrentProject(projectId);
           }
-        } catch (error) {
-          console.error("Error updating current project:", error);
-          updateCurrentProject(projectId);
-        }
+        };
+        
+        // プロジェクトIDだけ先に設定して、名前は後で取得
+        updateCurrentProject(projectId);
+        updateProject(); // 非同期で実行
       }
 
       setResolved({ projectId, boardId });
@@ -203,11 +218,18 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
     } finally {
       setLoading(false);
     }
-  }, [projectSlug, boardName, type, navigate, updateCurrentProject]);
+  }, []); // 依存関係を完全に削除して安定化
 
+  // useEffectに戻すが、重複実行を防ぐ
   useEffect(() => {
-    resolveAndRedirect();
-  }, [resolveAndRedirect]);
+    if (!resolved.projectId && !resolveRunning.current && projectSlug) {
+      console.log("🔄 Starting resolve with useEffect (with duplicate prevention)");
+      resolveRunning.current = true;
+      resolveAndRedirect().finally(() => {
+        resolveRunning.current = false;
+      });
+    }
+  }, [projectSlug, boardName, type]); // プロジェクト固有の値のみ
 
   if (loading) {
     return (
@@ -239,4 +261,8 @@ export const SlugRouter: React.FC<SlugRouterProps> = ({ type, children }) => {
       {children}
     </SlugProvider>
   );
-};
+}, (prevProps, nextProps) => {
+  // メモ化の比較関数：propsが同じなら再レンダリングしない
+  return prevProps.type === nextProps.type && 
+         prevProps.children === nextProps.children;
+});

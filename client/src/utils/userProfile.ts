@@ -10,15 +10,96 @@ import {
 import { db } from "../config/firebase";
 import { UserProfile } from "../types";
 
+// LocalStorage cache for user profiles
+const PROFILE_CACHE_KEY = 'maplap_user_profiles';
+const PROFILE_CACHE_TTL_KEY = 'maplap_user_profiles_ttl';
+const PROFILE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// In-memory cache
+const profileCache = new Map<string, UserProfile>();
+const profileCacheTimestamps = new Map<string, number>();
+
+// Load cache from LocalStorage on startup
+function loadProfileCacheFromStorage() {
+  try {
+    const cachedData = localStorage.getItem(PROFILE_CACHE_KEY);
+    const timestamps = localStorage.getItem(PROFILE_CACHE_TTL_KEY);
+    
+    if (cachedData && timestamps) {
+      const parsedCache = JSON.parse(cachedData);
+      const parsedTimestamps = JSON.parse(timestamps);
+      const now = Date.now();
+      
+      // Only restore valid (non-expired) entries
+      for (const [uid, profile] of Object.entries(parsedCache)) {
+        const timestamp = parsedTimestamps[uid];
+        if (timestamp && now - timestamp < PROFILE_CACHE_TTL) {
+          profileCache.set(uid, profile as UserProfile);
+          profileCacheTimestamps.set(uid, timestamp);
+        }
+      }
+      
+      console.log(`👤 Restored ${profileCache.size} user profile cache entries`);
+    }
+  } catch (error) {
+    console.warn('Failed to load profile cache from localStorage:', error);
+  }
+}
+
+// Save cache to LocalStorage
+function saveProfileCacheToStorage() {
+  try {
+    const cacheObj = Object.fromEntries(profileCache);
+    const timestampObj = Object.fromEntries(profileCacheTimestamps);
+    
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(cacheObj));
+    localStorage.setItem(PROFILE_CACHE_TTL_KEY, JSON.stringify(timestampObj));
+  } catch (error) {
+    console.warn('Failed to save profile cache to localStorage:', error);
+  }
+}
+
+// Initialize cache on module load
+loadProfileCacheFromStorage();
+
 // ユーザープロフィールを取得
 export const getUserProfile = async (
   uid: string
 ): Promise<UserProfile | null> => {
   try {
-    const userDoc = await getDoc(doc(db, "userProfiles", uid));
-    if (userDoc.exists()) {
-      return userDoc.data() as UserProfile;
+    // Check cache first
+    const cached = profileCache.get(uid);
+    const cacheTime = profileCacheTimestamps.get(uid);
+    const now = Date.now();
+    
+    if (cached && cacheTime && now - cacheTime < PROFILE_CACHE_TTL) {
+      console.log(`👤 Profile cache hit for ${uid}`);
+      return cached;
     }
+    
+    // Cache miss - fetch from Firestore
+    const startTime = performance.now();
+    const userDoc = await getDoc(doc(db, "userProfiles", uid));
+    console.log(`👤 Profile fetch took: ${(performance.now() - startTime).toFixed(2)}ms`);
+    
+    if (userDoc.exists()) {
+      const profile = userDoc.data() as UserProfile;
+      
+      // Cache the result
+      const saveTime = Date.now();
+      profileCache.set(uid, profile);
+      profileCacheTimestamps.set(uid, saveTime);
+      saveProfileCacheToStorage();
+      
+      console.log(`👤 Cached profile for ${uid}`);
+      return profile;
+    }
+    
+    // Cache null result (prevents repeated failed lookups)
+    profileCache.set(uid, null as any);
+    profileCacheTimestamps.set(uid, now);
+    saveProfileCacheToStorage();
+    
     return null;
   } catch (error) {
     console.error("Error getting user profile:", error);
@@ -61,6 +142,14 @@ export const updateUserProfile = async (
 ): Promise<boolean> => {
   try {
     await setDoc(doc(db, "userProfiles", profile.uid), profile);
+    
+    // Update cache with new profile
+    const saveTime = Date.now();
+    profileCache.set(profile.uid, profile);
+    profileCacheTimestamps.set(profile.uid, saveTime);
+    saveProfileCacheToStorage();
+    
+    console.log(`👤 Updated and cached profile for ${profile.uid}`);
     return true;
   } catch (error) {
     console.error("Error updating user profile:", error);
@@ -125,3 +214,33 @@ export const validateUsername = (
 
   return { isValid: true };
 };
+
+// Cache management functions for development
+function clearProfileCache() {
+  profileCache.clear();
+  profileCacheTimestamps.clear();
+  localStorage.removeItem(PROFILE_CACHE_KEY);
+  localStorage.removeItem(PROFILE_CACHE_TTL_KEY);
+  console.log('👤 Profile cache cleared');
+}
+
+function checkProfileCacheStatus() {
+  console.log('👤 Profile cache status:');
+  console.log('Cache entries:', profileCache.size);
+  console.log('Cache contents:', Object.fromEntries(profileCache));
+  console.log('Timestamps:', Object.fromEntries(profileCacheTimestamps));
+  console.log('TTL:', PROFILE_CACHE_TTL, 'ms');
+}
+
+// Export cache management tools in development
+if (import.meta.env.DEV) {
+  (window as any).profileCache = {
+    check: checkProfileCacheStatus,
+    clear: clearProfileCache,
+    ttl: PROFILE_CACHE_TTL
+  };
+
+  console.log('👤 Profile cache tools loaded! Commands:');
+  console.log('  profileCache.check() - Check cache status');
+  console.log('  profileCache.clear() - Clear cache');
+}

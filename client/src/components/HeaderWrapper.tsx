@@ -27,9 +27,9 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   const params = useParams();
   const navigate = useNavigate();
   const path = location.pathname;
-  const { currentProjectId } = useProject();
+  const { currentProjectId, currentProjectName } = useProject();
   const { resolvedProjectId, resolvedBoardId } = useSlug();
-  const [projectName, setProjectName] = useState<string>("");
+  // Use project name from context instead of local state to prevent flickering
   const [foundProjectId, setFoundProjectId] = useState<string>("");
   const [projectSlug, setProjectSlug] = useState<string>("");
   const [boardTitle, setBoardTitle] = useState<string>("");
@@ -45,9 +45,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     const getPageData = async () => {
       let foundProjectId = currentProjectId;
 
-      // Reset states, but preserve project name from sessionStorage if available
-      const savedProjectName = sessionStorage.getItem("currentProjectName");
-      setProjectName(savedProjectName || "");
+      // No need to reset project name - it's managed by ProjectContext
       setFoundProjectId("");
       setProjectSlug("");
       setBoardTitle("");
@@ -103,10 +101,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
           const projectSnapshot = await get(projectRef);
           if (projectSnapshot.exists()) {
             const projectData = projectSnapshot.val();
-            // Only update project name if we get a valid name, otherwise keep existing
-            if (projectData.name) {
-              setProjectName(projectData.name);
-            }
+            // Project name is managed by ProjectContext - no need to update local state
             setProjectSlug(projectData.slug || "");
             setFoundProjectId(foundProjectId);
           }
@@ -297,7 +292,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     const showSearch = Boolean(foundProjectId);
     
     return {
-      title: projectName,
+      title: currentProjectName || "", // Use project name from context
       titleLink: projectSlug ? `/${projectSlug}` : `/project/${foundProjectId}`,
       subtitle: boardTitle,
       onSubtitleClick: handleBoardTitleClick,

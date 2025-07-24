@@ -35,8 +35,11 @@ export async function getProjectIdBySlug(
   if (!slug || slug.trim() === '') return null;
   
   const indexRef = ref(rtdb, `projectSlugIndex/${slug}`);
+  console.log(`📍 Direct index lookup for path: projectSlugIndex/${slug}`);
   const snapshot = await get(indexRef);
-  return snapshot.val() || null;
+  const result = snapshot.val() || null;
+  console.log(`📍 Direct index result:`, result);
+  return result;
 }
 
 /**

@@ -14,8 +14,7 @@ import { hasBoardUnreadContent } from "../utils/boardViewHistory";
 import { LazyImage } from "./LazyImage";
 import { isProjectMember } from "../utils/permissions";
 import { useTrackProjectAccess } from "../hooks/useRecentProject";
-// import { getTruePaginatedBoards } from "../utils/truePagination";
-// import { updateBoardListItem } from "../utils/boardDataStructure";
+import { getTruePaginatedBoards, ensureSortScoresForProject } from "../utils/truePagination";
 import { ref, onValue, get, update } from "firebase/database";
 import { rtdb } from "../config/firebase";
 import { customAlphabet } from "nanoid";
@@ -25,19 +24,31 @@ interface InfiniteScrollBoardListProps {
   projectId?: string;
 }
 
-// interface PaginationCursor {
-//   lastKey: string;
-//   lastValue: number;
-//   direction: "forward" | "backward";
-// }
+interface PaginationCursor {
+  lastKey: string;
+  lastValue: number;
+  direction: "forward" | "backward";
+}
 
 export function InfiniteScrollBoardList({
   user,
   projectId: propProjectId,
 }: InfiniteScrollBoardListProps) {
+  // console.log("🎯 InfiniteScrollBoardList component mounted/rendered"); // デバッグログを削減
   const { projectId: paramProjectId, projectSlug } = useParams();
   const { resolvedProjectId } = useSlug();
   const projectId = resolvedProjectId || propProjectId || paramProjectId;
+  
+  // デバッグ：projectId解決の状況をログ出力
+  useEffect(() => {
+    console.log("🔍 ProjectId resolution:", {
+      resolvedProjectId,
+      propProjectId,
+      paramProjectId,
+      finalProjectId: projectId,
+      projectSlug
+    });
+  }, [resolvedProjectId, propProjectId, paramProjectId, projectId, projectSlug]);
   const navigate = useNavigate();
   const { updateCurrentProject } = useProject();
 
@@ -50,121 +61,81 @@ export function InfiniteScrollBoardList({
     Record<string, Record<string, Cursor>>
   >({});
 
-  // Debug: boardCursors state
-  useEffect(() => {
-    console.log(`🎲 BoardCursors state updated:`, boardCursors);
-    console.log(`🎲 Boards with cursors:`, Object.keys(boardCursors));
-  }, [boardCursors]);
-  const [allBoards, setAllBoards] = useState<Board[]>([]); // 全ボードデータ
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0); // 現在の表示位置
+  const [cursor, setCursor] = useState<PaginationCursor | undefined>();
+  const [initialLoading, setInitialLoading] = useState(true); // 初回ローディング状態
+  const [isMember, setIsMember] = useState<boolean | null>(null); // メンバーシップ状態
 
   // Refs
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const itemsPerLoad = 34; // 一度に読み込む件数
+  const itemsPerLoad = 20; // 一度に読み込む件数
 
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     21
   );
 
-  // 全ボードデータを読み込み
-  const loadAllBoards = useCallback(async () => {
-    if (!projectId) return;
+  // メンバーシップを早期チェック（関数定義を削除して直接実行）
+
+  // 初期データを読み込み
+  const loadInitialBoards = useCallback(async () => {
+    console.log("🚀 Starting to load boards...", { projectId });
+    if (!projectId) {
+      console.log("❌ No projectId, skipping load");
+      return;
+    }
 
     setLoading(true);
+    setInitialLoading(true);
     setError(null);
 
     try {
-      // プロジェクト情報を取得
-      const projectRef = ref(rtdb, `projects/${projectId}`);
-      const projectSnapshot = await get(projectRef);
+      // プロジェクト情報とボードデータを並列で取得
+      console.log("🚀 Loading project and boards in parallel...");
+      const [projectSnapshot, result] = await Promise.all([
+        get(ref(rtdb, `projects/${projectId}`)),
+        // sortScoreを自動設定してからボードデータを取得
+        (async () => {
+          await ensureSortScoresForProject(projectId);
+          return getTruePaginatedBoards(projectId, itemsPerLoad);
+        })()
+      ]);
+
+      // プロジェクト情報を設定
       if (projectSnapshot.exists()) {
         const projectData = projectSnapshot.val();
         setProject(projectData);
-        updateCurrentProject(projectId, projectData.name);
+        // updateCurrentProjectは依存関係から外して直接呼び出し
+        try {
+          updateCurrentProject(projectId, projectData.name);
+        } catch (err) {
+          console.warn("Failed to update current project:", err);
+        }
+        // メンバーシップを即座にチェック
+        if (user) {
+          setIsMember(isProjectMember(projectData, user.uid));
+        }
       } else {
-        updateCurrentProject(projectId);
+        try {
+          updateCurrentProject(projectId);
+        } catch (err) {
+          console.warn("Failed to update current project:", err);
+        }
+        setIsMember(false);
       }
 
-      console.log("🚀 Loading all boards from projectBoards...");
-      const startTime = performance.now();
-
-      // projectBoardsから一括取得
-      const boardsRef = ref(rtdb, `projectBoards/${projectId}`);
-      const snapshot = await get(boardsRef);
-
-      const queryTime = performance.now();
-      console.log(`📋 Boards query: ${(queryTime - startTime).toFixed(2)}ms`);
-
-      if (snapshot.exists()) {
-        const boardsData = snapshot.val();
-        const boardsArray = Object.values(boardsData) as Board[];
-
-        // updatedAtで降順ソート（新しいものが上）
-        console.log(
-          "🔍 Before sort:",
-          boardsArray.slice(0, 3).map((b) => ({
-            name: b.name,
-            updatedAt: b.updatedAt,
-            updatedAtDate: b.updatedAt
-              ? new Date(b.updatedAt).toLocaleString()
-              : "undefined",
-          }))
-        );
-
-        boardsArray.sort((a, b) => {
-          // ピン留めされたボードを最優先
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-
-          // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
-          const aTime = a.updatedAt || a.createdAt || 0;
-          const bTime = b.updatedAt || b.createdAt || 0;
-          return bTime - aTime; // 新しいものが上
-        });
+      if (result.items.length > 0) {
+        setBoards(result.items as Board[]);
+        setHasMore(result.hasNext);
+        setCursor(result.nextCursor);
 
         console.log(
-          "🔍 After sort:",
-          boardsArray.slice(0, 5).map((b) => ({
-            name: b.name,
-            isPinned: b.isPinned || false,
-            updatedAt: b.updatedAt,
-            updatedAtDate: b.updatedAt
-              ? new Date(b.updatedAt).toLocaleString()
-              : "undefined",
-          }))
-        );
-
-        setAllBoards(boardsArray);
-
-        // 最初の34件を表示
-        const initialBoards = boardsArray.slice(0, itemsPerLoad);
-        setBoards(initialBoards);
-        setCurrentIndex(itemsPerLoad);
-        setHasMore(boardsArray.length > itemsPerLoad);
-
-        console.log(
-          `✅ Loaded ${boardsArray.length} total boards, showing ${initialBoards.length} initially`
-        );
-
-        // デバッグ: 最初の数個のボードのメタデータを詳細確認
-        console.log(
-          "🔍 Board metadata debug:",
-          boardsArray.slice(0, 3).map((b) => ({
-            name: b.name,
-            metadata: b.metadata,
-            metadataDescription: b.metadata?.description,
-            metadataTitle: b.metadata?.title,
-            hasDescription: !!b.metadata?.description,
-            hasThumbnail: !!b.metadata?.thumbnailUrl,
-          }))
+          `✅ Loaded ${result.items.length} boards (hasNext: ${result.hasNext})`
         );
       } else {
-        setAllBoards([]);
         setBoards([]);
         setHasMore(false);
         console.log("No boards found");
@@ -174,41 +145,42 @@ export function InfiniteScrollBoardList({
       setError("Failed to load boards");
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
-  }, [projectId, updateCurrentProject]);
+  }, [projectId]); // updateCurrentProjectを依存関係から削除
 
-  // 追加データ読み込み（メモリ上の全データから次の14件を表示）
-  const loadMoreData = useCallback(() => {
-    if (loading || !hasMore || currentIndex >= allBoards.length) return;
+  // 追加データ読み込み（カーソルベースページネーション）
+  const loadMoreData = useCallback(async () => {
+    if (loading || !hasMore || !cursor || !projectId) return;
 
     setLoading(true);
 
-    // 少し遅延を入れてUIの反応を見せる
-    setTimeout(() => {
-      console.log("📥 Loading more boards from memory...");
-
-      const nextBoards = allBoards.slice(
-        currentIndex,
-        currentIndex + itemsPerLoad
+    try {
+      console.log("📥 Loading more boards with cursor...");
+      const result = await getTruePaginatedBoards(
+        projectId,
+        itemsPerLoad,
+        cursor
       );
 
-      if (nextBoards.length > 0) {
-        setBoards((prev) => [...prev, ...nextBoards]);
-        setCurrentIndex((prev) => prev + itemsPerLoad);
-        setHasMore(currentIndex + itemsPerLoad < allBoards.length);
+      if (result.items.length > 0) {
+        setBoards((prev) => [...prev, ...(result.items as Board[])]);
+        setHasMore(result.hasNext);
+        setCursor(result.nextCursor);
 
         console.log(
-          `✅ Loaded ${nextBoards.length} more boards (${
-            currentIndex + nextBoards.length
-          }/${allBoards.length})`
+          `✅ Loaded ${result.items.length} more boards (hasNext: ${result.hasNext})`
         );
       } else {
         setHasMore(false);
       }
-
+    } catch (err) {
+      console.error("Failed to load more boards:", err);
+      setError("Failed to load more boards");
+    } finally {
       setLoading(false);
-    }, 100); // 100ms遅延でスムーズなUX
-  }, [loading, hasMore, currentIndex, allBoards]);
+    }
+  }, [loading, hasMore, cursor, projectId]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -237,16 +209,34 @@ export function InfiniteScrollBoardList({
     };
   }, [hasMore, loading, loadMoreData]);
 
+  // 早期メンバーシップチェック
+  useEffect(() => {
+    if (projectId && user) {
+      console.log("🚀 Early membership check starting for:", projectId);
+      const checkMembership = async () => {
+        try {
+          // メンバーシップ情報のみを先に取得（軽量）
+          const memberRef = ref(rtdb, `projects/${projectId}/members/${user.uid}`);
+          const memberSnapshot = await get(memberRef);
+          setIsMember(memberSnapshot.exists());
+        } catch (err) {
+          console.warn("Failed to check membership early:", err);
+        }
+      };
+      checkMembership();
+    }
+  }, [projectId, user]);
+
   // 初期データ読み込み
   useEffect(() => {
-    loadAllBoards();
-  }, [loadAllBoards]);
+    loadInitialBoards();
+  }, [loadInitialBoards]);
 
   // ボードの変更をリアルタイムで監視
   useEffect(() => {
-    if (!projectId || !allBoards.length) return;
+    if (!projectId || !boards.length) return;
 
-    const boardRefs = allBoards.map((board) =>
+    const boardRefs = boards.map((board) =>
       ref(rtdb, `projectBoards/${projectId}/${board.id}`)
     );
 
@@ -255,25 +245,7 @@ export function InfiniteScrollBoardList({
         if (snapshot.exists()) {
           const updatedBoard = snapshot.val() as Board;
 
-          // allBoardsを更新
-          setAllBoards((prev) => {
-            const newBoards = [...prev];
-            newBoards[index] = updatedBoard;
-            // 更新後に再ソート
-            newBoards.sort((a, b) => {
-              // ピン留めされたボードを最優先
-              if (a.isPinned && !b.isPinned) return -1;
-              if (!a.isPinned && b.isPinned) return 1;
-
-              // 両方ピン留めされている場合、または両方ピン留めされていない場合は、updatedAtで並び替え
-              const aTime = a.updatedAt || a.createdAt || 0;
-              const bTime = b.updatedAt || b.createdAt || 0;
-              return bTime - aTime;
-            });
-            return newBoards;
-          });
-
-          // 表示中のボードも更新
+          // 表示中のボードを更新
           setBoards((prev) => {
             const boardIndex = prev.findIndex((b) => b.id === updatedBoard.id);
             if (boardIndex >= 0) {
@@ -290,7 +262,7 @@ export function InfiniteScrollBoardList({
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [projectId, allBoards.length]); // allBoards.lengthで依存関係を制限
+  }, [projectId, boards.length]); // boards.lengthで依存関係を制限
 
   // ボード作成
   const createBoard = async () => {
@@ -334,8 +306,7 @@ export function InfiniteScrollBoardList({
       ...board,
       metadata: { title: uniqueName },
     };
-    setAllBoards((prev) => [newBoard, ...prev]);
-    setBoards((prev) => [newBoard, ...prev.slice(0, itemsPerLoad - 1)]); // 34件を維持
+    setBoards((prev) => [newBoard, ...prev.slice(0, itemsPerLoad - 1)]); // 表示件数を維持
 
     // Navigate to the new board
     try {
@@ -404,96 +375,115 @@ export function InfiniteScrollBoardList({
   }, [boards]);
 
   // Component to render individual user avatar with initials
-  const UserAvatar = memo(
-    ({ cursor }: { cursor: any }) => {
-      const userName =
-        cursor.username || cursor.fullName?.split(" (")[0] || "User";
-      const initials = userName
-        .split(" ")
-        .map((name: string) => name.charAt(0).toUpperCase())
-        .slice(0, 2)
-        .join("");
+  const UserAvatar = memo(({ cursor }: { cursor: any }) => {
+    const userName =
+      cursor.username || cursor.fullName?.split(" (")[0] || "User";
+    const initials = userName
+      .split(" ")
+      .map((name: string) => name.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join("");
+
+    return (
+      <div
+        className="member-avatar active"
+        style={{
+          backgroundColor: cursor.color,
+          width: "28px",
+          height: "28px",
+        }}
+        title={cursor.fullName}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "11px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          {initials}
+        </div>
+      </div>
+    );
+  });
+
+  // Component to render active members with user board thumbnails
+  const ActiveMembers = memo(
+    ({
+      boardId,
+      cursors,
+    }: {
+      boardId: string;
+      cursors: Record<string, Cursor>;
+    }) => {
+      const activeUsers = Object.values(cursors);
+
+      if (activeUsers.length === 0) {
+        return null;
+      }
+
+      const maxDisplay = 3;
+      const displayUsers = activeUsers.slice(0, maxDisplay);
+      const remainingCount = activeUsers.length - maxDisplay;
 
       return (
-        <div
-          className="member-avatar active"
-          style={{
-            backgroundColor: cursor.color,
-            width: "28px",
-            height: "28px"
-          }}
-          title={cursor.fullName}
-        >
-          <div
-            style={{
-              color: "white",
-              fontSize: "11px",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            {initials}
-          </div>
+        <div className="active-members">
+          {displayUsers.map((cursor, index) => {
+            const userName =
+              cursor.username || cursor.fullName?.split(" (")[0] || "User";
+            return <UserAvatar key={userName} cursor={cursor} />;
+          })}
+          {remainingCount > 0 && (
+            <div
+              className="member-avatar more"
+              title={`+${remainingCount} more`}
+            >
+              +{remainingCount}
+            </div>
+          )}
         </div>
+      );
+    },
+    (prevProps, nextProps) => {
+      // Simple comparison - re-render if cursors object changes
+      return (
+        JSON.stringify(prevProps.cursors) === JSON.stringify(nextProps.cursors)
       );
     }
   );
 
-  // Component to render active members with user board thumbnails
-  const ActiveMembers = memo(({ boardId, cursors }: { boardId: string; cursors: Record<string, Cursor> }) => {
-    const activeUsers = Object.values(cursors);
-
-    if (activeUsers.length === 0) {
-      return null;
-    }
-
-    const maxDisplay = 3;
-    const displayUsers = activeUsers.slice(0, maxDisplay);
-    const remainingCount = activeUsers.length - maxDisplay;
-
-    return (
-      <div className="active-members">
-        {displayUsers.map((cursor, index) => {
-          const userName =
-            cursor.username || cursor.fullName?.split(" (")[0] || "User";
-          return (
-            <UserAvatar
-              key={userName}
-              cursor={cursor}
-            />
-          );
-        })}
-        {remainingCount > 0 && (
-          <div className="member-avatar more" title={`+${remainingCount} more`}>
-            +{remainingCount}
-          </div>
-        )}
-      </div>
-    );
-  }, (prevProps, nextProps) => {
-    // Simple comparison - re-render if cursors object changes
-    return JSON.stringify(prevProps.cursors) === JSON.stringify(nextProps.cursors);
-  });
-
   return (
     <div className="board-list">
       <div className="board-list-header">
-        {user && isProjectMember(project, user.uid) && (
-          <button className="fab-new-board-btn" onClick={createBoard}>
-            <LuPlus />
-            <span>Create New Board</span>
-          </button>
+        {/* キャッシュされたメンバーシップ状態を使用 */}
+        {user && (
+          isMember === null ? (
+            // ローディング中は仮のボタンを表示
+            <button className="fab-new-board-btn" disabled style={{ opacity: 0.5 }}>
+              <LuPlus />
+              <span>Create New Board</span>
+            </button>
+          ) : (
+            // メンバーシップ確認後に表示
+            isMember && (
+              <button className="fab-new-board-btn" onClick={createBoard}>
+                <LuPlus />
+                <span>Create New Board</span>
+              </button>
+            )
+          )
         )}
       </div>
 
       {error && (
         <div className="error-message">
           {error}
-          <button onClick={() => loadAllBoards()}>Retry</button>
+          <button onClick={() => loadInitialBoards()}>Retry</button>
         </div>
       )}
 
@@ -574,7 +564,10 @@ export function InfiniteScrollBoardList({
                     )}
                   </div>
                 )}
-                <ActiveMembers boardId={board.id} cursors={boardCursors[board.id] || {}} />
+                <ActiveMembers
+                  boardId={board.id}
+                  cursors={boardCursors[board.id] || {}}
+                />
               </Link>
             </div>
           );
@@ -582,7 +575,13 @@ export function InfiniteScrollBoardList({
       </div>
 
       {/* Infinite scroll trigger */}
-      {hasMore && <div ref={loadMoreRef} className="load-more-trigger"></div>}
+      {hasMore && (
+        <div
+          ref={loadMoreRef}
+          className="load-more-trigger"
+          style={{ height: "50px", marginTop: "20px" }}
+        ></div>
+      )}
     </div>
   );
 }
