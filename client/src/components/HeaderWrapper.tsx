@@ -5,7 +5,7 @@ import { User } from "../types";
 import { useProject } from "../contexts/ProjectContext";
 import { useSlug } from "../contexts/SlugContext";
 import { rtdb } from "../config/firebase";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, onValue, off } from "firebase/database";
 import {
   checkBoardNameDuplicate,
   generateUniqueBoardName,
@@ -35,8 +35,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   const [projectSlug, setProjectSlug] = useState<string>("");
   const [boardTitle, setBoardTitle] = useState<string>("");
   const [boardId, setBoardId] = useState<string>("");
-  const [isEditingBoardTitle, setIsEditingBoardTitle] =
-    useState<boolean>(false);
+  const [isEditingBoardTitle, setIsEditingBoardTitle] = useState<boolean>(false);
   const [editingBoardTitle, setEditingBoardTitle] = useState<string>("");
   const [isDuplicateName, setIsDuplicateName] = useState<boolean>(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +44,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
   useEffect(() => {
     const getPageData = async () => {
       let foundProjectId = currentProjectId;
+      let currentBoardId = "";
 
       // No need to reset project name - it's managed by ProjectContext
       setFoundProjectId("");
@@ -55,18 +55,8 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       // Check if we have resolved IDs from SlugContext (for slug-based routes)
       if (resolvedProjectId && resolvedBoardId) {
         foundProjectId = resolvedProjectId;
+        currentBoardId = resolvedBoardId;
         setBoardId(resolvedBoardId);
-
-        try {
-          const boardRef = ref(rtdb, `boards/${resolvedBoardId}`);
-          const boardSnapshot = await get(boardRef);
-          if (boardSnapshot.exists()) {
-            const boardData = boardSnapshot.val();
-            setBoardTitle(boardData.name || "");
-          }
-        } catch (error) {
-          console.error("Error fetching board data:", error);
-        }
       } else {
         // For legacy board pages (/:boardId format)
         const boardPageMatch = path.match(/^\/([^/]+)$/);
@@ -76,7 +66,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
           !path.includes("/create-") &&
           !path.includes("/invite/")
         ) {
-          const currentBoardId = boardPageMatch[1];
+          currentBoardId = boardPageMatch[1];
           setBoardId(currentBoardId);
 
           try {
@@ -85,9 +75,6 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             if (boardSnapshot.exists()) {
               const boardData = boardSnapshot.val();
               foundProjectId = boardData.projectId;
-
-              // Get board title from board data
-              setBoardTitle(boardData.name || "");
             }
           } catch (error) {
             console.error("Error fetching board data:", error);
@@ -119,15 +106,43 @@ export const HeaderWrapper = memo(function HeaderWrapper({
           }
         }
       }
+
+      // Set up real-time listener for board title
+      if (currentBoardId) {
+        const boardRef = ref(rtdb, `boards/${currentBoardId}`);
+        const unsubscribe = onValue(boardRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const boardData = snapshot.val();
+            const newTitle = boardData.name || "";
+            
+            setBoardTitle(newTitle);
+            // Only update if not currently editing to avoid conflicts
+            if (!isEditingBoardTitle) {
+              setEditingBoardTitle(newTitle);
+            }
+          }
+        });
+
+        // Return cleanup function
+        return unsubscribe;
+      }
     };
 
-    getPageData();
+    const cleanup = getPageData();
+    
+    // Cleanup function
+    return () => {
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
   }, [
     params.projectId,
     currentProjectId,
     path,
     resolvedProjectId,
     resolvedBoardId,
+    isEditingBoardTitle, // Add to dependencies to update listener when edit state changes
   ]);
 
   // リアルタイムで重複チェック
@@ -292,6 +307,18 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     }
   };
 
+  const handleBoardTitleCancel = () => {
+    setIsEditingBoardTitle(false);
+    setEditingBoardTitle(boardTitle);
+    setIsDuplicateName(false);
+    
+    // タイマーをクリア
+    if (duplicateCheckTimeout) {
+      clearTimeout(duplicateCheckTimeout);
+      setDuplicateCheckTimeout(null);
+    }
+  };
+
   // Define page-specific header configuration
   const getHeaderConfig = () => {
     // Show search when we have a project ID (in project context)
@@ -306,6 +333,7 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       editingSubtitle: editingBoardTitle,
       onSubtitleChange: handleBoardTitleChange,
       onSubtitleSave: handleBoardTitleSave,
+      onSubtitleCancel: handleBoardTitleCancel,
       isDuplicateName: isDuplicateName,
       showSearch: showSearch,
     };

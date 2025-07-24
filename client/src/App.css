@@ -1252,13 +1252,13 @@ div.user-avatar-small {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 4px 8px;
-  border: 2px solid #4caf50;
   border-radius: 4px;
   background-color: white;
   outline: none;
   font-family: inherit;
   font-weight: inherit;
-  min-width: 200px;
+  width: auto;
+  min-width: 300px;
 }
 
 /* Search Page Styles */

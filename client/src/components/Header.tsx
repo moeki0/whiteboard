@@ -276,7 +276,13 @@ export const Header = memo(function Header({
                     type="text"
                     value={editingSubtitle ?? subtitle}
                     onChange={(e) => onSubtitleChange?.(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && onSubtitleSave?.()}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        onSubtitleSave?.();
+                      } else if (e.key === "Escape") {
+                        onSubtitleCancel?.();
+                      }
+                    }}
                     onBlur={onSubtitleSave}
                     autoFocus
                     className={`board-title-input ${
