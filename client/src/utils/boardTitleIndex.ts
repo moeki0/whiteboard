@@ -78,6 +78,12 @@ export async function addBoardTitleIndex(
   const normalizedTitle = normalizeTitle(title);
   if (!normalizedTitle) return; // 空文字の場合はインデックス作成しない
 
+  // Untitled(_N)パターンはインデックスに追加しない（自動生成されたタイトルのため）
+  if (title.match(/^Untitled(_\d+)?$/)) {
+    console.log(`📋 Skipping index for auto-generated title: ${title}`);
+    return;
+  }
+
   const indexRef = ref(rtdb, `boardTitleIndex/${projectId}/${normalizedTitle}`);
   await set(indexRef, boardId);
 }
@@ -94,6 +100,11 @@ export async function removeBoardTitleIndex(
 
   const indexRef = ref(rtdb, `boardTitleIndex/${projectId}/${normalizedTitle}`);
   await remove(indexRef);
+  
+  // Untitledパターンの削除をログ出力
+  if (title.match(/^Untitled(_\d+)?$/)) {
+    console.log(`📋 Removing index for auto-generated title: ${title}`);
+  }
 }
 
 /**
@@ -105,6 +116,12 @@ export async function getBoardIdByTitle(
 ): Promise<string | null> {
   const normalizedTitle = normalizeTitle(title);
   if (!normalizedTitle) return null;
+
+  // Untitled(_N)パターンはインデックス検索をスキップ（リダイレクトを防ぐため）
+  if (title.match(/^Untitled(_\d+)?$/)) {
+    console.log(`📋 Skipping index lookup for auto-generated title: ${title}`);
+    return null;
+  }
 
   // Check cache first
   const projectCache = boardTitleCache.get(projectId);
@@ -150,10 +167,10 @@ export async function updateBoardTitleIndex(
   oldTitle: string,
   newTitle: string
 ): Promise<void> {
-  // 古いインデックスを削除
+  // 古いインデックスを削除（Untitledパターンでも削除は実行）
   await removeBoardTitleIndex(projectId, oldTitle);
 
-  // 新しいインデックスを追加
+  // 新しいインデックスを追加（addBoardTitleIndex内でUntitledパターンはスキップされる）
   await addBoardTitleIndex(projectId, boardId, newTitle);
   
   // Update cache - remove old entry and add new one

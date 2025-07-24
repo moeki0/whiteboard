@@ -141,7 +141,7 @@ export function Board({ user }: BoardProps) {
     [keyHints]
   );
 
-  const { addToHistory, undo, redo } = useHistory();
+  const { addToHistory, undo, redo, clearHistory } = useHistory();
   const {
     boardId,
     notes,
@@ -152,6 +152,13 @@ export function Board({ user }: BoardProps) {
     board,
     project,
   } = useBoard(user, navigate, sessionId);
+
+  // boardIdが変更された際に履歴をクリア
+  useEffect(() => {
+    if (boardId) {
+      clearHistory();
+    }
+  }, [boardId, clearHistory]);
 
   // 未読付箋管理フック
   const { unreadNotes, focusNote, markNoteAsRead } = useUnreadNotes({
