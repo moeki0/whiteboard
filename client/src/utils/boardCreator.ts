@@ -6,6 +6,7 @@ import { generateUniqueBoardName, addToRecentlyCreated } from "./boardNaming";
 import { normalizeTitle } from "./boardTitleIndex";
 import { updateBoardListItem } from "./boardDataStructure";
 import { isProjectMember } from "./permissions";
+import { calculateSortScore } from "./boardSortScore";
 
 /**
  * タイトルから新しいボードを作成する
@@ -45,8 +46,11 @@ export const createBoardFromTitle = async (
       projectId: projectId,
     };
 
+    // sortScoreを計算
+    const sortScore = calculateSortScore(false, now);
+
     // バッチ更新用のデータを準備
-    const updates: { [key: string]: Board | string } = {};
+    const updates: { [key: string]: Board | string | number } = {};
 
     // ボードデータ（IDを含む完全なBoard型）
     const completeBoard: Board = {
@@ -56,8 +60,11 @@ export const createBoardFromTitle = async (
 
     updates[`boards/${boardId}`] = completeBoard;
 
-    // プロジェクトボードの関連付け
-    updates[`projectBoards/${projectId}/${boardId}`] = completeBoard;
+    // プロジェクトボードの関連付け（sortScoreを含む）
+    updates[`projectBoards/${projectId}/${boardId}`] = {
+      ...completeBoard,
+      sortScore: sortScore,
+    };
 
     // タイトルインデックス
     const normalizedTitle = normalizeTitle(finalBoardName);

@@ -44,7 +44,11 @@ import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
 import { UnreadNoteIndicator } from "./UnreadNoteIndicator";
 import { useUnreadNotes } from "../hooks/useUnreadNotes";
-import { initializeSessionUnreadNotes, resetSession, addNewNoteToSession } from "../utils/sessionUnreadNotes";
+import {
+  initializeSessionUnreadNotes,
+  resetSession,
+  addNewNoteToSession,
+} from "../utils/sessionUnreadNotes";
 import { isNoteUnread } from "../utils/noteViewHistory";
 
 interface BoardProps {
@@ -151,7 +155,7 @@ export function Board({ user }: BoardProps) {
 
   // 未読付箋管理フック
   const { unreadNotes, focusNote, markNoteAsRead } = useUnreadNotes({
-    boardId: boardId || '',
+    boardId: boardId || "",
     notes,
     user,
     zoom: panZoom.zoom,
@@ -335,7 +339,7 @@ export function Board({ user }: BoardProps) {
     if (boardId) {
       // セッションをリセットして新しいセッションを開始
       resetSession();
-      
+
       // ボードの閲覧時刻を更新（次回アクセス時の未読判定用）
       updateBoardViewTime(boardId);
     }
@@ -842,8 +846,12 @@ export function Board({ user }: BoardProps) {
 
         set(noteRef, updatedNote);
 
-        // ボードの更新時刻を更新（内容が変更された場合のみ）
-        if (updates.content !== undefined && updates.content !== note.content) {
+        // ボードの更新時刻を更新（内容が変更された場合、または位置が確定した場合）
+        const shouldUpdateBoard = 
+          (updates.content !== undefined && updates.content !== note.content) ||
+          (updates.isDragging === false && note.isDragging === true);
+          
+        if (shouldUpdateBoard) {
           setTimeout(() => {
             try {
               updateBoardMetadata();
@@ -1833,21 +1841,21 @@ export function Board({ user }: BoardProps) {
   useEffect(() => {
     const handleFocusNote = (event: any) => {
       const { noteId, zoom, panX, panY } = event.detail;
-      
+
       // パンとズームを適用
       panZoom.setZoom(zoom);
       panZoom.setPanX(panX);
       panZoom.setPanY(panY);
-      
+
       // 付箋を選択状態にし、既読にマーク
       selection.setSelectedNoteIds(new Set([noteId]));
       markNoteAsRead(noteId);
     };
 
-    window.addEventListener('focusNote', handleFocusNote);
-    
+    window.addEventListener("focusNote", handleFocusNote);
+
     return () => {
-      window.removeEventListener('focusNote', handleFocusNote);
+      window.removeEventListener("focusNote", handleFocusNote);
     };
   }, [panZoom, selection, markNoteAsRead]);
 
@@ -2894,10 +2902,29 @@ export function Board({ user }: BoardProps) {
 
     try {
       const newPinnedState = !board.isPinned;
+      const now = Date.now();
+      const pinnedAt = newPinnedState ? now : null;
+
+      const { calculateSortScore } = await import("../utils/boardSortScore");
+      const updatedAt = board.updatedAt || board.createdAt || now;
+      const sortScore = calculateSortScore(
+        newPinnedState,
+        updatedAt,
+        pinnedAt ?? undefined
+      );
+
+      console.log(`📊 New sortScore: ${sortScore}`);
+
+      const updatedBoard = {
+        ...board,
+        isPinned: newPinnedState,
+        pinnedAt,
+        sortScore,
+      };
 
       // Update board in Firebase
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      await set(boardRef, { ...board, isPinned: newPinnedState });
+      await set(boardRef, updatedBoard);
 
       // Also update in projectBoards for consistency
       if (board.projectId) {
@@ -2905,7 +2932,7 @@ export function Board({ user }: BoardProps) {
           rtdb,
           `projectBoards/${board.projectId}/${boardId}`
         );
-        await set(projectBoardRef, { ...board, isPinned: newPinnedState });
+        await set(projectBoardRef, updatedBoard);
       }
     } catch (error) {
       console.error("Error toggling pin:", error);
@@ -3059,7 +3086,7 @@ export function Board({ user }: BoardProps) {
 
           <CursorDisplay cursors={cursors} projectId={projectId || undefined} />
           {renderSelectionBox()}
-          
+
           {/* 未読付箋インジケーター（ズームアウト時のみ表示） */}
           <UnreadNoteIndicator
             unreadNotes={unreadNotes}

@@ -4,6 +4,7 @@ import { Note } from "../types";
 import { getBoardThumbnail } from "./thumbnailGenerator";
 import { syncBoardToAlgoliaAsync } from "./algoliaSync";
 import { updateBoardTitleIndex } from "./boardTitleIndex";
+import { updateBoardSortScore } from "./boardSortScore";
 
 export interface BoardMetadata {
   title: string;
@@ -114,8 +115,9 @@ export async function updateBoardMetadata(
     const boardSnapshot = await get(boardRef);
     const boardData = boardSnapshot.val();
     
+    const now = Date.now();
     await update(boardRef, {
-      updatedAt: Date.now(),
+      updatedAt: now,
       metadata,
     });
 
@@ -123,9 +125,18 @@ export async function updateBoardMetadata(
     if (boardData?.projectId) {
       const projectBoardRef = ref(rtdb, `projectBoards/${boardData.projectId}/${boardId}`);
       await update(projectBoardRef, {
-        updatedAt: Date.now(),
+        updatedAt: now,
         metadata,
       });
+      
+      // sortScoreも更新
+      await updateBoardSortScore(
+        boardData.projectId, 
+        boardId, 
+        boardData.isPinned || false, 
+        now, 
+        boardData.pinnedAt ?? undefined
+      );
     }
 
     // Sync to Algolia asynchronously (non-blocking)

@@ -15,6 +15,7 @@ import {
   recordBoardNameChange,
 } from "../utils/historyManager";
 import { checkBoardEditPermission } from "../utils/permissions";
+import { updateBoardSortScore } from "../utils/boardSortScore";
 
 interface HeaderWrapperProps {
   user: User;
@@ -224,15 +225,20 @@ export const HeaderWrapper = memo(function HeaderWrapper({
             }
 
             // 並列でデータベース更新を実行
+            const now = Date.now();
             await Promise.all([
               set(boardRef, {
                 ...boardData,
                 name: finalName,
+                updatedAt: now,
               }),
               set(ref(rtdb, `projectBoards/${boardData.projectId}/${boardId}`), {
                 ...boardData,
                 name: finalName,
+                updatedAt: now,
               }),
+              // sortScoreも更新
+              updateBoardSortScore(boardData.projectId, boardId, boardData.isPinned || false, now, boardData.pinnedAt),
             ]);
 
             // バックグラウンドでメタデータ更新

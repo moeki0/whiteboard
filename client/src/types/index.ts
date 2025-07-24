@@ -51,6 +51,8 @@ export interface Board {
   projectId: string;
   updatedAt?: number;
   isPinned?: boolean;
+  pinnedAt?: number | null;
+  sortScore?: number;
   metadata?: {
     title?: string;
     description?: string;

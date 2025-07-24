@@ -7,6 +7,7 @@ import { useHistory } from "./useHistory";
 import { checkBoardEditPermission } from "../utils/permissions";
 import { generateNewBoardName } from "../utils/boardNaming";
 import { syncBoardToAlgoliaAsync } from "../utils/algoliaSync";
+import { updateBoardSortScore } from "../utils/boardSortScore";
 
 interface UseBoardActionsProps {
   user: User | null;
@@ -58,15 +59,19 @@ export function useBoardActions({
 
   // ボードの更新時刻を更新する関数
   const updateBoardTimestamp = useCallback(() => {
-    if (!boardId || !user?.uid) return;
+    if (!boardId || !user?.uid || !project?.id) return;
     try {
+      const now = Date.now();
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      const updateData = { updatedAt: Date.now() };
+      const updateData = { updatedAt: now };
       update(boardRef, updateData);
+      
+      // sortScoreも更新
+      updateBoardSortScore(project.id, boardId, board?.isPinned || false, now, board?.pinnedAt ?? undefined);
     } catch (error) {
       console.error("Error updating board timestamp:", error);
     }
-  }, [boardId, user?.uid]);
+  }, [boardId, user?.uid, project?.id, board?.isPinned, board?.pinnedAt]);
 
   // Algolia同期をトリガーする関数（非同期で実行）
   const syncToAlgolia = useCallback(() => {
