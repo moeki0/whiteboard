@@ -32,7 +32,7 @@ export async function updateBoardSortScore(
       updatedAt = snapshot.val() || Date.now();
     }
     
-    const sortScore = calculateSortScore(isPinned, updatedAt);
+    const sortScore = calculateSortScore(isPinned, updatedAt!);
     
     const updates: Record<string, number> = {};
     updates[`projectBoards/${projectId}/${boardId}/sortScore`] = sortScore;
