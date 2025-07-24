@@ -117,19 +117,37 @@ export function BoardSettings({ user }: BoardSettingsProps) {
     setIsPinning(true);
     try {
       const newPinnedState = !board.isPinned;
+      const now = Date.now();
+      const pinnedAt = newPinnedState ? now : null;
+      
+      console.log(`🔄 Toggling pin: ${board.isPinned} -> ${newPinnedState}, pinnedAt: ${pinnedAt}`);
+      
+      // Calculate new sortScore
+      const { calculateSortScore } = await import('../utils/boardSortScore');
+      const updatedAt = board.updatedAt || board.createdAt || now;
+      const sortScore = calculateSortScore(newPinnedState, updatedAt, pinnedAt ?? undefined);
+      
+      console.log(`📊 New sortScore: ${sortScore}`);
+      
+      const updatedBoard = { 
+        ...board, 
+        isPinned: newPinnedState,
+        pinnedAt,
+        sortScore
+      };
       
       // Update board in Firebase
       const boardRef = ref(rtdb, `boards/${boardId}`);
-      await set(boardRef, { ...board, isPinned: newPinnedState });
+      await set(boardRef, updatedBoard);
 
       // Also update in projectBoards for consistency
       if (board.projectId) {
         const projectBoardRef = ref(rtdb, `projectBoards/${board.projectId}/${boardId}`);
-        await set(projectBoardRef, { ...board, isPinned: newPinnedState });
+        await set(projectBoardRef, updatedBoard);
       }
 
       // Update local state
-      setBoard(prev => prev ? { ...prev, isPinned: newPinnedState } : null);
+      setBoard(prev => prev ? updatedBoard : null);
     } catch (error) {
       console.error("Error toggling pin:", error);
       alert("Failed to update pin status");

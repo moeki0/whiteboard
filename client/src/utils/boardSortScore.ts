@@ -3,15 +3,17 @@ import { rtdb } from '../config/firebase';
 
 /**
  * ボードのソートスコアを計算
- * pinned boards: 3000000000000 + updatedAt (最上位、新しい順)
- * normal boards: updatedAt (新しい順)
+ * pinned boards: 9000000000000000 - pinnedAt (pinnedが上位、古くピンしたものが上位、最近ピンしたものが下位)
+ * normal boards: 5000000000000000 + updatedAt (pinnedの下、新しいものが上位)
  * Firebase の limitToLast() で大きい値から取得
  */
-export function calculateSortScore(isPinned: boolean, updatedAt: number): number {
+export function calculateSortScore(isPinned: boolean, updatedAt: number, pinnedAt?: number): number {
   if (isPinned) {
-    return 3000000000000 + updatedAt; // pinnedは最も大きい値の範囲
+    // pinnedAtがある場合はそれを使用、無い場合はupdatedAtで代用  
+    const pinTime = pinnedAt || updatedAt;
+    return 9000000000000000 - pinTime; // ピンされたボードは一番上の範囲、古くピンしたものほど上位（最近ピンしたものが下）
   } else {
-    return updatedAt; // normalは updatedAt そのまま
+    return 5000000000000000 + updatedAt; // 通常ボードはピンの下の範囲、新しいものが上位（大きい値が上）
   }
 }
 
@@ -22,7 +24,8 @@ export async function updateBoardSortScore(
   projectId: string, 
   boardId: string, 
   isPinned: boolean = false, 
-  updatedAt?: number
+  updatedAt?: number,
+  pinnedAt?: number
 ): Promise<void> {
   try {
     // updatedAtが指定されていない場合は現在の値を取得
@@ -32,7 +35,7 @@ export async function updateBoardSortScore(
       updatedAt = snapshot.val() || Date.now();
     }
     
-    const sortScore = calculateSortScore(isPinned, updatedAt!);
+    const sortScore = calculateSortScore(isPinned, updatedAt!, pinnedAt);
     
     const updates: Record<string, number> = {};
     updates[`projectBoards/${projectId}/${boardId}/sortScore`] = sortScore;
@@ -71,7 +74,8 @@ export async function updateAllBoardSortScores(projectId: string): Promise<void>
       const board = boardData as any;
       const isPinned = board.isPinned || false;
       const updatedAt = board.updatedAt || board.createdAt || Date.now();
-      const sortScore = calculateSortScore(isPinned, updatedAt);
+      const pinnedAt = board.pinnedAt;
+      const sortScore = calculateSortScore(isPinned, updatedAt, pinnedAt);
       
       updates[`projectBoards/${projectId}/${boardId}/sortScore`] = sortScore;
       updateCount++;
