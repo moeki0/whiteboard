@@ -45,8 +45,9 @@ export const HeaderWrapper = memo(function HeaderWrapper({
     const getPageData = async () => {
       let foundProjectId = currentProjectId;
 
-      // Reset states
-      setProjectName("");
+      // Reset states, but preserve project name from sessionStorage if available
+      const savedProjectName = sessionStorage.getItem("currentProjectName");
+      setProjectName(savedProjectName || "");
       setFoundProjectId("");
       setProjectSlug("");
       setBoardTitle("");
@@ -102,7 +103,10 @@ export const HeaderWrapper = memo(function HeaderWrapper({
           const projectSnapshot = await get(projectRef);
           if (projectSnapshot.exists()) {
             const projectData = projectSnapshot.val();
-            setProjectName(projectData.name);
+            // Only update project name if we get a valid name, otherwise keep existing
+            if (projectData.name) {
+              setProjectName(projectData.name);
+            }
             setProjectSlug(projectData.slug || "");
             setFoundProjectId(foundProjectId);
           }

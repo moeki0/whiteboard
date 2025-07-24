@@ -37,6 +37,7 @@ export const Header = memo(function Header({
   backButton,
   user,
   children,
+  title,
   subtitle,
   titleLink,
   onSubtitleClick,
@@ -60,11 +61,8 @@ export const Header = memo(function Header({
   const desktopSearchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
-  const savedProjectName =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("currentProjectName")
-      : null;
-  const displayTitle = savedProjectName;
+  // Use title prop passed from HeaderWrapper instead of directly accessing sessionStorage
+  const displayTitle = title;
 
   // Search boards using Algolia
   const searchBoards = async (query: string) => {
@@ -121,6 +119,24 @@ export const Header = memo(function Header({
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, currentProjectId]);
+
+  // Auto-scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && showDropdown) {
+      const dropdownElement = document.querySelector('.search-dropdown');
+      if (dropdownElement) {
+        const allItems = dropdownElement.querySelectorAll('.search-dropdown-item:not(.searching):not(.no-results)');
+        const selectedElement = allItems[selectedIndex];
+        if (selectedElement) {
+          selectedElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
+      }
+    }
+  }, [selectedIndex, showDropdown]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
