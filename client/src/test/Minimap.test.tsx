@@ -17,7 +17,7 @@ describe("Minimap", () => {
       userId: "user1",
     },
     {
-      id: "note2", 
+      id: "note2",
       type: "note",
       x: 300,
       y: 400,
@@ -52,11 +52,13 @@ describe("Minimap", () => {
 
   it("should call onViewportChange when clicked", () => {
     const mockOnViewportChange = vi.fn();
-    render(<Minimap {...defaultProps} onViewportChange={mockOnViewportChange} />);
-    
+    render(
+      <Minimap {...defaultProps} onViewportChange={mockOnViewportChange} />
+    );
+
     const minimap = screen.getByTestId("minimap");
     fireEvent.mouseDown(minimap, { clientX: 50, clientY: 50 });
-    
+
     expect(mockOnViewportChange).toHaveBeenCalled();
   });
 
@@ -68,10 +70,10 @@ describe("Minimap", () => {
   it("should have fixed position at bottom left", () => {
     render(<Minimap {...defaultProps} />);
     const minimap = screen.getByTestId("minimap");
-    
+
     expect(minimap).toHaveStyle({
       position: "fixed",
-      bottom: "35px",
+      bottom: "36px",
       left: "8px",
     });
   });
@@ -95,7 +97,9 @@ describe("Minimap", () => {
     );
 
     // 大文字付箋は黒い背景色（#333）を持つ
-    const largeNoteElement = container.querySelector('[style*="background-color: rgb(51, 51, 51)"]');
+    const largeNoteElement = container.querySelector(
+      '[style*="background-color: rgb(51, 51, 51)"]'
+    );
     expect(largeNoteElement).toBeInTheDocument();
   });
 
@@ -118,19 +122,23 @@ describe("Minimap", () => {
     );
 
     // メディアURLの付箋は通常の色
-    const mediaElement = container.querySelector('[style*="background-color: rgb(255, 87, 34)"]');
+    const mediaElement = container.querySelector(
+      '[style*="background-color: rgb(255, 87, 34)"]'
+    );
     expect(mediaElement).not.toBeInTheDocument();
   });
 
   it("should show unread marker on unread notes", () => {
     const unreadNoteIds = new Set(["note1"]);
-    
+
     const { container } = render(
       <Minimap {...defaultProps} unreadNoteIds={unreadNoteIds} />
     );
 
     // 未読マーカーが表示されていることを確認
-    const unreadMarker = container.querySelector('[style*="background-color: rgb(76, 175, 80)"]');
+    const unreadMarker = container.querySelector(
+      '[style*="background-color: rgb(76, 175, 80)"]'
+    );
     expect(unreadMarker).toBeInTheDocument();
     expect(unreadMarker).toHaveStyle({
       width: "4px",
@@ -141,13 +149,15 @@ describe("Minimap", () => {
 
   it("should not show unread marker on read notes", () => {
     const unreadNoteIds = new Set<string>();
-    
+
     const { container } = render(
       <Minimap {...defaultProps} unreadNoteIds={unreadNoteIds} />
     );
 
     // 未読マーカーが表示されていないことを確認
-    const unreadMarker = container.querySelector('[style*="background-color: rgb(76, 175, 80)"]');
+    const unreadMarker = container.querySelector(
+      '[style*="background-color: rgb(76, 175, 80)"]'
+    );
     expect(unreadMarker).not.toBeInTheDocument();
   });
 });
