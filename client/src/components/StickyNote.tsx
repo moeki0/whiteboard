@@ -2519,7 +2519,7 @@ const StickyNoteComponent = function StickyNote({
                       }}
                       onClick={() => {
                         if (boardId) {
-                          navigateToBoard(boardId);
+                          window.location.href = `/${boardId}`;
                         } else {
                           // ボードが存在しない場合は新規作成
                           const newBoardUrl = project?.slug

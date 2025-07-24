@@ -280,7 +280,7 @@ export const Header = memo(function Header({
                       if (e.key === "Enter") {
                         onSubtitleSave?.();
                       } else if (e.key === "Escape") {
-                        onSubtitleCancel?.();
+                        onSubtitleSave?.();
                       }
                     }}
                     onBlur={onSubtitleSave}

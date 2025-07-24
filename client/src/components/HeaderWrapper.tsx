@@ -128,11 +128,17 @@ export const HeaderWrapper = memo(function HeaderWrapper({
       }
     };
 
-    const cleanup = getPageData();
+    let cleanup: (() => void) | undefined;
+    
+    getPageData().then((result) => {
+      if (typeof result === 'function') {
+        cleanup = result;
+      }
+    });
     
     // Cleanup function
     return () => {
-      if (cleanup && typeof cleanup === 'function') {
+      if (cleanup) {
         cleanup();
       }
     };
