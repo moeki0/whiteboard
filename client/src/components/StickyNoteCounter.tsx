@@ -10,6 +10,8 @@ interface StickyNoteCounterProps {
   onDelete: () => void;
   project?: Project | null;
   boardName?: string;
+  isMinimapOpen?: boolean;
+  onToggleMinimap?: () => void;
 }
 
 export function StickyNoteCounter({
@@ -19,6 +21,8 @@ export function StickyNoteCounter({
   canEdit,
   onPin,
   onDelete,
+  isMinimapOpen,
+  onToggleMinimap,
 }: StickyNoteCounterProps) {
   if (!boardId || !canEdit) {
     return <div className="sticky-note-counter">{noteCount} Notes</div>;
@@ -29,6 +33,17 @@ export function StickyNoteCounter({
       <>
         <div className="counter-text">{noteCount} Notes</div>
         <div className="counter-actions">
+          {onToggleMinimap && (
+            <button
+              className={`action-btn minimap-btn ${
+                isMinimapOpen ? "active" : ""
+              }`}
+              onClick={onToggleMinimap}
+              title={isMinimapOpen ? "Hide minimap" : "Show minimap"}
+            >
+              Minimap
+            </button>
+          )}
           <button
             className={`action-btn pin-btn ${isPinned ? "pinned" : ""}`}
             onClick={onPin}

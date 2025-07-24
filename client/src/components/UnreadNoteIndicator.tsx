@@ -68,6 +68,7 @@ const UnreadIndicatorDot: React.FC<UnreadIndicatorDotProps> = ({
       style={{
         left: firstNote.x,
         top: firstNote.y,
+        zIndex: 999999,
       }}
       onClick={handleClick}
     >

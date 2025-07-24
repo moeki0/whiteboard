@@ -1,0 +1,24 @@
+.minimap {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  transform-origin: bottom left;
+}
+
+.minimap-enter {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.minimap-enter-active {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.minimap-exit {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.minimap-exit-active {
+  transform: scale(0.8);
+  opacity: 0;
+}

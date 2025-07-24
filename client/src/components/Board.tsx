@@ -51,6 +51,7 @@ import {
 } from "../utils/sessionUnreadNotes";
 import { isNoteUnread } from "../utils/noteViewHistory";
 import { LargeNoteOverlay } from "./LargeNoteOverlay";
+import { Minimap } from "./Minimap";
 
 interface BoardProps {
   user: User | null;
@@ -86,6 +87,21 @@ export function Board({ user }: BoardProps) {
 
   // グループ関連の状態
   const [groups, setGroups] = useState<GroupType[]>([]);
+  
+  // ミニマップの開閉状態
+  const [isMinimapOpen, setIsMinimapOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('minimapOpen');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // ミニマップの開閉を切り替える
+  const toggleMinimap = useCallback(() => {
+    setIsMinimapOpen(prev => {
+      const newState = !prev;
+      localStorage.setItem('minimapOpen', String(newState));
+      return newState;
+    });
+  }, []);
   // 矢印作成関連の状態（削除済み）
   // const [isCreatingArrow, setIsCreatingArrow] = useState<boolean>(false);
   // const [arrowStartPoint, setArrowStartPoint] = useState<{
@@ -259,6 +275,11 @@ export function Board({ user }: BoardProps) {
     panY: panZoom.panY,
     zoom: panZoom.zoom,
   });
+
+  // 未読ノートのIDセットを作成
+  const unreadNoteIds = useMemo(() => {
+    return new Set(unreadNotes.map(note => note.id));
+  }, [unreadNotes]);
 
   // ハッシュがない場合の初期位置を設定
   useEffect(() => {
@@ -3094,6 +3115,8 @@ export function Board({ user }: BoardProps) {
         }
         onPin={handleTogglePin}
         onDelete={handleDeleteBoard}
+        isMinimapOpen={isMinimapOpen}
+        onToggleMinimap={toggleMinimap}
       />
 
       {/* 大文字付箋オーバーレイ */}
@@ -3104,6 +3127,23 @@ export function Board({ user }: BoardProps) {
         panY={panZoom.panY}
         onNoteClick={() => {}}
       />
+
+      {/* ミニマップ */}
+      {isMinimapOpen && (
+        <Minimap
+          notes={notes}
+          viewportX={panZoom.panX}
+          viewportY={panZoom.panY}
+          viewportWidth={window.innerWidth}
+          viewportHeight={window.innerHeight}
+          zoom={panZoom.zoom}
+          onViewportChange={(newPanX, newPanY) => {
+            panZoom.setPanX(newPanX);
+            panZoom.setPanY(newPanY);
+          }}
+          unreadNoteIds={unreadNoteIds}
+        />
+      )}
     </div>
   );
 }
