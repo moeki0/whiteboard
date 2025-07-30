@@ -67,8 +67,10 @@ describe('exportData', () => {
         notes: [{ 
           id: 'note1', 
           ...mockNotes.note1,
-          x: 2500, // 100 + 2400
-          y: 2600  // 200 + 2400
+          x: -700, // 100 - 800
+          y: -200, // 200 - 400
+          width: 160, // 正規化された数値
+          height: 41.5 // 計算された高さ
         }],
         arrows: [{ id: 'arrow1', ...mockArrows.arrow1 }],
         groups: [],
