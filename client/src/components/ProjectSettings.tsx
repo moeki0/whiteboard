@@ -5,6 +5,7 @@ import { ref, get, set, remove } from "firebase/database";
 import { customAlphabet } from "nanoid";
 import { User, Project } from "../types";
 import { canManageAdmins, isProjectAdmin } from "../utils/permissions";
+import { exportProjectData, downloadAsJSON } from "../utils/exportData";
 import "./SettingsCommon.css";
 
 interface ProjectSettingsProps {
@@ -32,6 +33,7 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
   const [isOwner, setIsOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [canManageAdminsFlag, setCanManageAdminsFlag] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const generateBookmarklet = useCallback(() => {
     if (!project?.cosenseProjectName) {
@@ -366,6 +368,38 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
     }
   };
 
+  const exportProject = async () => {
+    console.log(`🎯 Export button clicked for project:`, { projectId, projectName: project?.name });
+    
+    if (!projectId) {
+      console.error("❌ Project ID not found");
+      alert("Project ID not found");
+      return;
+    }
+
+    setIsExporting(true);
+    console.log("⏳ Setting export state to loading...");
+    
+    try {
+      console.log("🚀 Starting project export...");
+      const exportData = await exportProjectData(projectId);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${project?.name || 'project'}_export_${timestamp}.json`;
+      
+      console.log("📥 Triggering download...", { filename });
+      downloadAsJSON(exportData, filename);
+      
+      console.log("🎉 Export completed successfully!");
+      alert("Project data exported successfully!");
+    } catch (error) {
+      console.error("❌ Error exporting project data:", error);
+      alert("Failed to export project data. Please try again.");
+    } finally {
+      setIsExporting(false);
+      console.log("✅ Export state reset to normal");
+    }
+  };
+
   const deleteProject = async () => {
     if (!isOwner) {
       alert("Only project owners can delete projects");
@@ -570,6 +604,21 @@ export function ProjectSettings({ user }: ProjectSettingsProps) {
           <div>
             <button onClick={openBookmarkletPage}>
               Open Cosense Bookmarklet
+            </button>
+          </div>
+        </div>
+
+        {/* Export Data */}
+        <div className="settings-section">
+          <h2>Export Data</h2>
+          <div className="setting-item">
+            <p>Export all project data including boards, notes, and arrows as JSON.</p>
+            <button 
+              onClick={exportProject} 
+              className="export-btn"
+              disabled={isExporting}
+            >
+              {isExporting ? "Exporting..." : "Export Project Data"}
             </button>
           </div>
         </div>

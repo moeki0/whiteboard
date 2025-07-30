@@ -44,6 +44,7 @@ import { isNoteInSelection } from "../utils/noteUtils";
 import { updateBoardViewTime } from "../utils/boardViewHistory";
 import { UnreadNoteIndicator } from "./UnreadNoteIndicator";
 import { useUnreadNotes } from "../hooks/useUnreadNotes";
+import { exportBoardData, downloadAsJSON } from "../utils/exportData";
 import {
   initializeSessionUnreadNotes,
   resetSession,
@@ -2699,6 +2700,33 @@ export function Board({ user }: BoardProps) {
     },
   });
 
+  // Export board function
+  const exportBoard = useCallback(async () => {
+    console.log(`🎯 Board export triggered:`, { boardId, boardName: board?.name });
+    
+    if (!boardId) {
+      console.error("❌ Board ID not found");
+      alert("Board ID not found");
+      return;
+    }
+
+    try {
+      console.log("🚀 Starting board export...");
+      const exportData = await exportBoardData(boardId);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${board?.name || 'board'}_export_${timestamp}.json`;
+      
+      console.log("📥 Triggering download...", { filename });
+      downloadAsJSON(exportData, filename);
+      
+      console.log("🎉 Board export completed successfully!");
+      alert("Board data exported successfully!");
+    } catch (error) {
+      console.error("❌ Error exporting board data:", error);
+      alert("Failed to export board data. Please try again.");
+    }
+  }, [boardId, board?.name]);
+
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (!isInputFocused()) {
@@ -2728,6 +2756,13 @@ export function Board({ user }: BoardProps) {
         }
         keyboardHandlers.handleEscapeKey(e);
         keyboardHandlers.handleEnterKey(e);
+        
+        // Export board with Ctrl/Cmd+E
+        if ((e.ctrlKey || e.metaKey) && e.key === "e") {
+          e.preventDefault();
+          exportBoard();
+          return;
+        }
       }
     };
 
